@@ -27,7 +27,7 @@ public final class FakePublisher: PublisherProtocol {
       $0 += messages.count
       return $0
     }
-    return messages.indices.map {
+    return messages.indices.reversed().map {
       PublishedMessage(id: String(maxID - $0))
     }
   }

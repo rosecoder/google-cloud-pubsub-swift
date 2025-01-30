@@ -37,11 +37,6 @@ let package = Package(
         .product(name: "GRPCNIOTransportHTTP2", package: "grpc-swift-nio-transport"),
       ]
     ),
-    .target(
-      name: "GoogleCloudPubSubTesting",
-      dependencies: [
-        "GoogleCloudPubSub"
-      ]),
     .testTarget(
       name: "GoogleCloudPubSubTests",
       dependencies: [
@@ -50,5 +45,16 @@ let package = Package(
           name: "ServiceLifecycleTestKit", package: "swift-service-lifecycle"),
       ]
     ),
+
+    .target(
+      name: "GoogleCloudPubSubTesting",
+      dependencies: [
+        "GoogleCloudPubSub"
+      ]),
+    .testTarget(
+      name: "GoogleCloudPubSubTestingTests",
+      dependencies: [
+        "GoogleCloudPubSubTesting"
+      ]),
   ]
 )
