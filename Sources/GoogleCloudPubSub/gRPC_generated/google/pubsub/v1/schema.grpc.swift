@@ -28,133 +28,133 @@ import SwiftProtobuf
 // MARK: - google.pubsub.v1.SchemaService
 
 /// Namespace containing generated types for the "google.pubsub.v1.SchemaService" service.
-internal enum Google_Pubsub_V1_SchemaService {
+package enum Google_Pubsub_V1_SchemaService {
     /// Service descriptor for the "google.pubsub.v1.SchemaService" service.
-    internal static let descriptor = GRPCCore.ServiceDescriptor(fullyQualifiedService: "google.pubsub.v1.SchemaService")
+    package static let descriptor = GRPCCore.ServiceDescriptor(fullyQualifiedService: "google.pubsub.v1.SchemaService")
     /// Namespace for method metadata.
-    internal enum Method {
+    package enum Method {
         /// Namespace for "CreateSchema" metadata.
-        internal enum CreateSchema {
+        package enum CreateSchema {
             /// Request type for "CreateSchema".
-            internal typealias Input = Google_Pubsub_V1_CreateSchemaRequest
+            package typealias Input = Google_Pubsub_V1_CreateSchemaRequest
             /// Response type for "CreateSchema".
-            internal typealias Output = Google_Pubsub_V1_Schema
+            package typealias Output = Google_Pubsub_V1_Schema
             /// Descriptor for "CreateSchema".
-            internal static let descriptor = GRPCCore.MethodDescriptor(
+            package static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "google.pubsub.v1.SchemaService"),
                 method: "CreateSchema"
             )
         }
         /// Namespace for "GetSchema" metadata.
-        internal enum GetSchema {
+        package enum GetSchema {
             /// Request type for "GetSchema".
-            internal typealias Input = Google_Pubsub_V1_GetSchemaRequest
+            package typealias Input = Google_Pubsub_V1_GetSchemaRequest
             /// Response type for "GetSchema".
-            internal typealias Output = Google_Pubsub_V1_Schema
+            package typealias Output = Google_Pubsub_V1_Schema
             /// Descriptor for "GetSchema".
-            internal static let descriptor = GRPCCore.MethodDescriptor(
+            package static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "google.pubsub.v1.SchemaService"),
                 method: "GetSchema"
             )
         }
         /// Namespace for "ListSchemas" metadata.
-        internal enum ListSchemas {
+        package enum ListSchemas {
             /// Request type for "ListSchemas".
-            internal typealias Input = Google_Pubsub_V1_ListSchemasRequest
+            package typealias Input = Google_Pubsub_V1_ListSchemasRequest
             /// Response type for "ListSchemas".
-            internal typealias Output = Google_Pubsub_V1_ListSchemasResponse
+            package typealias Output = Google_Pubsub_V1_ListSchemasResponse
             /// Descriptor for "ListSchemas".
-            internal static let descriptor = GRPCCore.MethodDescriptor(
+            package static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "google.pubsub.v1.SchemaService"),
                 method: "ListSchemas"
             )
         }
         /// Namespace for "ListSchemaRevisions" metadata.
-        internal enum ListSchemaRevisions {
+        package enum ListSchemaRevisions {
             /// Request type for "ListSchemaRevisions".
-            internal typealias Input = Google_Pubsub_V1_ListSchemaRevisionsRequest
+            package typealias Input = Google_Pubsub_V1_ListSchemaRevisionsRequest
             /// Response type for "ListSchemaRevisions".
-            internal typealias Output = Google_Pubsub_V1_ListSchemaRevisionsResponse
+            package typealias Output = Google_Pubsub_V1_ListSchemaRevisionsResponse
             /// Descriptor for "ListSchemaRevisions".
-            internal static let descriptor = GRPCCore.MethodDescriptor(
+            package static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "google.pubsub.v1.SchemaService"),
                 method: "ListSchemaRevisions"
             )
         }
         /// Namespace for "CommitSchema" metadata.
-        internal enum CommitSchema {
+        package enum CommitSchema {
             /// Request type for "CommitSchema".
-            internal typealias Input = Google_Pubsub_V1_CommitSchemaRequest
+            package typealias Input = Google_Pubsub_V1_CommitSchemaRequest
             /// Response type for "CommitSchema".
-            internal typealias Output = Google_Pubsub_V1_Schema
+            package typealias Output = Google_Pubsub_V1_Schema
             /// Descriptor for "CommitSchema".
-            internal static let descriptor = GRPCCore.MethodDescriptor(
+            package static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "google.pubsub.v1.SchemaService"),
                 method: "CommitSchema"
             )
         }
         /// Namespace for "RollbackSchema" metadata.
-        internal enum RollbackSchema {
+        package enum RollbackSchema {
             /// Request type for "RollbackSchema".
-            internal typealias Input = Google_Pubsub_V1_RollbackSchemaRequest
+            package typealias Input = Google_Pubsub_V1_RollbackSchemaRequest
             /// Response type for "RollbackSchema".
-            internal typealias Output = Google_Pubsub_V1_Schema
+            package typealias Output = Google_Pubsub_V1_Schema
             /// Descriptor for "RollbackSchema".
-            internal static let descriptor = GRPCCore.MethodDescriptor(
+            package static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "google.pubsub.v1.SchemaService"),
                 method: "RollbackSchema"
             )
         }
         /// Namespace for "DeleteSchemaRevision" metadata.
-        internal enum DeleteSchemaRevision {
+        package enum DeleteSchemaRevision {
             /// Request type for "DeleteSchemaRevision".
-            internal typealias Input = Google_Pubsub_V1_DeleteSchemaRevisionRequest
+            package typealias Input = Google_Pubsub_V1_DeleteSchemaRevisionRequest
             /// Response type for "DeleteSchemaRevision".
-            internal typealias Output = Google_Pubsub_V1_Schema
+            package typealias Output = Google_Pubsub_V1_Schema
             /// Descriptor for "DeleteSchemaRevision".
-            internal static let descriptor = GRPCCore.MethodDescriptor(
+            package static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "google.pubsub.v1.SchemaService"),
                 method: "DeleteSchemaRevision"
             )
         }
         /// Namespace for "DeleteSchema" metadata.
-        internal enum DeleteSchema {
+        package enum DeleteSchema {
             /// Request type for "DeleteSchema".
-            internal typealias Input = Google_Pubsub_V1_DeleteSchemaRequest
+            package typealias Input = Google_Pubsub_V1_DeleteSchemaRequest
             /// Response type for "DeleteSchema".
-            internal typealias Output = SwiftProtobuf.Google_Protobuf_Empty
+            package typealias Output = SwiftProtobuf.Google_Protobuf_Empty
             /// Descriptor for "DeleteSchema".
-            internal static let descriptor = GRPCCore.MethodDescriptor(
+            package static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "google.pubsub.v1.SchemaService"),
                 method: "DeleteSchema"
             )
         }
         /// Namespace for "ValidateSchema" metadata.
-        internal enum ValidateSchema {
+        package enum ValidateSchema {
             /// Request type for "ValidateSchema".
-            internal typealias Input = Google_Pubsub_V1_ValidateSchemaRequest
+            package typealias Input = Google_Pubsub_V1_ValidateSchemaRequest
             /// Response type for "ValidateSchema".
-            internal typealias Output = Google_Pubsub_V1_ValidateSchemaResponse
+            package typealias Output = Google_Pubsub_V1_ValidateSchemaResponse
             /// Descriptor for "ValidateSchema".
-            internal static let descriptor = GRPCCore.MethodDescriptor(
+            package static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "google.pubsub.v1.SchemaService"),
                 method: "ValidateSchema"
             )
         }
         /// Namespace for "ValidateMessage" metadata.
-        internal enum ValidateMessage {
+        package enum ValidateMessage {
             /// Request type for "ValidateMessage".
-            internal typealias Input = Google_Pubsub_V1_ValidateMessageRequest
+            package typealias Input = Google_Pubsub_V1_ValidateMessageRequest
             /// Response type for "ValidateMessage".
-            internal typealias Output = Google_Pubsub_V1_ValidateMessageResponse
+            package typealias Output = Google_Pubsub_V1_ValidateMessageResponse
             /// Descriptor for "ValidateMessage".
-            internal static let descriptor = GRPCCore.MethodDescriptor(
+            package static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "google.pubsub.v1.SchemaService"),
                 method: "ValidateMessage"
             )
         }
         /// Descriptors for all methods in the "google.pubsub.v1.SchemaService" service.
-        internal static let descriptors: [GRPCCore.MethodDescriptor] = [
+        package static let descriptors: [GRPCCore.MethodDescriptor] = [
             CreateSchema.descriptor,
             GetSchema.descriptor,
             ListSchemas.descriptor,
@@ -171,7 +171,7 @@ internal enum Google_Pubsub_V1_SchemaService {
 
 extension GRPCCore.ServiceDescriptor {
     /// Service descriptor for the "google.pubsub.v1.SchemaService" service.
-    internal static let google_pubsub_v1_SchemaService = GRPCCore.ServiceDescriptor(fullyQualifiedService: "google.pubsub.v1.SchemaService")
+    package static let google_pubsub_v1_SchemaService = GRPCCore.ServiceDescriptor(fullyQualifiedService: "google.pubsub.v1.SchemaService")
 }
 
 // MARK: google.pubsub.v1.SchemaService (client)
@@ -185,7 +185,7 @@ extension Google_Pubsub_V1_SchemaService {
     /// > Source IDL Documentation:
     /// >
     /// > Service for doing schema-related operations.
-    internal protocol ClientProtocol: Sendable {
+    package protocol ClientProtocol: Sendable {
         /// Call the "CreateSchema" method.
         ///
         /// > Source IDL Documentation:
@@ -426,14 +426,14 @@ extension Google_Pubsub_V1_SchemaService {
     /// > Source IDL Documentation:
     /// >
     /// > Service for doing schema-related operations.
-    internal struct Client: ClientProtocol {
+    package struct Client: ClientProtocol {
         private let client: GRPCCore.GRPCClient
 
         /// Creates a new client wrapping the provided `GRPCCore.GRPCClient`.
         ///
         /// - Parameters:
         ///   - client: A `GRPCCore.GRPCClient` providing a communication channel to the service.
-        internal init(wrapping client: GRPCCore.GRPCClient) {
+        package init(wrapping client: GRPCCore.GRPCClient) {
             self.client = client
         }
 
@@ -452,7 +452,7 @@ extension Google_Pubsub_V1_SchemaService {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        internal func createSchema<Result>(
+        package func createSchema<Result>(
             request: GRPCCore.ClientRequest<Google_Pubsub_V1_CreateSchemaRequest>,
             serializer: some GRPCCore.MessageSerializer<Google_Pubsub_V1_CreateSchemaRequest>,
             deserializer: some GRPCCore.MessageDeserializer<Google_Pubsub_V1_Schema>,
@@ -486,7 +486,7 @@ extension Google_Pubsub_V1_SchemaService {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        internal func getSchema<Result>(
+        package func getSchema<Result>(
             request: GRPCCore.ClientRequest<Google_Pubsub_V1_GetSchemaRequest>,
             serializer: some GRPCCore.MessageSerializer<Google_Pubsub_V1_GetSchemaRequest>,
             deserializer: some GRPCCore.MessageDeserializer<Google_Pubsub_V1_Schema>,
@@ -520,7 +520,7 @@ extension Google_Pubsub_V1_SchemaService {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        internal func listSchemas<Result>(
+        package func listSchemas<Result>(
             request: GRPCCore.ClientRequest<Google_Pubsub_V1_ListSchemasRequest>,
             serializer: some GRPCCore.MessageSerializer<Google_Pubsub_V1_ListSchemasRequest>,
             deserializer: some GRPCCore.MessageDeserializer<Google_Pubsub_V1_ListSchemasResponse>,
@@ -554,7 +554,7 @@ extension Google_Pubsub_V1_SchemaService {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        internal func listSchemaRevisions<Result>(
+        package func listSchemaRevisions<Result>(
             request: GRPCCore.ClientRequest<Google_Pubsub_V1_ListSchemaRevisionsRequest>,
             serializer: some GRPCCore.MessageSerializer<Google_Pubsub_V1_ListSchemaRevisionsRequest>,
             deserializer: some GRPCCore.MessageDeserializer<Google_Pubsub_V1_ListSchemaRevisionsResponse>,
@@ -588,7 +588,7 @@ extension Google_Pubsub_V1_SchemaService {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        internal func commitSchema<Result>(
+        package func commitSchema<Result>(
             request: GRPCCore.ClientRequest<Google_Pubsub_V1_CommitSchemaRequest>,
             serializer: some GRPCCore.MessageSerializer<Google_Pubsub_V1_CommitSchemaRequest>,
             deserializer: some GRPCCore.MessageDeserializer<Google_Pubsub_V1_Schema>,
@@ -622,7 +622,7 @@ extension Google_Pubsub_V1_SchemaService {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        internal func rollbackSchema<Result>(
+        package func rollbackSchema<Result>(
             request: GRPCCore.ClientRequest<Google_Pubsub_V1_RollbackSchemaRequest>,
             serializer: some GRPCCore.MessageSerializer<Google_Pubsub_V1_RollbackSchemaRequest>,
             deserializer: some GRPCCore.MessageDeserializer<Google_Pubsub_V1_Schema>,
@@ -656,7 +656,7 @@ extension Google_Pubsub_V1_SchemaService {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        internal func deleteSchemaRevision<Result>(
+        package func deleteSchemaRevision<Result>(
             request: GRPCCore.ClientRequest<Google_Pubsub_V1_DeleteSchemaRevisionRequest>,
             serializer: some GRPCCore.MessageSerializer<Google_Pubsub_V1_DeleteSchemaRevisionRequest>,
             deserializer: some GRPCCore.MessageDeserializer<Google_Pubsub_V1_Schema>,
@@ -690,7 +690,7 @@ extension Google_Pubsub_V1_SchemaService {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        internal func deleteSchema<Result>(
+        package func deleteSchema<Result>(
             request: GRPCCore.ClientRequest<Google_Pubsub_V1_DeleteSchemaRequest>,
             serializer: some GRPCCore.MessageSerializer<Google_Pubsub_V1_DeleteSchemaRequest>,
             deserializer: some GRPCCore.MessageDeserializer<SwiftProtobuf.Google_Protobuf_Empty>,
@@ -724,7 +724,7 @@ extension Google_Pubsub_V1_SchemaService {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        internal func validateSchema<Result>(
+        package func validateSchema<Result>(
             request: GRPCCore.ClientRequest<Google_Pubsub_V1_ValidateSchemaRequest>,
             serializer: some GRPCCore.MessageSerializer<Google_Pubsub_V1_ValidateSchemaRequest>,
             deserializer: some GRPCCore.MessageDeserializer<Google_Pubsub_V1_ValidateSchemaResponse>,
@@ -758,7 +758,7 @@ extension Google_Pubsub_V1_SchemaService {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        internal func validateMessage<Result>(
+        package func validateMessage<Result>(
             request: GRPCCore.ClientRequest<Google_Pubsub_V1_ValidateMessageRequest>,
             serializer: some GRPCCore.MessageSerializer<Google_Pubsub_V1_ValidateMessageRequest>,
             deserializer: some GRPCCore.MessageDeserializer<Google_Pubsub_V1_ValidateMessageResponse>,
@@ -794,7 +794,7 @@ extension Google_Pubsub_V1_SchemaService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func createSchema<Result>(
+    package func createSchema<Result>(
         request: GRPCCore.ClientRequest<Google_Pubsub_V1_CreateSchemaRequest>,
         options: GRPCCore.CallOptions = .defaults,
         onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Google_Pubsub_V1_Schema>) async throws -> Result = { response in
@@ -823,7 +823,7 @@ extension Google_Pubsub_V1_SchemaService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func getSchema<Result>(
+    package func getSchema<Result>(
         request: GRPCCore.ClientRequest<Google_Pubsub_V1_GetSchemaRequest>,
         options: GRPCCore.CallOptions = .defaults,
         onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Google_Pubsub_V1_Schema>) async throws -> Result = { response in
@@ -852,7 +852,7 @@ extension Google_Pubsub_V1_SchemaService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func listSchemas<Result>(
+    package func listSchemas<Result>(
         request: GRPCCore.ClientRequest<Google_Pubsub_V1_ListSchemasRequest>,
         options: GRPCCore.CallOptions = .defaults,
         onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Google_Pubsub_V1_ListSchemasResponse>) async throws -> Result = { response in
@@ -881,7 +881,7 @@ extension Google_Pubsub_V1_SchemaService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func listSchemaRevisions<Result>(
+    package func listSchemaRevisions<Result>(
         request: GRPCCore.ClientRequest<Google_Pubsub_V1_ListSchemaRevisionsRequest>,
         options: GRPCCore.CallOptions = .defaults,
         onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Google_Pubsub_V1_ListSchemaRevisionsResponse>) async throws -> Result = { response in
@@ -910,7 +910,7 @@ extension Google_Pubsub_V1_SchemaService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func commitSchema<Result>(
+    package func commitSchema<Result>(
         request: GRPCCore.ClientRequest<Google_Pubsub_V1_CommitSchemaRequest>,
         options: GRPCCore.CallOptions = .defaults,
         onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Google_Pubsub_V1_Schema>) async throws -> Result = { response in
@@ -939,7 +939,7 @@ extension Google_Pubsub_V1_SchemaService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func rollbackSchema<Result>(
+    package func rollbackSchema<Result>(
         request: GRPCCore.ClientRequest<Google_Pubsub_V1_RollbackSchemaRequest>,
         options: GRPCCore.CallOptions = .defaults,
         onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Google_Pubsub_V1_Schema>) async throws -> Result = { response in
@@ -968,7 +968,7 @@ extension Google_Pubsub_V1_SchemaService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func deleteSchemaRevision<Result>(
+    package func deleteSchemaRevision<Result>(
         request: GRPCCore.ClientRequest<Google_Pubsub_V1_DeleteSchemaRevisionRequest>,
         options: GRPCCore.CallOptions = .defaults,
         onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Google_Pubsub_V1_Schema>) async throws -> Result = { response in
@@ -997,7 +997,7 @@ extension Google_Pubsub_V1_SchemaService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func deleteSchema<Result>(
+    package func deleteSchema<Result>(
         request: GRPCCore.ClientRequest<Google_Pubsub_V1_DeleteSchemaRequest>,
         options: GRPCCore.CallOptions = .defaults,
         onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<SwiftProtobuf.Google_Protobuf_Empty>) async throws -> Result = { response in
@@ -1026,7 +1026,7 @@ extension Google_Pubsub_V1_SchemaService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func validateSchema<Result>(
+    package func validateSchema<Result>(
         request: GRPCCore.ClientRequest<Google_Pubsub_V1_ValidateSchemaRequest>,
         options: GRPCCore.CallOptions = .defaults,
         onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Google_Pubsub_V1_ValidateSchemaResponse>) async throws -> Result = { response in
@@ -1055,7 +1055,7 @@ extension Google_Pubsub_V1_SchemaService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func validateMessage<Result>(
+    package func validateMessage<Result>(
         request: GRPCCore.ClientRequest<Google_Pubsub_V1_ValidateMessageRequest>,
         options: GRPCCore.CallOptions = .defaults,
         onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Google_Pubsub_V1_ValidateMessageResponse>) async throws -> Result = { response in
@@ -1088,7 +1088,7 @@ extension Google_Pubsub_V1_SchemaService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func createSchema<Result>(
+    package func createSchema<Result>(
         _ message: Google_Pubsub_V1_CreateSchemaRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
@@ -1121,7 +1121,7 @@ extension Google_Pubsub_V1_SchemaService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func getSchema<Result>(
+    package func getSchema<Result>(
         _ message: Google_Pubsub_V1_GetSchemaRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
@@ -1154,7 +1154,7 @@ extension Google_Pubsub_V1_SchemaService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func listSchemas<Result>(
+    package func listSchemas<Result>(
         _ message: Google_Pubsub_V1_ListSchemasRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
@@ -1187,7 +1187,7 @@ extension Google_Pubsub_V1_SchemaService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func listSchemaRevisions<Result>(
+    package func listSchemaRevisions<Result>(
         _ message: Google_Pubsub_V1_ListSchemaRevisionsRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
@@ -1220,7 +1220,7 @@ extension Google_Pubsub_V1_SchemaService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func commitSchema<Result>(
+    package func commitSchema<Result>(
         _ message: Google_Pubsub_V1_CommitSchemaRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
@@ -1253,7 +1253,7 @@ extension Google_Pubsub_V1_SchemaService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func rollbackSchema<Result>(
+    package func rollbackSchema<Result>(
         _ message: Google_Pubsub_V1_RollbackSchemaRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
@@ -1286,7 +1286,7 @@ extension Google_Pubsub_V1_SchemaService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func deleteSchemaRevision<Result>(
+    package func deleteSchemaRevision<Result>(
         _ message: Google_Pubsub_V1_DeleteSchemaRevisionRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
@@ -1319,7 +1319,7 @@ extension Google_Pubsub_V1_SchemaService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func deleteSchema<Result>(
+    package func deleteSchema<Result>(
         _ message: Google_Pubsub_V1_DeleteSchemaRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
@@ -1352,7 +1352,7 @@ extension Google_Pubsub_V1_SchemaService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func validateSchema<Result>(
+    package func validateSchema<Result>(
         _ message: Google_Pubsub_V1_ValidateSchemaRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
@@ -1385,7 +1385,7 @@ extension Google_Pubsub_V1_SchemaService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func validateMessage<Result>(
+    package func validateMessage<Result>(
         _ message: Google_Pubsub_V1_ValidateMessageRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,

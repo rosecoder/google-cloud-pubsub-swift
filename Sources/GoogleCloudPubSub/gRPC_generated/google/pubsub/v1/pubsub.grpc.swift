@@ -28,121 +28,121 @@ import SwiftProtobuf
 // MARK: - google.pubsub.v1.Publisher
 
 /// Namespace containing generated types for the "google.pubsub.v1.Publisher" service.
-internal enum Google_Pubsub_V1_Publisher {
+package enum Google_Pubsub_V1_Publisher {
     /// Service descriptor for the "google.pubsub.v1.Publisher" service.
-    internal static let descriptor = GRPCCore.ServiceDescriptor(fullyQualifiedService: "google.pubsub.v1.Publisher")
+    package static let descriptor = GRPCCore.ServiceDescriptor(fullyQualifiedService: "google.pubsub.v1.Publisher")
     /// Namespace for method metadata.
-    internal enum Method {
+    package enum Method {
         /// Namespace for "CreateTopic" metadata.
-        internal enum CreateTopic {
+        package enum CreateTopic {
             /// Request type for "CreateTopic".
-            internal typealias Input = Google_Pubsub_V1_Topic
+            package typealias Input = Google_Pubsub_V1_Topic
             /// Response type for "CreateTopic".
-            internal typealias Output = Google_Pubsub_V1_Topic
+            package typealias Output = Google_Pubsub_V1_Topic
             /// Descriptor for "CreateTopic".
-            internal static let descriptor = GRPCCore.MethodDescriptor(
+            package static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "google.pubsub.v1.Publisher"),
                 method: "CreateTopic"
             )
         }
         /// Namespace for "UpdateTopic" metadata.
-        internal enum UpdateTopic {
+        package enum UpdateTopic {
             /// Request type for "UpdateTopic".
-            internal typealias Input = Google_Pubsub_V1_UpdateTopicRequest
+            package typealias Input = Google_Pubsub_V1_UpdateTopicRequest
             /// Response type for "UpdateTopic".
-            internal typealias Output = Google_Pubsub_V1_Topic
+            package typealias Output = Google_Pubsub_V1_Topic
             /// Descriptor for "UpdateTopic".
-            internal static let descriptor = GRPCCore.MethodDescriptor(
+            package static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "google.pubsub.v1.Publisher"),
                 method: "UpdateTopic"
             )
         }
         /// Namespace for "Publish" metadata.
-        internal enum Publish {
+        package enum Publish {
             /// Request type for "Publish".
-            internal typealias Input = Google_Pubsub_V1_PublishRequest
+            package typealias Input = Google_Pubsub_V1_PublishRequest
             /// Response type for "Publish".
-            internal typealias Output = Google_Pubsub_V1_PublishResponse
+            package typealias Output = Google_Pubsub_V1_PublishResponse
             /// Descriptor for "Publish".
-            internal static let descriptor = GRPCCore.MethodDescriptor(
+            package static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "google.pubsub.v1.Publisher"),
                 method: "Publish"
             )
         }
         /// Namespace for "GetTopic" metadata.
-        internal enum GetTopic {
+        package enum GetTopic {
             /// Request type for "GetTopic".
-            internal typealias Input = Google_Pubsub_V1_GetTopicRequest
+            package typealias Input = Google_Pubsub_V1_GetTopicRequest
             /// Response type for "GetTopic".
-            internal typealias Output = Google_Pubsub_V1_Topic
+            package typealias Output = Google_Pubsub_V1_Topic
             /// Descriptor for "GetTopic".
-            internal static let descriptor = GRPCCore.MethodDescriptor(
+            package static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "google.pubsub.v1.Publisher"),
                 method: "GetTopic"
             )
         }
         /// Namespace for "ListTopics" metadata.
-        internal enum ListTopics {
+        package enum ListTopics {
             /// Request type for "ListTopics".
-            internal typealias Input = Google_Pubsub_V1_ListTopicsRequest
+            package typealias Input = Google_Pubsub_V1_ListTopicsRequest
             /// Response type for "ListTopics".
-            internal typealias Output = Google_Pubsub_V1_ListTopicsResponse
+            package typealias Output = Google_Pubsub_V1_ListTopicsResponse
             /// Descriptor for "ListTopics".
-            internal static let descriptor = GRPCCore.MethodDescriptor(
+            package static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "google.pubsub.v1.Publisher"),
                 method: "ListTopics"
             )
         }
         /// Namespace for "ListTopicSubscriptions" metadata.
-        internal enum ListTopicSubscriptions {
+        package enum ListTopicSubscriptions {
             /// Request type for "ListTopicSubscriptions".
-            internal typealias Input = Google_Pubsub_V1_ListTopicSubscriptionsRequest
+            package typealias Input = Google_Pubsub_V1_ListTopicSubscriptionsRequest
             /// Response type for "ListTopicSubscriptions".
-            internal typealias Output = Google_Pubsub_V1_ListTopicSubscriptionsResponse
+            package typealias Output = Google_Pubsub_V1_ListTopicSubscriptionsResponse
             /// Descriptor for "ListTopicSubscriptions".
-            internal static let descriptor = GRPCCore.MethodDescriptor(
+            package static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "google.pubsub.v1.Publisher"),
                 method: "ListTopicSubscriptions"
             )
         }
         /// Namespace for "ListTopicSnapshots" metadata.
-        internal enum ListTopicSnapshots {
+        package enum ListTopicSnapshots {
             /// Request type for "ListTopicSnapshots".
-            internal typealias Input = Google_Pubsub_V1_ListTopicSnapshotsRequest
+            package typealias Input = Google_Pubsub_V1_ListTopicSnapshotsRequest
             /// Response type for "ListTopicSnapshots".
-            internal typealias Output = Google_Pubsub_V1_ListTopicSnapshotsResponse
+            package typealias Output = Google_Pubsub_V1_ListTopicSnapshotsResponse
             /// Descriptor for "ListTopicSnapshots".
-            internal static let descriptor = GRPCCore.MethodDescriptor(
+            package static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "google.pubsub.v1.Publisher"),
                 method: "ListTopicSnapshots"
             )
         }
         /// Namespace for "DeleteTopic" metadata.
-        internal enum DeleteTopic {
+        package enum DeleteTopic {
             /// Request type for "DeleteTopic".
-            internal typealias Input = Google_Pubsub_V1_DeleteTopicRequest
+            package typealias Input = Google_Pubsub_V1_DeleteTopicRequest
             /// Response type for "DeleteTopic".
-            internal typealias Output = SwiftProtobuf.Google_Protobuf_Empty
+            package typealias Output = SwiftProtobuf.Google_Protobuf_Empty
             /// Descriptor for "DeleteTopic".
-            internal static let descriptor = GRPCCore.MethodDescriptor(
+            package static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "google.pubsub.v1.Publisher"),
                 method: "DeleteTopic"
             )
         }
         /// Namespace for "DetachSubscription" metadata.
-        internal enum DetachSubscription {
+        package enum DetachSubscription {
             /// Request type for "DetachSubscription".
-            internal typealias Input = Google_Pubsub_V1_DetachSubscriptionRequest
+            package typealias Input = Google_Pubsub_V1_DetachSubscriptionRequest
             /// Response type for "DetachSubscription".
-            internal typealias Output = Google_Pubsub_V1_DetachSubscriptionResponse
+            package typealias Output = Google_Pubsub_V1_DetachSubscriptionResponse
             /// Descriptor for "DetachSubscription".
-            internal static let descriptor = GRPCCore.MethodDescriptor(
+            package static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "google.pubsub.v1.Publisher"),
                 method: "DetachSubscription"
             )
         }
         /// Descriptors for all methods in the "google.pubsub.v1.Publisher" service.
-        internal static let descriptors: [GRPCCore.MethodDescriptor] = [
+        package static let descriptors: [GRPCCore.MethodDescriptor] = [
             CreateTopic.descriptor,
             UpdateTopic.descriptor,
             Publish.descriptor,
@@ -158,7 +158,7 @@ internal enum Google_Pubsub_V1_Publisher {
 
 extension GRPCCore.ServiceDescriptor {
     /// Service descriptor for the "google.pubsub.v1.Publisher" service.
-    internal static let google_pubsub_v1_Publisher = GRPCCore.ServiceDescriptor(fullyQualifiedService: "google.pubsub.v1.Publisher")
+    package static let google_pubsub_v1_Publisher = GRPCCore.ServiceDescriptor(fullyQualifiedService: "google.pubsub.v1.Publisher")
 }
 
 // MARK: google.pubsub.v1.Publisher (client)
@@ -173,7 +173,7 @@ extension Google_Pubsub_V1_Publisher {
     /// >
     /// > The service that an application uses to manipulate topics, and to send
     /// > messages to a topic.
-    internal protocol ClientProtocol: Sendable {
+    package protocol ClientProtocol: Sendable {
         /// Call the "CreateTopic" method.
         ///
         /// > Source IDL Documentation:
@@ -406,14 +406,14 @@ extension Google_Pubsub_V1_Publisher {
     /// >
     /// > The service that an application uses to manipulate topics, and to send
     /// > messages to a topic.
-    internal struct Client: ClientProtocol {
+    package struct Client: ClientProtocol {
         private let client: GRPCCore.GRPCClient
 
         /// Creates a new client wrapping the provided `GRPCCore.GRPCClient`.
         ///
         /// - Parameters:
         ///   - client: A `GRPCCore.GRPCClient` providing a communication channel to the service.
-        internal init(wrapping client: GRPCCore.GRPCClient) {
+        package init(wrapping client: GRPCCore.GRPCClient) {
             self.client = client
         }
 
@@ -433,7 +433,7 @@ extension Google_Pubsub_V1_Publisher {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        internal func createTopic<Result>(
+        package func createTopic<Result>(
             request: GRPCCore.ClientRequest<Google_Pubsub_V1_Topic>,
             serializer: some GRPCCore.MessageSerializer<Google_Pubsub_V1_Topic>,
             deserializer: some GRPCCore.MessageDeserializer<Google_Pubsub_V1_Topic>,
@@ -468,7 +468,7 @@ extension Google_Pubsub_V1_Publisher {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        internal func updateTopic<Result>(
+        package func updateTopic<Result>(
             request: GRPCCore.ClientRequest<Google_Pubsub_V1_UpdateTopicRequest>,
             serializer: some GRPCCore.MessageSerializer<Google_Pubsub_V1_UpdateTopicRequest>,
             deserializer: some GRPCCore.MessageDeserializer<Google_Pubsub_V1_Topic>,
@@ -503,7 +503,7 @@ extension Google_Pubsub_V1_Publisher {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        internal func publish<Result>(
+        package func publish<Result>(
             request: GRPCCore.ClientRequest<Google_Pubsub_V1_PublishRequest>,
             serializer: some GRPCCore.MessageSerializer<Google_Pubsub_V1_PublishRequest>,
             deserializer: some GRPCCore.MessageDeserializer<Google_Pubsub_V1_PublishResponse>,
@@ -537,7 +537,7 @@ extension Google_Pubsub_V1_Publisher {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        internal func getTopic<Result>(
+        package func getTopic<Result>(
             request: GRPCCore.ClientRequest<Google_Pubsub_V1_GetTopicRequest>,
             serializer: some GRPCCore.MessageSerializer<Google_Pubsub_V1_GetTopicRequest>,
             deserializer: some GRPCCore.MessageDeserializer<Google_Pubsub_V1_Topic>,
@@ -571,7 +571,7 @@ extension Google_Pubsub_V1_Publisher {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        internal func listTopics<Result>(
+        package func listTopics<Result>(
             request: GRPCCore.ClientRequest<Google_Pubsub_V1_ListTopicsRequest>,
             serializer: some GRPCCore.MessageSerializer<Google_Pubsub_V1_ListTopicsRequest>,
             deserializer: some GRPCCore.MessageDeserializer<Google_Pubsub_V1_ListTopicsResponse>,
@@ -605,7 +605,7 @@ extension Google_Pubsub_V1_Publisher {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        internal func listTopicSubscriptions<Result>(
+        package func listTopicSubscriptions<Result>(
             request: GRPCCore.ClientRequest<Google_Pubsub_V1_ListTopicSubscriptionsRequest>,
             serializer: some GRPCCore.MessageSerializer<Google_Pubsub_V1_ListTopicSubscriptionsRequest>,
             deserializer: some GRPCCore.MessageDeserializer<Google_Pubsub_V1_ListTopicSubscriptionsResponse>,
@@ -643,7 +643,7 @@ extension Google_Pubsub_V1_Publisher {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        internal func listTopicSnapshots<Result>(
+        package func listTopicSnapshots<Result>(
             request: GRPCCore.ClientRequest<Google_Pubsub_V1_ListTopicSnapshotsRequest>,
             serializer: some GRPCCore.MessageSerializer<Google_Pubsub_V1_ListTopicSnapshotsRequest>,
             deserializer: some GRPCCore.MessageDeserializer<Google_Pubsub_V1_ListTopicSnapshotsResponse>,
@@ -681,7 +681,7 @@ extension Google_Pubsub_V1_Publisher {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        internal func deleteTopic<Result>(
+        package func deleteTopic<Result>(
             request: GRPCCore.ClientRequest<Google_Pubsub_V1_DeleteTopicRequest>,
             serializer: some GRPCCore.MessageSerializer<Google_Pubsub_V1_DeleteTopicRequest>,
             deserializer: some GRPCCore.MessageDeserializer<SwiftProtobuf.Google_Protobuf_Empty>,
@@ -718,7 +718,7 @@ extension Google_Pubsub_V1_Publisher {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        internal func detachSubscription<Result>(
+        package func detachSubscription<Result>(
             request: GRPCCore.ClientRequest<Google_Pubsub_V1_DetachSubscriptionRequest>,
             serializer: some GRPCCore.MessageSerializer<Google_Pubsub_V1_DetachSubscriptionRequest>,
             deserializer: some GRPCCore.MessageDeserializer<Google_Pubsub_V1_DetachSubscriptionResponse>,
@@ -755,7 +755,7 @@ extension Google_Pubsub_V1_Publisher.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func createTopic<Result>(
+    package func createTopic<Result>(
         request: GRPCCore.ClientRequest<Google_Pubsub_V1_Topic>,
         options: GRPCCore.CallOptions = .defaults,
         onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Google_Pubsub_V1_Topic>) async throws -> Result = { response in
@@ -785,7 +785,7 @@ extension Google_Pubsub_V1_Publisher.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func updateTopic<Result>(
+    package func updateTopic<Result>(
         request: GRPCCore.ClientRequest<Google_Pubsub_V1_UpdateTopicRequest>,
         options: GRPCCore.CallOptions = .defaults,
         onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Google_Pubsub_V1_Topic>) async throws -> Result = { response in
@@ -815,7 +815,7 @@ extension Google_Pubsub_V1_Publisher.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func publish<Result>(
+    package func publish<Result>(
         request: GRPCCore.ClientRequest<Google_Pubsub_V1_PublishRequest>,
         options: GRPCCore.CallOptions = .defaults,
         onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Google_Pubsub_V1_PublishResponse>) async throws -> Result = { response in
@@ -844,7 +844,7 @@ extension Google_Pubsub_V1_Publisher.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func getTopic<Result>(
+    package func getTopic<Result>(
         request: GRPCCore.ClientRequest<Google_Pubsub_V1_GetTopicRequest>,
         options: GRPCCore.CallOptions = .defaults,
         onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Google_Pubsub_V1_Topic>) async throws -> Result = { response in
@@ -873,7 +873,7 @@ extension Google_Pubsub_V1_Publisher.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func listTopics<Result>(
+    package func listTopics<Result>(
         request: GRPCCore.ClientRequest<Google_Pubsub_V1_ListTopicsRequest>,
         options: GRPCCore.CallOptions = .defaults,
         onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Google_Pubsub_V1_ListTopicsResponse>) async throws -> Result = { response in
@@ -902,7 +902,7 @@ extension Google_Pubsub_V1_Publisher.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func listTopicSubscriptions<Result>(
+    package func listTopicSubscriptions<Result>(
         request: GRPCCore.ClientRequest<Google_Pubsub_V1_ListTopicSubscriptionsRequest>,
         options: GRPCCore.CallOptions = .defaults,
         onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Google_Pubsub_V1_ListTopicSubscriptionsResponse>) async throws -> Result = { response in
@@ -935,7 +935,7 @@ extension Google_Pubsub_V1_Publisher.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func listTopicSnapshots<Result>(
+    package func listTopicSnapshots<Result>(
         request: GRPCCore.ClientRequest<Google_Pubsub_V1_ListTopicSnapshotsRequest>,
         options: GRPCCore.CallOptions = .defaults,
         onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Google_Pubsub_V1_ListTopicSnapshotsResponse>) async throws -> Result = { response in
@@ -968,7 +968,7 @@ extension Google_Pubsub_V1_Publisher.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func deleteTopic<Result>(
+    package func deleteTopic<Result>(
         request: GRPCCore.ClientRequest<Google_Pubsub_V1_DeleteTopicRequest>,
         options: GRPCCore.CallOptions = .defaults,
         onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<SwiftProtobuf.Google_Protobuf_Empty>) async throws -> Result = { response in
@@ -1000,7 +1000,7 @@ extension Google_Pubsub_V1_Publisher.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func detachSubscription<Result>(
+    package func detachSubscription<Result>(
         request: GRPCCore.ClientRequest<Google_Pubsub_V1_DetachSubscriptionRequest>,
         options: GRPCCore.CallOptions = .defaults,
         onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Google_Pubsub_V1_DetachSubscriptionResponse>) async throws -> Result = { response in
@@ -1034,7 +1034,7 @@ extension Google_Pubsub_V1_Publisher.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func createTopic<Result>(
+    package func createTopic<Result>(
         _ message: Google_Pubsub_V1_Topic,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
@@ -1068,7 +1068,7 @@ extension Google_Pubsub_V1_Publisher.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func updateTopic<Result>(
+    package func updateTopic<Result>(
         _ message: Google_Pubsub_V1_UpdateTopicRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
@@ -1102,7 +1102,7 @@ extension Google_Pubsub_V1_Publisher.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func publish<Result>(
+    package func publish<Result>(
         _ message: Google_Pubsub_V1_PublishRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
@@ -1135,7 +1135,7 @@ extension Google_Pubsub_V1_Publisher.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func getTopic<Result>(
+    package func getTopic<Result>(
         _ message: Google_Pubsub_V1_GetTopicRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
@@ -1168,7 +1168,7 @@ extension Google_Pubsub_V1_Publisher.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func listTopics<Result>(
+    package func listTopics<Result>(
         _ message: Google_Pubsub_V1_ListTopicsRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
@@ -1201,7 +1201,7 @@ extension Google_Pubsub_V1_Publisher.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func listTopicSubscriptions<Result>(
+    package func listTopicSubscriptions<Result>(
         _ message: Google_Pubsub_V1_ListTopicSubscriptionsRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
@@ -1238,7 +1238,7 @@ extension Google_Pubsub_V1_Publisher.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func listTopicSnapshots<Result>(
+    package func listTopicSnapshots<Result>(
         _ message: Google_Pubsub_V1_ListTopicSnapshotsRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
@@ -1275,7 +1275,7 @@ extension Google_Pubsub_V1_Publisher.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func deleteTopic<Result>(
+    package func deleteTopic<Result>(
         _ message: Google_Pubsub_V1_DeleteTopicRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
@@ -1311,7 +1311,7 @@ extension Google_Pubsub_V1_Publisher.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func detachSubscription<Result>(
+    package func detachSubscription<Result>(
         _ message: Google_Pubsub_V1_DetachSubscriptionRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
@@ -1334,205 +1334,205 @@ extension Google_Pubsub_V1_Publisher.ClientProtocol {
 // MARK: - google.pubsub.v1.Subscriber
 
 /// Namespace containing generated types for the "google.pubsub.v1.Subscriber" service.
-internal enum Google_Pubsub_V1_Subscriber {
+package enum Google_Pubsub_V1_Subscriber {
     /// Service descriptor for the "google.pubsub.v1.Subscriber" service.
-    internal static let descriptor = GRPCCore.ServiceDescriptor(fullyQualifiedService: "google.pubsub.v1.Subscriber")
+    package static let descriptor = GRPCCore.ServiceDescriptor(fullyQualifiedService: "google.pubsub.v1.Subscriber")
     /// Namespace for method metadata.
-    internal enum Method {
+    package enum Method {
         /// Namespace for "CreateSubscription" metadata.
-        internal enum CreateSubscription {
+        package enum CreateSubscription {
             /// Request type for "CreateSubscription".
-            internal typealias Input = Google_Pubsub_V1_Subscription
+            package typealias Input = Google_Pubsub_V1_Subscription
             /// Response type for "CreateSubscription".
-            internal typealias Output = Google_Pubsub_V1_Subscription
+            package typealias Output = Google_Pubsub_V1_Subscription
             /// Descriptor for "CreateSubscription".
-            internal static let descriptor = GRPCCore.MethodDescriptor(
+            package static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "google.pubsub.v1.Subscriber"),
                 method: "CreateSubscription"
             )
         }
         /// Namespace for "GetSubscription" metadata.
-        internal enum GetSubscription {
+        package enum GetSubscription {
             /// Request type for "GetSubscription".
-            internal typealias Input = Google_Pubsub_V1_GetSubscriptionRequest
+            package typealias Input = Google_Pubsub_V1_GetSubscriptionRequest
             /// Response type for "GetSubscription".
-            internal typealias Output = Google_Pubsub_V1_Subscription
+            package typealias Output = Google_Pubsub_V1_Subscription
             /// Descriptor for "GetSubscription".
-            internal static let descriptor = GRPCCore.MethodDescriptor(
+            package static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "google.pubsub.v1.Subscriber"),
                 method: "GetSubscription"
             )
         }
         /// Namespace for "UpdateSubscription" metadata.
-        internal enum UpdateSubscription {
+        package enum UpdateSubscription {
             /// Request type for "UpdateSubscription".
-            internal typealias Input = Google_Pubsub_V1_UpdateSubscriptionRequest
+            package typealias Input = Google_Pubsub_V1_UpdateSubscriptionRequest
             /// Response type for "UpdateSubscription".
-            internal typealias Output = Google_Pubsub_V1_Subscription
+            package typealias Output = Google_Pubsub_V1_Subscription
             /// Descriptor for "UpdateSubscription".
-            internal static let descriptor = GRPCCore.MethodDescriptor(
+            package static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "google.pubsub.v1.Subscriber"),
                 method: "UpdateSubscription"
             )
         }
         /// Namespace for "ListSubscriptions" metadata.
-        internal enum ListSubscriptions {
+        package enum ListSubscriptions {
             /// Request type for "ListSubscriptions".
-            internal typealias Input = Google_Pubsub_V1_ListSubscriptionsRequest
+            package typealias Input = Google_Pubsub_V1_ListSubscriptionsRequest
             /// Response type for "ListSubscriptions".
-            internal typealias Output = Google_Pubsub_V1_ListSubscriptionsResponse
+            package typealias Output = Google_Pubsub_V1_ListSubscriptionsResponse
             /// Descriptor for "ListSubscriptions".
-            internal static let descriptor = GRPCCore.MethodDescriptor(
+            package static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "google.pubsub.v1.Subscriber"),
                 method: "ListSubscriptions"
             )
         }
         /// Namespace for "DeleteSubscription" metadata.
-        internal enum DeleteSubscription {
+        package enum DeleteSubscription {
             /// Request type for "DeleteSubscription".
-            internal typealias Input = Google_Pubsub_V1_DeleteSubscriptionRequest
+            package typealias Input = Google_Pubsub_V1_DeleteSubscriptionRequest
             /// Response type for "DeleteSubscription".
-            internal typealias Output = SwiftProtobuf.Google_Protobuf_Empty
+            package typealias Output = SwiftProtobuf.Google_Protobuf_Empty
             /// Descriptor for "DeleteSubscription".
-            internal static let descriptor = GRPCCore.MethodDescriptor(
+            package static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "google.pubsub.v1.Subscriber"),
                 method: "DeleteSubscription"
             )
         }
         /// Namespace for "ModifyAckDeadline" metadata.
-        internal enum ModifyAckDeadline {
+        package enum ModifyAckDeadline {
             /// Request type for "ModifyAckDeadline".
-            internal typealias Input = Google_Pubsub_V1_ModifyAckDeadlineRequest
+            package typealias Input = Google_Pubsub_V1_ModifyAckDeadlineRequest
             /// Response type for "ModifyAckDeadline".
-            internal typealias Output = SwiftProtobuf.Google_Protobuf_Empty
+            package typealias Output = SwiftProtobuf.Google_Protobuf_Empty
             /// Descriptor for "ModifyAckDeadline".
-            internal static let descriptor = GRPCCore.MethodDescriptor(
+            package static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "google.pubsub.v1.Subscriber"),
                 method: "ModifyAckDeadline"
             )
         }
         /// Namespace for "Acknowledge" metadata.
-        internal enum Acknowledge {
+        package enum Acknowledge {
             /// Request type for "Acknowledge".
-            internal typealias Input = Google_Pubsub_V1_AcknowledgeRequest
+            package typealias Input = Google_Pubsub_V1_AcknowledgeRequest
             /// Response type for "Acknowledge".
-            internal typealias Output = SwiftProtobuf.Google_Protobuf_Empty
+            package typealias Output = SwiftProtobuf.Google_Protobuf_Empty
             /// Descriptor for "Acknowledge".
-            internal static let descriptor = GRPCCore.MethodDescriptor(
+            package static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "google.pubsub.v1.Subscriber"),
                 method: "Acknowledge"
             )
         }
         /// Namespace for "Pull" metadata.
-        internal enum Pull {
+        package enum Pull {
             /// Request type for "Pull".
-            internal typealias Input = Google_Pubsub_V1_PullRequest
+            package typealias Input = Google_Pubsub_V1_PullRequest
             /// Response type for "Pull".
-            internal typealias Output = Google_Pubsub_V1_PullResponse
+            package typealias Output = Google_Pubsub_V1_PullResponse
             /// Descriptor for "Pull".
-            internal static let descriptor = GRPCCore.MethodDescriptor(
+            package static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "google.pubsub.v1.Subscriber"),
                 method: "Pull"
             )
         }
         /// Namespace for "StreamingPull" metadata.
-        internal enum StreamingPull {
+        package enum StreamingPull {
             /// Request type for "StreamingPull".
-            internal typealias Input = Google_Pubsub_V1_StreamingPullRequest
+            package typealias Input = Google_Pubsub_V1_StreamingPullRequest
             /// Response type for "StreamingPull".
-            internal typealias Output = Google_Pubsub_V1_StreamingPullResponse
+            package typealias Output = Google_Pubsub_V1_StreamingPullResponse
             /// Descriptor for "StreamingPull".
-            internal static let descriptor = GRPCCore.MethodDescriptor(
+            package static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "google.pubsub.v1.Subscriber"),
                 method: "StreamingPull"
             )
         }
         /// Namespace for "ModifyPushConfig" metadata.
-        internal enum ModifyPushConfig {
+        package enum ModifyPushConfig {
             /// Request type for "ModifyPushConfig".
-            internal typealias Input = Google_Pubsub_V1_ModifyPushConfigRequest
+            package typealias Input = Google_Pubsub_V1_ModifyPushConfigRequest
             /// Response type for "ModifyPushConfig".
-            internal typealias Output = SwiftProtobuf.Google_Protobuf_Empty
+            package typealias Output = SwiftProtobuf.Google_Protobuf_Empty
             /// Descriptor for "ModifyPushConfig".
-            internal static let descriptor = GRPCCore.MethodDescriptor(
+            package static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "google.pubsub.v1.Subscriber"),
                 method: "ModifyPushConfig"
             )
         }
         /// Namespace for "GetSnapshot" metadata.
-        internal enum GetSnapshot {
+        package enum GetSnapshot {
             /// Request type for "GetSnapshot".
-            internal typealias Input = Google_Pubsub_V1_GetSnapshotRequest
+            package typealias Input = Google_Pubsub_V1_GetSnapshotRequest
             /// Response type for "GetSnapshot".
-            internal typealias Output = Google_Pubsub_V1_Snapshot
+            package typealias Output = Google_Pubsub_V1_Snapshot
             /// Descriptor for "GetSnapshot".
-            internal static let descriptor = GRPCCore.MethodDescriptor(
+            package static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "google.pubsub.v1.Subscriber"),
                 method: "GetSnapshot"
             )
         }
         /// Namespace for "ListSnapshots" metadata.
-        internal enum ListSnapshots {
+        package enum ListSnapshots {
             /// Request type for "ListSnapshots".
-            internal typealias Input = Google_Pubsub_V1_ListSnapshotsRequest
+            package typealias Input = Google_Pubsub_V1_ListSnapshotsRequest
             /// Response type for "ListSnapshots".
-            internal typealias Output = Google_Pubsub_V1_ListSnapshotsResponse
+            package typealias Output = Google_Pubsub_V1_ListSnapshotsResponse
             /// Descriptor for "ListSnapshots".
-            internal static let descriptor = GRPCCore.MethodDescriptor(
+            package static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "google.pubsub.v1.Subscriber"),
                 method: "ListSnapshots"
             )
         }
         /// Namespace for "CreateSnapshot" metadata.
-        internal enum CreateSnapshot {
+        package enum CreateSnapshot {
             /// Request type for "CreateSnapshot".
-            internal typealias Input = Google_Pubsub_V1_CreateSnapshotRequest
+            package typealias Input = Google_Pubsub_V1_CreateSnapshotRequest
             /// Response type for "CreateSnapshot".
-            internal typealias Output = Google_Pubsub_V1_Snapshot
+            package typealias Output = Google_Pubsub_V1_Snapshot
             /// Descriptor for "CreateSnapshot".
-            internal static let descriptor = GRPCCore.MethodDescriptor(
+            package static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "google.pubsub.v1.Subscriber"),
                 method: "CreateSnapshot"
             )
         }
         /// Namespace for "UpdateSnapshot" metadata.
-        internal enum UpdateSnapshot {
+        package enum UpdateSnapshot {
             /// Request type for "UpdateSnapshot".
-            internal typealias Input = Google_Pubsub_V1_UpdateSnapshotRequest
+            package typealias Input = Google_Pubsub_V1_UpdateSnapshotRequest
             /// Response type for "UpdateSnapshot".
-            internal typealias Output = Google_Pubsub_V1_Snapshot
+            package typealias Output = Google_Pubsub_V1_Snapshot
             /// Descriptor for "UpdateSnapshot".
-            internal static let descriptor = GRPCCore.MethodDescriptor(
+            package static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "google.pubsub.v1.Subscriber"),
                 method: "UpdateSnapshot"
             )
         }
         /// Namespace for "DeleteSnapshot" metadata.
-        internal enum DeleteSnapshot {
+        package enum DeleteSnapshot {
             /// Request type for "DeleteSnapshot".
-            internal typealias Input = Google_Pubsub_V1_DeleteSnapshotRequest
+            package typealias Input = Google_Pubsub_V1_DeleteSnapshotRequest
             /// Response type for "DeleteSnapshot".
-            internal typealias Output = SwiftProtobuf.Google_Protobuf_Empty
+            package typealias Output = SwiftProtobuf.Google_Protobuf_Empty
             /// Descriptor for "DeleteSnapshot".
-            internal static let descriptor = GRPCCore.MethodDescriptor(
+            package static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "google.pubsub.v1.Subscriber"),
                 method: "DeleteSnapshot"
             )
         }
         /// Namespace for "Seek" metadata.
-        internal enum Seek {
+        package enum Seek {
             /// Request type for "Seek".
-            internal typealias Input = Google_Pubsub_V1_SeekRequest
+            package typealias Input = Google_Pubsub_V1_SeekRequest
             /// Response type for "Seek".
-            internal typealias Output = Google_Pubsub_V1_SeekResponse
+            package typealias Output = Google_Pubsub_V1_SeekResponse
             /// Descriptor for "Seek".
-            internal static let descriptor = GRPCCore.MethodDescriptor(
+            package static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "google.pubsub.v1.Subscriber"),
                 method: "Seek"
             )
         }
         /// Descriptors for all methods in the "google.pubsub.v1.Subscriber" service.
-        internal static let descriptors: [GRPCCore.MethodDescriptor] = [
+        package static let descriptors: [GRPCCore.MethodDescriptor] = [
             CreateSubscription.descriptor,
             GetSubscription.descriptor,
             UpdateSubscription.descriptor,
@@ -1555,7 +1555,7 @@ internal enum Google_Pubsub_V1_Subscriber {
 
 extension GRPCCore.ServiceDescriptor {
     /// Service descriptor for the "google.pubsub.v1.Subscriber" service.
-    internal static let google_pubsub_v1_Subscriber = GRPCCore.ServiceDescriptor(fullyQualifiedService: "google.pubsub.v1.Subscriber")
+    package static let google_pubsub_v1_Subscriber = GRPCCore.ServiceDescriptor(fullyQualifiedService: "google.pubsub.v1.Subscriber")
 }
 
 // MARK: google.pubsub.v1.Subscriber (client)
@@ -1571,7 +1571,7 @@ extension Google_Pubsub_V1_Subscriber {
     /// > The service that an application uses to manipulate subscriptions and to
     /// > consume messages from a subscription via the `Pull` method or by
     /// > establishing a bi-directional stream using the `StreamingPull` method.
-    internal protocol ClientProtocol: Sendable {
+    package protocol ClientProtocol: Sendable {
         /// Call the "CreateSubscription" method.
         ///
         /// > Source IDL Documentation:
@@ -2031,14 +2031,14 @@ extension Google_Pubsub_V1_Subscriber {
     /// > The service that an application uses to manipulate subscriptions and to
     /// > consume messages from a subscription via the `Pull` method or by
     /// > establishing a bi-directional stream using the `StreamingPull` method.
-    internal struct Client: ClientProtocol {
+    package struct Client: ClientProtocol {
         private let client: GRPCCore.GRPCClient
 
         /// Creates a new client wrapping the provided `GRPCCore.GRPCClient`.
         ///
         /// - Parameters:
         ///   - client: A `GRPCCore.GRPCClient` providing a communication channel to the service.
-        internal init(wrapping client: GRPCCore.GRPCClient) {
+        package init(wrapping client: GRPCCore.GRPCClient) {
             self.client = client
         }
 
@@ -2067,7 +2067,7 @@ extension Google_Pubsub_V1_Subscriber {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        internal func createSubscription<Result>(
+        package func createSubscription<Result>(
             request: GRPCCore.ClientRequest<Google_Pubsub_V1_Subscription>,
             serializer: some GRPCCore.MessageSerializer<Google_Pubsub_V1_Subscription>,
             deserializer: some GRPCCore.MessageDeserializer<Google_Pubsub_V1_Subscription>,
@@ -2101,7 +2101,7 @@ extension Google_Pubsub_V1_Subscriber {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        internal func getSubscription<Result>(
+        package func getSubscription<Result>(
             request: GRPCCore.ClientRequest<Google_Pubsub_V1_GetSubscriptionRequest>,
             serializer: some GRPCCore.MessageSerializer<Google_Pubsub_V1_GetSubscriptionRequest>,
             deserializer: some GRPCCore.MessageDeserializer<Google_Pubsub_V1_Subscription>,
@@ -2137,7 +2137,7 @@ extension Google_Pubsub_V1_Subscriber {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        internal func updateSubscription<Result>(
+        package func updateSubscription<Result>(
             request: GRPCCore.ClientRequest<Google_Pubsub_V1_UpdateSubscriptionRequest>,
             serializer: some GRPCCore.MessageSerializer<Google_Pubsub_V1_UpdateSubscriptionRequest>,
             deserializer: some GRPCCore.MessageDeserializer<Google_Pubsub_V1_Subscription>,
@@ -2171,7 +2171,7 @@ extension Google_Pubsub_V1_Subscriber {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        internal func listSubscriptions<Result>(
+        package func listSubscriptions<Result>(
             request: GRPCCore.ClientRequest<Google_Pubsub_V1_ListSubscriptionsRequest>,
             serializer: some GRPCCore.MessageSerializer<Google_Pubsub_V1_ListSubscriptionsRequest>,
             deserializer: some GRPCCore.MessageDeserializer<Google_Pubsub_V1_ListSubscriptionsResponse>,
@@ -2209,7 +2209,7 @@ extension Google_Pubsub_V1_Subscriber {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        internal func deleteSubscription<Result>(
+        package func deleteSubscription<Result>(
             request: GRPCCore.ClientRequest<Google_Pubsub_V1_DeleteSubscriptionRequest>,
             serializer: some GRPCCore.MessageSerializer<Google_Pubsub_V1_DeleteSubscriptionRequest>,
             deserializer: some GRPCCore.MessageDeserializer<SwiftProtobuf.Google_Protobuf_Empty>,
@@ -2247,7 +2247,7 @@ extension Google_Pubsub_V1_Subscriber {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        internal func modifyAckDeadline<Result>(
+        package func modifyAckDeadline<Result>(
             request: GRPCCore.ClientRequest<Google_Pubsub_V1_ModifyAckDeadlineRequest>,
             serializer: some GRPCCore.MessageSerializer<Google_Pubsub_V1_ModifyAckDeadlineRequest>,
             deserializer: some GRPCCore.MessageDeserializer<SwiftProtobuf.Google_Protobuf_Empty>,
@@ -2287,7 +2287,7 @@ extension Google_Pubsub_V1_Subscriber {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        internal func acknowledge<Result>(
+        package func acknowledge<Result>(
             request: GRPCCore.ClientRequest<Google_Pubsub_V1_AcknowledgeRequest>,
             serializer: some GRPCCore.MessageSerializer<Google_Pubsub_V1_AcknowledgeRequest>,
             deserializer: some GRPCCore.MessageDeserializer<SwiftProtobuf.Google_Protobuf_Empty>,
@@ -2321,7 +2321,7 @@ extension Google_Pubsub_V1_Subscriber {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        internal func pull<Result>(
+        package func pull<Result>(
             request: GRPCCore.ClientRequest<Google_Pubsub_V1_PullRequest>,
             serializer: some GRPCCore.MessageSerializer<Google_Pubsub_V1_PullRequest>,
             deserializer: some GRPCCore.MessageDeserializer<Google_Pubsub_V1_PullResponse>,
@@ -2361,7 +2361,7 @@ extension Google_Pubsub_V1_Subscriber {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        internal func streamingPull<Result>(
+        package func streamingPull<Result>(
             request: GRPCCore.StreamingClientRequest<Google_Pubsub_V1_StreamingPullRequest>,
             serializer: some GRPCCore.MessageSerializer<Google_Pubsub_V1_StreamingPullRequest>,
             deserializer: some GRPCCore.MessageDeserializer<Google_Pubsub_V1_StreamingPullResponse>,
@@ -2398,7 +2398,7 @@ extension Google_Pubsub_V1_Subscriber {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        internal func modifyPushConfig<Result>(
+        package func modifyPushConfig<Result>(
             request: GRPCCore.ClientRequest<Google_Pubsub_V1_ModifyPushConfigRequest>,
             serializer: some GRPCCore.MessageSerializer<Google_Pubsub_V1_ModifyPushConfigRequest>,
             deserializer: some GRPCCore.MessageDeserializer<SwiftProtobuf.Google_Protobuf_Empty>,
@@ -2436,7 +2436,7 @@ extension Google_Pubsub_V1_Subscriber {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        internal func getSnapshot<Result>(
+        package func getSnapshot<Result>(
             request: GRPCCore.ClientRequest<Google_Pubsub_V1_GetSnapshotRequest>,
             serializer: some GRPCCore.MessageSerializer<Google_Pubsub_V1_GetSnapshotRequest>,
             deserializer: some GRPCCore.MessageDeserializer<Google_Pubsub_V1_Snapshot>,
@@ -2474,7 +2474,7 @@ extension Google_Pubsub_V1_Subscriber {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        internal func listSnapshots<Result>(
+        package func listSnapshots<Result>(
             request: GRPCCore.ClientRequest<Google_Pubsub_V1_ListSnapshotsRequest>,
             serializer: some GRPCCore.MessageSerializer<Google_Pubsub_V1_ListSnapshotsRequest>,
             deserializer: some GRPCCore.MessageDeserializer<Google_Pubsub_V1_ListSnapshotsResponse>,
@@ -2523,7 +2523,7 @@ extension Google_Pubsub_V1_Subscriber {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        internal func createSnapshot<Result>(
+        package func createSnapshot<Result>(
             request: GRPCCore.ClientRequest<Google_Pubsub_V1_CreateSnapshotRequest>,
             serializer: some GRPCCore.MessageSerializer<Google_Pubsub_V1_CreateSnapshotRequest>,
             deserializer: some GRPCCore.MessageDeserializer<Google_Pubsub_V1_Snapshot>,
@@ -2562,7 +2562,7 @@ extension Google_Pubsub_V1_Subscriber {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        internal func updateSnapshot<Result>(
+        package func updateSnapshot<Result>(
             request: GRPCCore.ClientRequest<Google_Pubsub_V1_UpdateSnapshotRequest>,
             serializer: some GRPCCore.MessageSerializer<Google_Pubsub_V1_UpdateSnapshotRequest>,
             deserializer: some GRPCCore.MessageDeserializer<Google_Pubsub_V1_Snapshot>,
@@ -2604,7 +2604,7 @@ extension Google_Pubsub_V1_Subscriber {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        internal func deleteSnapshot<Result>(
+        package func deleteSnapshot<Result>(
             request: GRPCCore.ClientRequest<Google_Pubsub_V1_DeleteSnapshotRequest>,
             serializer: some GRPCCore.MessageSerializer<Google_Pubsub_V1_DeleteSnapshotRequest>,
             deserializer: some GRPCCore.MessageDeserializer<SwiftProtobuf.Google_Protobuf_Empty>,
@@ -2644,7 +2644,7 @@ extension Google_Pubsub_V1_Subscriber {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        internal func seek<Result>(
+        package func seek<Result>(
             request: GRPCCore.ClientRequest<Google_Pubsub_V1_SeekRequest>,
             serializer: some GRPCCore.MessageSerializer<Google_Pubsub_V1_SeekRequest>,
             deserializer: some GRPCCore.MessageDeserializer<Google_Pubsub_V1_SeekResponse>,
@@ -2690,7 +2690,7 @@ extension Google_Pubsub_V1_Subscriber.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func createSubscription<Result>(
+    package func createSubscription<Result>(
         request: GRPCCore.ClientRequest<Google_Pubsub_V1_Subscription>,
         options: GRPCCore.CallOptions = .defaults,
         onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Google_Pubsub_V1_Subscription>) async throws -> Result = { response in
@@ -2719,7 +2719,7 @@ extension Google_Pubsub_V1_Subscriber.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func getSubscription<Result>(
+    package func getSubscription<Result>(
         request: GRPCCore.ClientRequest<Google_Pubsub_V1_GetSubscriptionRequest>,
         options: GRPCCore.CallOptions = .defaults,
         onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Google_Pubsub_V1_Subscription>) async throws -> Result = { response in
@@ -2750,7 +2750,7 @@ extension Google_Pubsub_V1_Subscriber.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func updateSubscription<Result>(
+    package func updateSubscription<Result>(
         request: GRPCCore.ClientRequest<Google_Pubsub_V1_UpdateSubscriptionRequest>,
         options: GRPCCore.CallOptions = .defaults,
         onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Google_Pubsub_V1_Subscription>) async throws -> Result = { response in
@@ -2779,7 +2779,7 @@ extension Google_Pubsub_V1_Subscriber.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func listSubscriptions<Result>(
+    package func listSubscriptions<Result>(
         request: GRPCCore.ClientRequest<Google_Pubsub_V1_ListSubscriptionsRequest>,
         options: GRPCCore.CallOptions = .defaults,
         onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Google_Pubsub_V1_ListSubscriptionsResponse>) async throws -> Result = { response in
@@ -2812,7 +2812,7 @@ extension Google_Pubsub_V1_Subscriber.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func deleteSubscription<Result>(
+    package func deleteSubscription<Result>(
         request: GRPCCore.ClientRequest<Google_Pubsub_V1_DeleteSubscriptionRequest>,
         options: GRPCCore.CallOptions = .defaults,
         onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<SwiftProtobuf.Google_Protobuf_Empty>) async throws -> Result = { response in
@@ -2845,7 +2845,7 @@ extension Google_Pubsub_V1_Subscriber.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func modifyAckDeadline<Result>(
+    package func modifyAckDeadline<Result>(
         request: GRPCCore.ClientRequest<Google_Pubsub_V1_ModifyAckDeadlineRequest>,
         options: GRPCCore.CallOptions = .defaults,
         onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<SwiftProtobuf.Google_Protobuf_Empty>) async throws -> Result = { response in
@@ -2880,7 +2880,7 @@ extension Google_Pubsub_V1_Subscriber.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func acknowledge<Result>(
+    package func acknowledge<Result>(
         request: GRPCCore.ClientRequest<Google_Pubsub_V1_AcknowledgeRequest>,
         options: GRPCCore.CallOptions = .defaults,
         onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<SwiftProtobuf.Google_Protobuf_Empty>) async throws -> Result = { response in
@@ -2909,7 +2909,7 @@ extension Google_Pubsub_V1_Subscriber.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func pull<Result>(
+    package func pull<Result>(
         request: GRPCCore.ClientRequest<Google_Pubsub_V1_PullRequest>,
         options: GRPCCore.CallOptions = .defaults,
         onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Google_Pubsub_V1_PullResponse>) async throws -> Result = { response in
@@ -2944,7 +2944,7 @@ extension Google_Pubsub_V1_Subscriber.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func streamingPull<Result>(
+    package func streamingPull<Result>(
         request: GRPCCore.StreamingClientRequest<Google_Pubsub_V1_StreamingPullRequest>,
         options: GRPCCore.CallOptions = .defaults,
         onResponse handleResponse: @Sendable @escaping (GRPCCore.StreamingClientResponse<Google_Pubsub_V1_StreamingPullResponse>) async throws -> Result
@@ -2976,7 +2976,7 @@ extension Google_Pubsub_V1_Subscriber.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func modifyPushConfig<Result>(
+    package func modifyPushConfig<Result>(
         request: GRPCCore.ClientRequest<Google_Pubsub_V1_ModifyPushConfigRequest>,
         options: GRPCCore.CallOptions = .defaults,
         onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<SwiftProtobuf.Google_Protobuf_Empty>) async throws -> Result = { response in
@@ -3009,7 +3009,7 @@ extension Google_Pubsub_V1_Subscriber.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func getSnapshot<Result>(
+    package func getSnapshot<Result>(
         request: GRPCCore.ClientRequest<Google_Pubsub_V1_GetSnapshotRequest>,
         options: GRPCCore.CallOptions = .defaults,
         onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Google_Pubsub_V1_Snapshot>) async throws -> Result = { response in
@@ -3042,7 +3042,7 @@ extension Google_Pubsub_V1_Subscriber.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func listSnapshots<Result>(
+    package func listSnapshots<Result>(
         request: GRPCCore.ClientRequest<Google_Pubsub_V1_ListSnapshotsRequest>,
         options: GRPCCore.CallOptions = .defaults,
         onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Google_Pubsub_V1_ListSnapshotsResponse>) async throws -> Result = { response in
@@ -3086,7 +3086,7 @@ extension Google_Pubsub_V1_Subscriber.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func createSnapshot<Result>(
+    package func createSnapshot<Result>(
         request: GRPCCore.ClientRequest<Google_Pubsub_V1_CreateSnapshotRequest>,
         options: GRPCCore.CallOptions = .defaults,
         onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Google_Pubsub_V1_Snapshot>) async throws -> Result = { response in
@@ -3120,7 +3120,7 @@ extension Google_Pubsub_V1_Subscriber.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func updateSnapshot<Result>(
+    package func updateSnapshot<Result>(
         request: GRPCCore.ClientRequest<Google_Pubsub_V1_UpdateSnapshotRequest>,
         options: GRPCCore.CallOptions = .defaults,
         onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Google_Pubsub_V1_Snapshot>) async throws -> Result = { response in
@@ -3157,7 +3157,7 @@ extension Google_Pubsub_V1_Subscriber.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func deleteSnapshot<Result>(
+    package func deleteSnapshot<Result>(
         request: GRPCCore.ClientRequest<Google_Pubsub_V1_DeleteSnapshotRequest>,
         options: GRPCCore.CallOptions = .defaults,
         onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<SwiftProtobuf.Google_Protobuf_Empty>) async throws -> Result = { response in
@@ -3192,7 +3192,7 @@ extension Google_Pubsub_V1_Subscriber.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func seek<Result>(
+    package func seek<Result>(
         request: GRPCCore.ClientRequest<Google_Pubsub_V1_SeekRequest>,
         options: GRPCCore.CallOptions = .defaults,
         onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Google_Pubsub_V1_SeekResponse>) async throws -> Result = { response in
@@ -3235,7 +3235,7 @@ extension Google_Pubsub_V1_Subscriber.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func createSubscription<Result>(
+    package func createSubscription<Result>(
         _ message: Google_Pubsub_V1_Subscription,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
@@ -3268,7 +3268,7 @@ extension Google_Pubsub_V1_Subscriber.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func getSubscription<Result>(
+    package func getSubscription<Result>(
         _ message: Google_Pubsub_V1_GetSubscriptionRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
@@ -3303,7 +3303,7 @@ extension Google_Pubsub_V1_Subscriber.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func updateSubscription<Result>(
+    package func updateSubscription<Result>(
         _ message: Google_Pubsub_V1_UpdateSubscriptionRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
@@ -3336,7 +3336,7 @@ extension Google_Pubsub_V1_Subscriber.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func listSubscriptions<Result>(
+    package func listSubscriptions<Result>(
         _ message: Google_Pubsub_V1_ListSubscriptionsRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
@@ -3373,7 +3373,7 @@ extension Google_Pubsub_V1_Subscriber.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func deleteSubscription<Result>(
+    package func deleteSubscription<Result>(
         _ message: Google_Pubsub_V1_DeleteSubscriptionRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
@@ -3410,7 +3410,7 @@ extension Google_Pubsub_V1_Subscriber.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func modifyAckDeadline<Result>(
+    package func modifyAckDeadline<Result>(
         _ message: Google_Pubsub_V1_ModifyAckDeadlineRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
@@ -3449,7 +3449,7 @@ extension Google_Pubsub_V1_Subscriber.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func acknowledge<Result>(
+    package func acknowledge<Result>(
         _ message: Google_Pubsub_V1_AcknowledgeRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
@@ -3482,7 +3482,7 @@ extension Google_Pubsub_V1_Subscriber.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func pull<Result>(
+    package func pull<Result>(
         _ message: Google_Pubsub_V1_PullRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
@@ -3522,7 +3522,7 @@ extension Google_Pubsub_V1_Subscriber.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func streamingPull<Result>(
+    package func streamingPull<Result>(
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
         requestProducer producer: @Sendable @escaping (GRPCCore.RPCWriter<Google_Pubsub_V1_StreamingPullRequest>) async throws -> Void,
@@ -3558,7 +3558,7 @@ extension Google_Pubsub_V1_Subscriber.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func modifyPushConfig<Result>(
+    package func modifyPushConfig<Result>(
         _ message: Google_Pubsub_V1_ModifyPushConfigRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
@@ -3595,7 +3595,7 @@ extension Google_Pubsub_V1_Subscriber.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func getSnapshot<Result>(
+    package func getSnapshot<Result>(
         _ message: Google_Pubsub_V1_GetSnapshotRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
@@ -3632,7 +3632,7 @@ extension Google_Pubsub_V1_Subscriber.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func listSnapshots<Result>(
+    package func listSnapshots<Result>(
         _ message: Google_Pubsub_V1_ListSnapshotsRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
@@ -3680,7 +3680,7 @@ extension Google_Pubsub_V1_Subscriber.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func createSnapshot<Result>(
+    package func createSnapshot<Result>(
         _ message: Google_Pubsub_V1_CreateSnapshotRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
@@ -3718,7 +3718,7 @@ extension Google_Pubsub_V1_Subscriber.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func updateSnapshot<Result>(
+    package func updateSnapshot<Result>(
         _ message: Google_Pubsub_V1_UpdateSnapshotRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
@@ -3759,7 +3759,7 @@ extension Google_Pubsub_V1_Subscriber.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func deleteSnapshot<Result>(
+    package func deleteSnapshot<Result>(
         _ message: Google_Pubsub_V1_DeleteSnapshotRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
@@ -3798,7 +3798,7 @@ extension Google_Pubsub_V1_Subscriber.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func seek<Result>(
+    package func seek<Result>(
         _ message: Google_Pubsub_V1_SeekRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,

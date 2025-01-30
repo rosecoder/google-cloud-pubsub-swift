@@ -36,7 +36,7 @@ fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAP
 }
 
 /// A policy constraining the storage of messages published to the topic.
-struct Google_Pubsub_V1_MessageStoragePolicy: Sendable {
+package struct Google_Pubsub_V1_MessageStoragePolicy: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -47,22 +47,22 @@ struct Google_Pubsub_V1_MessageStoragePolicy: Sendable {
   /// of Google Cloud altogether) are routed for storage in one of the allowed
   /// regions. An empty list means that no regions are allowed, and is not a
   /// valid configuration.
-  var allowedPersistenceRegions: [String] = []
+  package var allowedPersistenceRegions: [String] = []
 
   /// Optional. If true, `allowed_persistence_regions` is also used to enforce
   /// in-transit guarantees for messages. That is, Pub/Sub will fail
   /// Publish operations on this topic and subscribe operations
   /// on any subscription attached to this topic in any region that is
   /// not in `allowed_persistence_regions`.
-  var enforceInTransit: Bool = false
+  package var enforceInTransit: Bool = false
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  package var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  package init() {}
 }
 
 /// Settings for validating messages published against a schema.
-struct Google_Pubsub_V1_SchemaSettings: Sendable {
+package struct Google_Pubsub_V1_SchemaSettings: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -71,37 +71,37 @@ struct Google_Pubsub_V1_SchemaSettings: Sendable {
   /// validated against. Format is `projects/{project}/schemas/{schema}`. The
   /// value of this field will be `_deleted-schema_` if the schema has been
   /// deleted.
-  var schema: String = String()
+  package var schema: String = String()
 
   /// Optional. The encoding of messages validated against `schema`.
-  var encoding: Google_Pubsub_V1_Encoding = .unspecified
+  package var encoding: Google_Pubsub_V1_Encoding = .unspecified
 
   /// Optional. The minimum (inclusive) revision allowed for validating messages.
   /// If empty or not present, allow any revision to be validated against
   /// last_revision or any revision created before.
-  var firstRevisionID: String = String()
+  package var firstRevisionID: String = String()
 
   /// Optional. The maximum (inclusive) revision allowed for validating messages.
   /// If empty or not present, allow any revision to be validated against
   /// first_revision or any revision created after.
-  var lastRevisionID: String = String()
+  package var lastRevisionID: String = String()
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  package var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  package init() {}
 }
 
 /// Settings for an ingestion data source on a topic.
-struct Google_Pubsub_V1_IngestionDataSourceSettings: Sendable {
+package struct Google_Pubsub_V1_IngestionDataSourceSettings: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// Only one source type can have settings set.
-  var source: Google_Pubsub_V1_IngestionDataSourceSettings.OneOf_Source? = nil
+  package var source: Google_Pubsub_V1_IngestionDataSourceSettings.OneOf_Source? = nil
 
   /// Optional. Amazon Kinesis Data Streams.
-  var awsKinesis: Google_Pubsub_V1_IngestionDataSourceSettings.AwsKinesis {
+  package var awsKinesis: Google_Pubsub_V1_IngestionDataSourceSettings.AwsKinesis {
     get {
       if case .awsKinesis(let v)? = source {return v}
       return Google_Pubsub_V1_IngestionDataSourceSettings.AwsKinesis()
@@ -109,48 +109,103 @@ struct Google_Pubsub_V1_IngestionDataSourceSettings: Sendable {
     set {source = .awsKinesis(newValue)}
   }
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  /// Optional. Cloud Storage.
+  package var cloudStorage: Google_Pubsub_V1_IngestionDataSourceSettings.CloudStorage {
+    get {
+      if case .cloudStorage(let v)? = source {return v}
+      return Google_Pubsub_V1_IngestionDataSourceSettings.CloudStorage()
+    }
+    set {source = .cloudStorage(newValue)}
+  }
+
+  /// Optional. Azure Event Hubs.
+  package var azureEventHubs: Google_Pubsub_V1_IngestionDataSourceSettings.AzureEventHubs {
+    get {
+      if case .azureEventHubs(let v)? = source {return v}
+      return Google_Pubsub_V1_IngestionDataSourceSettings.AzureEventHubs()
+    }
+    set {source = .azureEventHubs(newValue)}
+  }
+
+  /// Optional. Amazon MSK.
+  package var awsMsk: Google_Pubsub_V1_IngestionDataSourceSettings.AwsMsk {
+    get {
+      if case .awsMsk(let v)? = source {return v}
+      return Google_Pubsub_V1_IngestionDataSourceSettings.AwsMsk()
+    }
+    set {source = .awsMsk(newValue)}
+  }
+
+  /// Optional. Confluent Cloud.
+  package var confluentCloud: Google_Pubsub_V1_IngestionDataSourceSettings.ConfluentCloud {
+    get {
+      if case .confluentCloud(let v)? = source {return v}
+      return Google_Pubsub_V1_IngestionDataSourceSettings.ConfluentCloud()
+    }
+    set {source = .confluentCloud(newValue)}
+  }
+
+  /// Optional. Platform Logs settings. If unset, no Platform Logs will be
+  /// generated.
+  package var platformLogsSettings: Google_Pubsub_V1_PlatformLogsSettings {
+    get {return _platformLogsSettings ?? Google_Pubsub_V1_PlatformLogsSettings()}
+    set {_platformLogsSettings = newValue}
+  }
+  /// Returns true if `platformLogsSettings` has been explicitly set.
+  package var hasPlatformLogsSettings: Bool {return self._platformLogsSettings != nil}
+  /// Clears the value of `platformLogsSettings`. Subsequent reads from it will return its default value.
+  package mutating func clearPlatformLogsSettings() {self._platformLogsSettings = nil}
+
+  package var unknownFields = SwiftProtobuf.UnknownStorage()
 
   /// Only one source type can have settings set.
-  enum OneOf_Source: Equatable, Sendable {
+  package enum OneOf_Source: Equatable, Sendable {
     /// Optional. Amazon Kinesis Data Streams.
     case awsKinesis(Google_Pubsub_V1_IngestionDataSourceSettings.AwsKinesis)
+    /// Optional. Cloud Storage.
+    case cloudStorage(Google_Pubsub_V1_IngestionDataSourceSettings.CloudStorage)
+    /// Optional. Azure Event Hubs.
+    case azureEventHubs(Google_Pubsub_V1_IngestionDataSourceSettings.AzureEventHubs)
+    /// Optional. Amazon MSK.
+    case awsMsk(Google_Pubsub_V1_IngestionDataSourceSettings.AwsMsk)
+    /// Optional. Confluent Cloud.
+    case confluentCloud(Google_Pubsub_V1_IngestionDataSourceSettings.ConfluentCloud)
 
   }
 
   /// Ingestion settings for Amazon Kinesis Data Streams.
-  struct AwsKinesis: Sendable {
+  package struct AwsKinesis: Sendable {
     // SwiftProtobuf.Message conformance is added in an extension below. See the
     // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
     // methods supported on all messages.
 
     /// Output only. An output-only field that indicates the state of the Kinesis
     /// ingestion source.
-    var state: Google_Pubsub_V1_IngestionDataSourceSettings.AwsKinesis.State = .unspecified
+    package var state: Google_Pubsub_V1_IngestionDataSourceSettings.AwsKinesis.State = .unspecified
 
     /// Required. The Kinesis stream ARN to ingest data from.
-    var streamArn: String = String()
+    package var streamArn: String = String()
 
     /// Required. The Kinesis consumer ARN to used for ingestion in Enhanced
     /// Fan-Out mode. The consumer must be already created and ready to be used.
-    var consumerArn: String = String()
+    package var consumerArn: String = String()
 
     /// Required. AWS role ARN to be used for Federated Identity authentication
     /// with Kinesis. Check the Pub/Sub docs for how to set up this role and the
     /// required permissions that need to be attached to it.
-    var awsRoleArn: String = String()
+    package var awsRoleArn: String = String()
 
     /// Required. The GCP service account to be used for Federated Identity
     /// authentication with Kinesis (via a `AssumeRoleWithWebIdentity` call for
     /// the provided role). The `aws_role_arn` must be set up with
     /// `accounts.google.com:sub` equals to this service account number.
-    var gcpServiceAccount: String = String()
+    package var gcpServiceAccount: String = String()
 
-    var unknownFields = SwiftProtobuf.UnknownStorage()
+    package var unknownFields = SwiftProtobuf.UnknownStorage()
 
     /// Possible states for ingestion from Amazon Kinesis Data Streams.
-    enum State: SwiftProtobuf.Enum, Swift.CaseIterable {
-      typealias RawValue = Int
+    package enum State: SwiftProtobuf.Enum, Swift.CaseIterable {
+      package typealias RawValue = Int
 
       /// Default value. This value is unused.
       case unspecified // = 0
@@ -181,11 +236,11 @@ struct Google_Pubsub_V1_IngestionDataSourceSettings: Sendable {
       case consumerNotFound // = 5
       case UNRECOGNIZED(Int)
 
-      init() {
+      package init() {
         self = .unspecified
       }
 
-      init?(rawValue: Int) {
+      package init?(rawValue: Int) {
         switch rawValue {
         case 0: self = .unspecified
         case 1: self = .active
@@ -197,7 +252,7 @@ struct Google_Pubsub_V1_IngestionDataSourceSettings: Sendable {
         }
       }
 
-      var rawValue: Int {
+      package var rawValue: Int {
         switch self {
         case .unspecified: return 0
         case .active: return 1
@@ -210,7 +265,7 @@ struct Google_Pubsub_V1_IngestionDataSourceSettings: Sendable {
       }
 
       // The compiler won't synthesize support with the UNRECOGNIZED case.
-      static let allCases: [Google_Pubsub_V1_IngestionDataSourceSettings.AwsKinesis.State] = [
+      package static let allCases: [Google_Pubsub_V1_IngestionDataSourceSettings.AwsKinesis.State] = [
         .unspecified,
         .active,
         .kinesisPermissionDenied,
@@ -221,14 +276,905 @@ struct Google_Pubsub_V1_IngestionDataSourceSettings: Sendable {
 
     }
 
-    init() {}
+    package init() {}
   }
 
-  init() {}
+  /// Ingestion settings for Cloud Storage.
+  package struct CloudStorage: Sendable {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    /// Output only. An output-only field that indicates the state of the Cloud
+    /// Storage ingestion source.
+    package var state: Google_Pubsub_V1_IngestionDataSourceSettings.CloudStorage.State = .unspecified
+
+    /// Optional. Cloud Storage bucket. The bucket name must be without any
+    /// prefix like "gs://". See the [bucket naming requirements]
+    /// (https://cloud.google.com/storage/docs/buckets#naming).
+    package var bucket: String = String()
+
+    /// Defaults to text format.
+    package var inputFormat: Google_Pubsub_V1_IngestionDataSourceSettings.CloudStorage.OneOf_InputFormat? = nil
+
+    /// Optional. Data from Cloud Storage will be interpreted as text.
+    package var textFormat: Google_Pubsub_V1_IngestionDataSourceSettings.CloudStorage.TextFormat {
+      get {
+        if case .textFormat(let v)? = inputFormat {return v}
+        return Google_Pubsub_V1_IngestionDataSourceSettings.CloudStorage.TextFormat()
+      }
+      set {inputFormat = .textFormat(newValue)}
+    }
+
+    /// Optional. Data from Cloud Storage will be interpreted in Avro format.
+    package var avroFormat: Google_Pubsub_V1_IngestionDataSourceSettings.CloudStorage.AvroFormat {
+      get {
+        if case .avroFormat(let v)? = inputFormat {return v}
+        return Google_Pubsub_V1_IngestionDataSourceSettings.CloudStorage.AvroFormat()
+      }
+      set {inputFormat = .avroFormat(newValue)}
+    }
+
+    /// Optional. It will be assumed data from Cloud Storage was written via
+    /// [Cloud Storage
+    /// subscriptions](https://cloud.google.com/pubsub/docs/cloudstorage).
+    package var pubsubAvroFormat: Google_Pubsub_V1_IngestionDataSourceSettings.CloudStorage.PubSubAvroFormat {
+      get {
+        if case .pubsubAvroFormat(let v)? = inputFormat {return v}
+        return Google_Pubsub_V1_IngestionDataSourceSettings.CloudStorage.PubSubAvroFormat()
+      }
+      set {inputFormat = .pubsubAvroFormat(newValue)}
+    }
+
+    /// Optional. Only objects with a larger or equal creation timestamp will be
+    /// ingested.
+    package var minimumObjectCreateTime: SwiftProtobuf.Google_Protobuf_Timestamp {
+      get {return _minimumObjectCreateTime ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+      set {_minimumObjectCreateTime = newValue}
+    }
+    /// Returns true if `minimumObjectCreateTime` has been explicitly set.
+    package var hasMinimumObjectCreateTime: Bool {return self._minimumObjectCreateTime != nil}
+    /// Clears the value of `minimumObjectCreateTime`. Subsequent reads from it will return its default value.
+    package mutating func clearMinimumObjectCreateTime() {self._minimumObjectCreateTime = nil}
+
+    /// Optional. Glob pattern used to match objects that will be ingested. If
+    /// unset, all objects will be ingested. See the [supported
+    /// patterns](https://cloud.google.com/storage/docs/json_api/v1/objects/list#list-objects-and-prefixes-using-glob).
+    package var matchGlob: String = String()
+
+    package var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    /// Defaults to text format.
+    package enum OneOf_InputFormat: Equatable, Sendable {
+      /// Optional. Data from Cloud Storage will be interpreted as text.
+      case textFormat(Google_Pubsub_V1_IngestionDataSourceSettings.CloudStorage.TextFormat)
+      /// Optional. Data from Cloud Storage will be interpreted in Avro format.
+      case avroFormat(Google_Pubsub_V1_IngestionDataSourceSettings.CloudStorage.AvroFormat)
+      /// Optional. It will be assumed data from Cloud Storage was written via
+      /// [Cloud Storage
+      /// subscriptions](https://cloud.google.com/pubsub/docs/cloudstorage).
+      case pubsubAvroFormat(Google_Pubsub_V1_IngestionDataSourceSettings.CloudStorage.PubSubAvroFormat)
+
+    }
+
+    /// Possible states for ingestion from Cloud Storage.
+    package enum State: SwiftProtobuf.Enum, Swift.CaseIterable {
+      package typealias RawValue = Int
+
+      /// Default value. This value is unused.
+      case unspecified // = 0
+
+      /// Ingestion is active.
+      case active // = 1
+
+      /// Permission denied encountered while calling the Cloud Storage API. This
+      /// can happen if the Pub/Sub SA has not been granted the
+      /// [appropriate
+      /// permissions](https://cloud.google.com/storage/docs/access-control/iam-permissions):
+      /// - storage.objects.list: to list the objects in a bucket.
+      /// - storage.objects.get: to read the objects in a bucket.
+      /// - storage.buckets.get: to verify the bucket exists.
+      case cloudStoragePermissionDenied // = 2
+
+      /// Permission denied encountered while publishing to the topic. This can
+      /// happen if the Pub/Sub SA has not been granted the [appropriate publish
+      /// permissions](https://cloud.google.com/pubsub/docs/access-control#pubsub.publisher)
+      case publishPermissionDenied // = 3
+
+      /// The provided Cloud Storage bucket doesn't exist.
+      case bucketNotFound // = 4
+
+      /// The Cloud Storage bucket has too many objects, ingestion will be
+      /// paused.
+      case tooManyObjects // = 5
+      case UNRECOGNIZED(Int)
+
+      package init() {
+        self = .unspecified
+      }
+
+      package init?(rawValue: Int) {
+        switch rawValue {
+        case 0: self = .unspecified
+        case 1: self = .active
+        case 2: self = .cloudStoragePermissionDenied
+        case 3: self = .publishPermissionDenied
+        case 4: self = .bucketNotFound
+        case 5: self = .tooManyObjects
+        default: self = .UNRECOGNIZED(rawValue)
+        }
+      }
+
+      package var rawValue: Int {
+        switch self {
+        case .unspecified: return 0
+        case .active: return 1
+        case .cloudStoragePermissionDenied: return 2
+        case .publishPermissionDenied: return 3
+        case .bucketNotFound: return 4
+        case .tooManyObjects: return 5
+        case .UNRECOGNIZED(let i): return i
+        }
+      }
+
+      // The compiler won't synthesize support with the UNRECOGNIZED case.
+      package static let allCases: [Google_Pubsub_V1_IngestionDataSourceSettings.CloudStorage.State] = [
+        .unspecified,
+        .active,
+        .cloudStoragePermissionDenied,
+        .publishPermissionDenied,
+        .bucketNotFound,
+        .tooManyObjects,
+      ]
+
+    }
+
+    /// Configuration for reading Cloud Storage data in text format. Each line of
+    /// text as specified by the delimiter will be set to the `data` field of a
+    /// Pub/Sub message.
+    package struct TextFormat: Sendable {
+      // SwiftProtobuf.Message conformance is added in an extension below. See the
+      // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+      // methods supported on all messages.
+
+      /// Optional. When unset, '\n' is used.
+      package var delimiter: String {
+        get {return _delimiter ?? String()}
+        set {_delimiter = newValue}
+      }
+      /// Returns true if `delimiter` has been explicitly set.
+      package var hasDelimiter: Bool {return self._delimiter != nil}
+      /// Clears the value of `delimiter`. Subsequent reads from it will return its default value.
+      package mutating func clearDelimiter() {self._delimiter = nil}
+
+      package var unknownFields = SwiftProtobuf.UnknownStorage()
+
+      package init() {}
+
+      fileprivate var _delimiter: String? = nil
+    }
+
+    /// Configuration for reading Cloud Storage data in Avro binary format. The
+    /// bytes of each object will be set to the `data` field of a Pub/Sub
+    /// message.
+    package struct AvroFormat: Sendable {
+      // SwiftProtobuf.Message conformance is added in an extension below. See the
+      // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+      // methods supported on all messages.
+
+      package var unknownFields = SwiftProtobuf.UnknownStorage()
+
+      package init() {}
+    }
+
+    /// Configuration for reading Cloud Storage data written via [Cloud Storage
+    /// subscriptions](https://cloud.google.com/pubsub/docs/cloudstorage). The
+    /// data and attributes fields of the originally exported Pub/Sub message
+    /// will be restored when publishing.
+    package struct PubSubAvroFormat: Sendable {
+      // SwiftProtobuf.Message conformance is added in an extension below. See the
+      // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+      // methods supported on all messages.
+
+      package var unknownFields = SwiftProtobuf.UnknownStorage()
+
+      package init() {}
+    }
+
+    package init() {}
+
+    fileprivate var _minimumObjectCreateTime: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+  }
+
+  /// Ingestion settings for Azure Event Hubs.
+  package struct AzureEventHubs: Sendable {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    /// Output only. An output-only field that indicates the state of the Event
+    /// Hubs ingestion source.
+    package var state: Google_Pubsub_V1_IngestionDataSourceSettings.AzureEventHubs.State = .unspecified
+
+    /// Optional. Name of the resource group within the azure subscription.
+    package var resourceGroup: String = String()
+
+    /// Optional. The name of the Event Hubs namespace.
+    package var namespace: String = String()
+
+    /// Optional. The name of the Event Hub.
+    package var eventHub: String = String()
+
+    /// Optional. The client id of the Azure application that is being used to
+    /// authenticate Pub/Sub.
+    package var clientID: String = String()
+
+    /// Optional. The tenant id of the Azure application that is being used to
+    /// authenticate Pub/Sub.
+    package var tenantID: String = String()
+
+    /// Optional. The Azure subscription id.
+    package var subscriptionID: String = String()
+
+    /// Optional. The GCP service account to be used for Federated Identity
+    /// authentication.
+    package var gcpServiceAccount: String = String()
+
+    package var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    /// Possible states for managed ingestion from Event Hubs.
+    package enum State: SwiftProtobuf.Enum, Swift.CaseIterable {
+      package typealias RawValue = Int
+
+      /// Default value. This value is unused.
+      case unspecified // = 0
+
+      /// Ingestion is active.
+      case active // = 1
+
+      /// Permission denied encountered while consuming data from Event Hubs.
+      /// This can happen when `client_id`, or `tenant_id` are invalid. Or the
+      /// right permissions haven't been granted.
+      case eventHubsPermissionDenied // = 2
+
+      /// Permission denied encountered while publishing to the topic.
+      case publishPermissionDenied // = 3
+
+      /// The provided Event Hubs namespace couldn't be found.
+      case namespaceNotFound // = 4
+
+      /// The provided Event Hub couldn't be found.
+      case eventHubNotFound // = 5
+
+      /// The provided Event Hubs subscription couldn't be found.
+      case subscriptionNotFound // = 6
+
+      /// The provided Event Hubs resource group couldn't be found.
+      case resourceGroupNotFound // = 7
+      case UNRECOGNIZED(Int)
+
+      package init() {
+        self = .unspecified
+      }
+
+      package init?(rawValue: Int) {
+        switch rawValue {
+        case 0: self = .unspecified
+        case 1: self = .active
+        case 2: self = .eventHubsPermissionDenied
+        case 3: self = .publishPermissionDenied
+        case 4: self = .namespaceNotFound
+        case 5: self = .eventHubNotFound
+        case 6: self = .subscriptionNotFound
+        case 7: self = .resourceGroupNotFound
+        default: self = .UNRECOGNIZED(rawValue)
+        }
+      }
+
+      package var rawValue: Int {
+        switch self {
+        case .unspecified: return 0
+        case .active: return 1
+        case .eventHubsPermissionDenied: return 2
+        case .publishPermissionDenied: return 3
+        case .namespaceNotFound: return 4
+        case .eventHubNotFound: return 5
+        case .subscriptionNotFound: return 6
+        case .resourceGroupNotFound: return 7
+        case .UNRECOGNIZED(let i): return i
+        }
+      }
+
+      // The compiler won't synthesize support with the UNRECOGNIZED case.
+      package static let allCases: [Google_Pubsub_V1_IngestionDataSourceSettings.AzureEventHubs.State] = [
+        .unspecified,
+        .active,
+        .eventHubsPermissionDenied,
+        .publishPermissionDenied,
+        .namespaceNotFound,
+        .eventHubNotFound,
+        .subscriptionNotFound,
+        .resourceGroupNotFound,
+      ]
+
+    }
+
+    package init() {}
+  }
+
+  /// Ingestion settings for Amazon MSK.
+  package struct AwsMsk: Sendable {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    /// Output only. An output-only field that indicates the state of the Amazon
+    /// MSK ingestion source.
+    package var state: Google_Pubsub_V1_IngestionDataSourceSettings.AwsMsk.State = .unspecified
+
+    /// Required. The Amazon Resource Name (ARN) that uniquely identifies the
+    /// cluster.
+    package var clusterArn: String = String()
+
+    /// Required. The name of the topic in the Amazon MSK cluster that Pub/Sub
+    /// will import from.
+    package var topic: String = String()
+
+    /// Required. AWS role ARN to be used for Federated Identity authentication
+    /// with Amazon MSK. Check the Pub/Sub docs for how to set up this role and
+    /// the required permissions that need to be attached to it.
+    package var awsRoleArn: String = String()
+
+    /// Required. The GCP service account to be used for Federated Identity
+    /// authentication with Amazon MSK (via a `AssumeRoleWithWebIdentity` call
+    /// for the provided role). The `aws_role_arn` must be set up with
+    /// `accounts.google.com:sub` equals to this service account number.
+    package var gcpServiceAccount: String = String()
+
+    package var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    /// Possible states for managed ingestion from Amazon MSK.
+    package enum State: SwiftProtobuf.Enum, Swift.CaseIterable {
+      package typealias RawValue = Int
+
+      /// Default value. This value is unused.
+      case unspecified // = 0
+
+      /// Ingestion is active.
+      case active // = 1
+
+      /// Permission denied encountered while consuming data from Amazon MSK.
+      case mskPermissionDenied // = 2
+
+      /// Permission denied encountered while publishing to the topic.
+      case publishPermissionDenied // = 3
+
+      /// The provided MSK cluster wasn't found.
+      case clusterNotFound // = 4
+
+      /// The provided topic wasn't found.
+      case topicNotFound // = 5
+      case UNRECOGNIZED(Int)
+
+      package init() {
+        self = .unspecified
+      }
+
+      package init?(rawValue: Int) {
+        switch rawValue {
+        case 0: self = .unspecified
+        case 1: self = .active
+        case 2: self = .mskPermissionDenied
+        case 3: self = .publishPermissionDenied
+        case 4: self = .clusterNotFound
+        case 5: self = .topicNotFound
+        default: self = .UNRECOGNIZED(rawValue)
+        }
+      }
+
+      package var rawValue: Int {
+        switch self {
+        case .unspecified: return 0
+        case .active: return 1
+        case .mskPermissionDenied: return 2
+        case .publishPermissionDenied: return 3
+        case .clusterNotFound: return 4
+        case .topicNotFound: return 5
+        case .UNRECOGNIZED(let i): return i
+        }
+      }
+
+      // The compiler won't synthesize support with the UNRECOGNIZED case.
+      package static let allCases: [Google_Pubsub_V1_IngestionDataSourceSettings.AwsMsk.State] = [
+        .unspecified,
+        .active,
+        .mskPermissionDenied,
+        .publishPermissionDenied,
+        .clusterNotFound,
+        .topicNotFound,
+      ]
+
+    }
+
+    package init() {}
+  }
+
+  /// Ingestion settings for Confluent Cloud.
+  package struct ConfluentCloud: Sendable {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    /// Output only. An output-only field that indicates the state of the
+    /// Confluent Cloud ingestion source.
+    package var state: Google_Pubsub_V1_IngestionDataSourceSettings.ConfluentCloud.State = .unspecified
+
+    /// Required. The address of the bootstrap server. The format is url:port.
+    package var bootstrapServer: String = String()
+
+    /// Required. The id of the cluster.
+    package var clusterID: String = String()
+
+    /// Required. The name of the topic in the Confluent Cloud cluster that
+    /// Pub/Sub will import from.
+    package var topic: String = String()
+
+    /// Required. The id of the identity pool to be used for Federated Identity
+    /// authentication with Confluent Cloud. See
+    /// https://docs.confluent.io/cloud/current/security/authenticate/workload-identities/identity-providers/oauth/identity-pools.html#add-oauth-identity-pools.
+    package var identityPoolID: String = String()
+
+    /// Required. The GCP service account to be used for Federated Identity
+    /// authentication with `identity_pool_id`.
+    package var gcpServiceAccount: String = String()
+
+    package var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    /// Possible states for managed ingestion from Confluent Cloud.
+    package enum State: SwiftProtobuf.Enum, Swift.CaseIterable {
+      package typealias RawValue = Int
+
+      /// Default value. This value is unused.
+      case unspecified // = 0
+
+      /// Ingestion is active.
+      case active // = 1
+
+      /// Permission denied encountered while consuming data from Confluent
+      /// Cloud.
+      case confluentCloudPermissionDenied // = 2
+
+      /// Permission denied encountered while publishing to the topic.
+      case publishPermissionDenied // = 3
+
+      /// The provided bootstrap server address is unreachable.
+      case unreachableBootstrapServer // = 4
+
+      /// The provided cluster wasn't found.
+      case clusterNotFound // = 5
+
+      /// The provided topic wasn't found.
+      case topicNotFound // = 6
+      case UNRECOGNIZED(Int)
+
+      package init() {
+        self = .unspecified
+      }
+
+      package init?(rawValue: Int) {
+        switch rawValue {
+        case 0: self = .unspecified
+        case 1: self = .active
+        case 2: self = .confluentCloudPermissionDenied
+        case 3: self = .publishPermissionDenied
+        case 4: self = .unreachableBootstrapServer
+        case 5: self = .clusterNotFound
+        case 6: self = .topicNotFound
+        default: self = .UNRECOGNIZED(rawValue)
+        }
+      }
+
+      package var rawValue: Int {
+        switch self {
+        case .unspecified: return 0
+        case .active: return 1
+        case .confluentCloudPermissionDenied: return 2
+        case .publishPermissionDenied: return 3
+        case .unreachableBootstrapServer: return 4
+        case .clusterNotFound: return 5
+        case .topicNotFound: return 6
+        case .UNRECOGNIZED(let i): return i
+        }
+      }
+
+      // The compiler won't synthesize support with the UNRECOGNIZED case.
+      package static let allCases: [Google_Pubsub_V1_IngestionDataSourceSettings.ConfluentCloud.State] = [
+        .unspecified,
+        .active,
+        .confluentCloudPermissionDenied,
+        .publishPermissionDenied,
+        .unreachableBootstrapServer,
+        .clusterNotFound,
+        .topicNotFound,
+      ]
+
+    }
+
+    package init() {}
+  }
+
+  package init() {}
+
+  fileprivate var _platformLogsSettings: Google_Pubsub_V1_PlatformLogsSettings? = nil
+}
+
+/// Settings for Platform Logs produced by Pub/Sub.
+package struct Google_Pubsub_V1_PlatformLogsSettings: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Optional. The minimum severity level of Platform Logs that will be written.
+  package var severity: Google_Pubsub_V1_PlatformLogsSettings.Severity = .unspecified
+
+  package var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  /// Severity levels of Platform Logs.
+  package enum Severity: SwiftProtobuf.Enum, Swift.CaseIterable {
+    package typealias RawValue = Int
+
+    /// Default value. Logs level is unspecified. Logs will be disabled.
+    case unspecified // = 0
+
+    /// Logs will be disabled.
+    case disabled // = 1
+
+    /// Debug logs and higher-severity logs will be written.
+    case debug // = 2
+
+    /// Info logs and higher-severity logs will be written.
+    case info // = 3
+
+    /// Warning logs and higher-severity logs will be written.
+    case warning // = 4
+
+    /// Only error logs will be written.
+    case error // = 5
+    case UNRECOGNIZED(Int)
+
+    package init() {
+      self = .unspecified
+    }
+
+    package init?(rawValue: Int) {
+      switch rawValue {
+      case 0: self = .unspecified
+      case 1: self = .disabled
+      case 2: self = .debug
+      case 3: self = .info
+      case 4: self = .warning
+      case 5: self = .error
+      default: self = .UNRECOGNIZED(rawValue)
+      }
+    }
+
+    package var rawValue: Int {
+      switch self {
+      case .unspecified: return 0
+      case .disabled: return 1
+      case .debug: return 2
+      case .info: return 3
+      case .warning: return 4
+      case .error: return 5
+      case .UNRECOGNIZED(let i): return i
+      }
+    }
+
+    // The compiler won't synthesize support with the UNRECOGNIZED case.
+    package static let allCases: [Google_Pubsub_V1_PlatformLogsSettings.Severity] = [
+      .unspecified,
+      .disabled,
+      .debug,
+      .info,
+      .warning,
+      .error,
+    ]
+
+  }
+
+  package init() {}
+}
+
+/// Payload of the Platform Log entry sent when a failure is encountered while
+/// ingesting.
+package struct Google_Pubsub_V1_IngestionFailureEvent: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Required. Name of the import topic. Format is:
+  /// projects/{project_name}/topics/{topic_name}.
+  package var topic: String = String()
+
+  /// Required. Error details explaining why ingestion to Pub/Sub has failed.
+  package var errorMessage: String = String()
+
+  package var failure: Google_Pubsub_V1_IngestionFailureEvent.OneOf_Failure? = nil
+
+  /// Optional. Failure when ingesting from Cloud Storage.
+  package var cloudStorageFailure: Google_Pubsub_V1_IngestionFailureEvent.CloudStorageFailure {
+    get {
+      if case .cloudStorageFailure(let v)? = failure {return v}
+      return Google_Pubsub_V1_IngestionFailureEvent.CloudStorageFailure()
+    }
+    set {failure = .cloudStorageFailure(newValue)}
+  }
+
+  /// Optional. Failure when ingesting from Amazon MSK.
+  package var awsMskFailure: Google_Pubsub_V1_IngestionFailureEvent.AwsMskFailureReason {
+    get {
+      if case .awsMskFailure(let v)? = failure {return v}
+      return Google_Pubsub_V1_IngestionFailureEvent.AwsMskFailureReason()
+    }
+    set {failure = .awsMskFailure(newValue)}
+  }
+
+  /// Optional. Failure when ingesting from Azure Event Hubs.
+  package var azureEventHubsFailure: Google_Pubsub_V1_IngestionFailureEvent.AzureEventHubsFailureReason {
+    get {
+      if case .azureEventHubsFailure(let v)? = failure {return v}
+      return Google_Pubsub_V1_IngestionFailureEvent.AzureEventHubsFailureReason()
+    }
+    set {failure = .azureEventHubsFailure(newValue)}
+  }
+
+  /// Optional. Failure when ingesting from Confluent Cloud.
+  package var confluentCloudFailure: Google_Pubsub_V1_IngestionFailureEvent.ConfluentCloudFailureReason {
+    get {
+      if case .confluentCloudFailure(let v)? = failure {return v}
+      return Google_Pubsub_V1_IngestionFailureEvent.ConfluentCloudFailureReason()
+    }
+    set {failure = .confluentCloudFailure(newValue)}
+  }
+
+  package var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  package enum OneOf_Failure: Equatable, Sendable {
+    /// Optional. Failure when ingesting from Cloud Storage.
+    case cloudStorageFailure(Google_Pubsub_V1_IngestionFailureEvent.CloudStorageFailure)
+    /// Optional. Failure when ingesting from Amazon MSK.
+    case awsMskFailure(Google_Pubsub_V1_IngestionFailureEvent.AwsMskFailureReason)
+    /// Optional. Failure when ingesting from Azure Event Hubs.
+    case azureEventHubsFailure(Google_Pubsub_V1_IngestionFailureEvent.AzureEventHubsFailureReason)
+    /// Optional. Failure when ingesting from Confluent Cloud.
+    case confluentCloudFailure(Google_Pubsub_V1_IngestionFailureEvent.ConfluentCloudFailureReason)
+
+  }
+
+  /// Specifies the reason why some data may have been left out of
+  /// the desired Pub/Sub message due to the API message limits
+  /// (https://cloud.google.com/pubsub/quotas#resource_limits). For example,
+  /// when the number of attributes is larger than 100, the number of
+  /// attributes is truncated to 100 to respect the limit on the attribute count.
+  /// Other attribute limits are treated similarly. When the size of the desired
+  /// message would've been larger than 10MB, the message won't be published at
+  /// all, and ingestion of the subsequent messages will proceed as normal.
+  package struct ApiViolationReason: Sendable {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    package var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    package init() {}
+  }
+
+  /// Set when an Avro file is unsupported or its format is not valid. When this
+  /// occurs, one or more Avro objects won't be ingested.
+  package struct AvroFailureReason: Sendable {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    package var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    package init() {}
+  }
+
+  /// Failure when ingesting from a Cloud Storage source.
+  package struct CloudStorageFailure: Sendable {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    /// Optional. Name of the Cloud Storage bucket used for ingestion.
+    package var bucket: String = String()
+
+    /// Optional. Name of the Cloud Storage object which contained the section
+    /// that couldn't be ingested.
+    package var objectName: String = String()
+
+    /// Optional. Generation of the Cloud Storage object which contained the
+    /// section that couldn't be ingested.
+    package var objectGeneration: Int64 = 0
+
+    /// Reason why ingestion failed for the specified object.
+    package var reason: Google_Pubsub_V1_IngestionFailureEvent.CloudStorageFailure.OneOf_Reason? = nil
+
+    /// Optional. Failure encountered when parsing an Avro file.
+    package var avroFailureReason: Google_Pubsub_V1_IngestionFailureEvent.AvroFailureReason {
+      get {
+        if case .avroFailureReason(let v)? = reason {return v}
+        return Google_Pubsub_V1_IngestionFailureEvent.AvroFailureReason()
+      }
+      set {reason = .avroFailureReason(newValue)}
+    }
+
+    /// Optional. The Pub/Sub API limits prevented the desired message from
+    /// being published.
+    package var apiViolationReason: Google_Pubsub_V1_IngestionFailureEvent.ApiViolationReason {
+      get {
+        if case .apiViolationReason(let v)? = reason {return v}
+        return Google_Pubsub_V1_IngestionFailureEvent.ApiViolationReason()
+      }
+      set {reason = .apiViolationReason(newValue)}
+    }
+
+    package var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    /// Reason why ingestion failed for the specified object.
+    package enum OneOf_Reason: Equatable, Sendable {
+      /// Optional. Failure encountered when parsing an Avro file.
+      case avroFailureReason(Google_Pubsub_V1_IngestionFailureEvent.AvroFailureReason)
+      /// Optional. The Pub/Sub API limits prevented the desired message from
+      /// being published.
+      case apiViolationReason(Google_Pubsub_V1_IngestionFailureEvent.ApiViolationReason)
+
+    }
+
+    package init() {}
+  }
+
+  /// Failure when ingesting from an Amazon MSK source.
+  package struct AwsMskFailureReason: Sendable {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    /// Optional. The ARN of the cluster of the topic being ingested from.
+    package var clusterArn: String = String()
+
+    /// Optional. The name of the Kafka topic being ingested from.
+    package var kafkaTopic: String = String()
+
+    /// Optional. The partition ID of the message that failed to be ingested.
+    package var partitionID: Int64 = 0
+
+    /// Optional. The offset within the partition of the message that failed to
+    /// be ingested.
+    package var offset: Int64 = 0
+
+    /// Reason why ingestion failed for the specified message.
+    package var reason: Google_Pubsub_V1_IngestionFailureEvent.AwsMskFailureReason.OneOf_Reason? = nil
+
+    /// Optional. The Pub/Sub API limits prevented the desired message from
+    /// being published.
+    package var apiViolationReason: Google_Pubsub_V1_IngestionFailureEvent.ApiViolationReason {
+      get {
+        if case .apiViolationReason(let v)? = reason {return v}
+        return Google_Pubsub_V1_IngestionFailureEvent.ApiViolationReason()
+      }
+      set {reason = .apiViolationReason(newValue)}
+    }
+
+    package var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    /// Reason why ingestion failed for the specified message.
+    package enum OneOf_Reason: Equatable, Sendable {
+      /// Optional. The Pub/Sub API limits prevented the desired message from
+      /// being published.
+      case apiViolationReason(Google_Pubsub_V1_IngestionFailureEvent.ApiViolationReason)
+
+    }
+
+    package init() {}
+  }
+
+  /// Failure when ingesting from an Azure Event Hubs source.
+  package struct AzureEventHubsFailureReason: Sendable {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    /// Optional. The namespace containing the event hub being ingested from.
+    package var namespace: String = String()
+
+    /// Optional. The name of the event hub being ingested from.
+    package var eventHub: String = String()
+
+    /// Optional. The partition ID of the message that failed to be ingested.
+    package var partitionID: Int64 = 0
+
+    /// Optional. The offset within the partition of the message that failed to
+    /// be ingested.
+    package var offset: Int64 = 0
+
+    /// Reason why ingestion failed for the specified message.
+    package var reason: Google_Pubsub_V1_IngestionFailureEvent.AzureEventHubsFailureReason.OneOf_Reason? = nil
+
+    /// Optional. The Pub/Sub API limits prevented the desired message from
+    /// being published.
+    package var apiViolationReason: Google_Pubsub_V1_IngestionFailureEvent.ApiViolationReason {
+      get {
+        if case .apiViolationReason(let v)? = reason {return v}
+        return Google_Pubsub_V1_IngestionFailureEvent.ApiViolationReason()
+      }
+      set {reason = .apiViolationReason(newValue)}
+    }
+
+    package var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    /// Reason why ingestion failed for the specified message.
+    package enum OneOf_Reason: Equatable, Sendable {
+      /// Optional. The Pub/Sub API limits prevented the desired message from
+      /// being published.
+      case apiViolationReason(Google_Pubsub_V1_IngestionFailureEvent.ApiViolationReason)
+
+    }
+
+    package init() {}
+  }
+
+  /// Failure when ingesting from a Confluent Cloud source.
+  package struct ConfluentCloudFailureReason: Sendable {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    /// Optional. The cluster ID containing the topic being ingested from.
+    package var clusterID: String = String()
+
+    /// Optional. The name of the Kafka topic being ingested from.
+    package var kafkaTopic: String = String()
+
+    /// Optional. The partition ID of the message that failed to be ingested.
+    package var partitionID: Int64 = 0
+
+    /// Optional. The offset within the partition of the message that failed to
+    /// be ingested.
+    package var offset: Int64 = 0
+
+    /// Reason why ingestion failed for the specified message.
+    package var reason: Google_Pubsub_V1_IngestionFailureEvent.ConfluentCloudFailureReason.OneOf_Reason? = nil
+
+    /// Optional. The Pub/Sub API limits prevented the desired message from
+    /// being published.
+    package var apiViolationReason: Google_Pubsub_V1_IngestionFailureEvent.ApiViolationReason {
+      get {
+        if case .apiViolationReason(let v)? = reason {return v}
+        return Google_Pubsub_V1_IngestionFailureEvent.ApiViolationReason()
+      }
+      set {reason = .apiViolationReason(newValue)}
+    }
+
+    package var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    /// Reason why ingestion failed for the specified message.
+    package enum OneOf_Reason: Equatable, Sendable {
+      /// Optional. The Pub/Sub API limits prevented the desired message from
+      /// being published.
+      case apiViolationReason(Google_Pubsub_V1_IngestionFailureEvent.ApiViolationReason)
+
+    }
+
+    package init() {}
+  }
+
+  package init() {}
 }
 
 /// A topic resource.
-struct Google_Pubsub_V1_Topic: @unchecked Sendable {
+package struct Google_Pubsub_V1_Topic: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -239,14 +1185,14 @@ struct Google_Pubsub_V1_Topic: @unchecked Sendable {
   /// underscores (`_`), periods (`.`), tildes (`~`), plus (`+`) or percent
   /// signs (`%`). It must be between 3 and 255 characters in length, and it
   /// must not start with `"goog"`.
-  var name: String {
+  package var name: String {
     get {return _storage._name}
     set {_uniqueStorage()._name = newValue}
   }
 
   /// Optional. See [Creating and managing labels]
   /// (https://cloud.google.com/pubsub/docs/labels).
-  var labels: Dictionary<String,String> {
+  package var labels: Dictionary<String,String> {
     get {return _storage._labels}
     set {_uniqueStorage()._labels = newValue}
   }
@@ -254,37 +1200,37 @@ struct Google_Pubsub_V1_Topic: @unchecked Sendable {
   /// Optional. Policy constraining the set of Google Cloud Platform regions
   /// where messages published to the topic may be stored. If not present, then
   /// no constraints are in effect.
-  var messageStoragePolicy: Google_Pubsub_V1_MessageStoragePolicy {
+  package var messageStoragePolicy: Google_Pubsub_V1_MessageStoragePolicy {
     get {return _storage._messageStoragePolicy ?? Google_Pubsub_V1_MessageStoragePolicy()}
     set {_uniqueStorage()._messageStoragePolicy = newValue}
   }
   /// Returns true if `messageStoragePolicy` has been explicitly set.
-  var hasMessageStoragePolicy: Bool {return _storage._messageStoragePolicy != nil}
+  package var hasMessageStoragePolicy: Bool {return _storage._messageStoragePolicy != nil}
   /// Clears the value of `messageStoragePolicy`. Subsequent reads from it will return its default value.
-  mutating func clearMessageStoragePolicy() {_uniqueStorage()._messageStoragePolicy = nil}
+  package mutating func clearMessageStoragePolicy() {_uniqueStorage()._messageStoragePolicy = nil}
 
   /// Optional. The resource name of the Cloud KMS CryptoKey to be used to
   /// protect access to messages published on this topic.
   ///
   /// The expected format is `projects/*/locations/*/keyRings/*/cryptoKeys/*`.
-  var kmsKeyName: String {
+  package var kmsKeyName: String {
     get {return _storage._kmsKeyName}
     set {_uniqueStorage()._kmsKeyName = newValue}
   }
 
   /// Optional. Settings for validating messages published against a schema.
-  var schemaSettings: Google_Pubsub_V1_SchemaSettings {
+  package var schemaSettings: Google_Pubsub_V1_SchemaSettings {
     get {return _storage._schemaSettings ?? Google_Pubsub_V1_SchemaSettings()}
     set {_uniqueStorage()._schemaSettings = newValue}
   }
   /// Returns true if `schemaSettings` has been explicitly set.
-  var hasSchemaSettings: Bool {return _storage._schemaSettings != nil}
+  package var hasSchemaSettings: Bool {return _storage._schemaSettings != nil}
   /// Clears the value of `schemaSettings`. Subsequent reads from it will return its default value.
-  mutating func clearSchemaSettings() {_uniqueStorage()._schemaSettings = nil}
+  package mutating func clearSchemaSettings() {_uniqueStorage()._schemaSettings = nil}
 
   /// Optional. Reserved for future use. This field is set only in responses from
   /// the server; it is ignored if it is set in any requests.
-  var satisfiesPzs: Bool {
+  package var satisfiesPzs: Bool {
     get {return _storage._satisfiesPzs}
     set {_uniqueStorage()._satisfiesPzs = newValue}
   }
@@ -298,36 +1244,36 @@ struct Google_Pubsub_V1_Topic: @unchecked Sendable {
   /// that is up to `message_retention_duration` in the past. If this field is
   /// not set, message retention is controlled by settings on individual
   /// subscriptions. Cannot be more than 31 days or less than 10 minutes.
-  var messageRetentionDuration: SwiftProtobuf.Google_Protobuf_Duration {
+  package var messageRetentionDuration: SwiftProtobuf.Google_Protobuf_Duration {
     get {return _storage._messageRetentionDuration ?? SwiftProtobuf.Google_Protobuf_Duration()}
     set {_uniqueStorage()._messageRetentionDuration = newValue}
   }
   /// Returns true if `messageRetentionDuration` has been explicitly set.
-  var hasMessageRetentionDuration: Bool {return _storage._messageRetentionDuration != nil}
+  package var hasMessageRetentionDuration: Bool {return _storage._messageRetentionDuration != nil}
   /// Clears the value of `messageRetentionDuration`. Subsequent reads from it will return its default value.
-  mutating func clearMessageRetentionDuration() {_uniqueStorage()._messageRetentionDuration = nil}
+  package mutating func clearMessageRetentionDuration() {_uniqueStorage()._messageRetentionDuration = nil}
 
   /// Output only. An output-only field indicating the state of the topic.
-  var state: Google_Pubsub_V1_Topic.State {
+  package var state: Google_Pubsub_V1_Topic.State {
     get {return _storage._state}
     set {_uniqueStorage()._state = newValue}
   }
 
   /// Optional. Settings for ingestion from a data source into this topic.
-  var ingestionDataSourceSettings: Google_Pubsub_V1_IngestionDataSourceSettings {
+  package var ingestionDataSourceSettings: Google_Pubsub_V1_IngestionDataSourceSettings {
     get {return _storage._ingestionDataSourceSettings ?? Google_Pubsub_V1_IngestionDataSourceSettings()}
     set {_uniqueStorage()._ingestionDataSourceSettings = newValue}
   }
   /// Returns true if `ingestionDataSourceSettings` has been explicitly set.
-  var hasIngestionDataSourceSettings: Bool {return _storage._ingestionDataSourceSettings != nil}
+  package var hasIngestionDataSourceSettings: Bool {return _storage._ingestionDataSourceSettings != nil}
   /// Clears the value of `ingestionDataSourceSettings`. Subsequent reads from it will return its default value.
-  mutating func clearIngestionDataSourceSettings() {_uniqueStorage()._ingestionDataSourceSettings = nil}
+  package mutating func clearIngestionDataSourceSettings() {_uniqueStorage()._ingestionDataSourceSettings = nil}
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  package var unknownFields = SwiftProtobuf.UnknownStorage()
 
   /// The state of the topic.
-  enum State: SwiftProtobuf.Enum, Swift.CaseIterable {
-    typealias RawValue = Int
+  package enum State: SwiftProtobuf.Enum, Swift.CaseIterable {
+    package typealias RawValue = Int
 
     /// Default value. This value is unused.
     case unspecified // = 0
@@ -341,11 +1287,11 @@ struct Google_Pubsub_V1_Topic: @unchecked Sendable {
     case ingestionResourceError // = 2
     case UNRECOGNIZED(Int)
 
-    init() {
+    package init() {
       self = .unspecified
     }
 
-    init?(rawValue: Int) {
+    package init?(rawValue: Int) {
       switch rawValue {
       case 0: self = .unspecified
       case 1: self = .active
@@ -354,7 +1300,7 @@ struct Google_Pubsub_V1_Topic: @unchecked Sendable {
       }
     }
 
-    var rawValue: Int {
+    package var rawValue: Int {
       switch self {
       case .unspecified: return 0
       case .active: return 1
@@ -364,7 +1310,7 @@ struct Google_Pubsub_V1_Topic: @unchecked Sendable {
     }
 
     // The compiler won't synthesize support with the UNRECOGNIZED case.
-    static let allCases: [Google_Pubsub_V1_Topic.State] = [
+    package static let allCases: [Google_Pubsub_V1_Topic.State] = [
       .unspecified,
       .active,
       .ingestionResourceError,
@@ -372,7 +1318,7 @@ struct Google_Pubsub_V1_Topic: @unchecked Sendable {
 
   }
 
-  init() {}
+  package init() {}
 
   fileprivate var _storage = _StorageClass.defaultInstance
 }
@@ -385,37 +1331,37 @@ struct Google_Pubsub_V1_Topic: @unchecked Sendable {
 /// more information. See [quotas and limits]
 /// (https://cloud.google.com/pubsub/quotas) for more information about message
 /// limits.
-struct Google_Pubsub_V1_PubsubMessage: @unchecked Sendable {
+package struct Google_Pubsub_V1_PubsubMessage: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// Optional. The message data field. If this field is empty, the message must
   /// contain at least one attribute.
-  var data: Data = Data()
+  package var data: Data = Data()
 
   /// Optional. Attributes for this message. If this field is empty, the message
   /// must contain non-empty data. This can be used to filter messages on the
   /// subscription.
-  var attributes: Dictionary<String,String> = [:]
+  package var attributes: Dictionary<String,String> = [:]
 
   /// ID of this message, assigned by the server when the message is published.
   /// Guaranteed to be unique within the topic. This value may be read by a
   /// subscriber that receives a `PubsubMessage` via a `Pull` call or a push
   /// delivery. It must not be populated by the publisher in a `Publish` call.
-  var messageID: String = String()
+  package var messageID: String = String()
 
   /// The time at which the message was published, populated by the server when
   /// it receives the `Publish` call. It must not be populated by the
   /// publisher in a `Publish` call.
-  var publishTime: SwiftProtobuf.Google_Protobuf_Timestamp {
+  package var publishTime: SwiftProtobuf.Google_Protobuf_Timestamp {
     get {return _publishTime ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_publishTime = newValue}
   }
   /// Returns true if `publishTime` has been explicitly set.
-  var hasPublishTime: Bool {return self._publishTime != nil}
+  package var hasPublishTime: Bool {return self._publishTime != nil}
   /// Clears the value of `publishTime`. Subsequent reads from it will return its default value.
-  mutating func clearPublishTime() {self._publishTime = nil}
+  package mutating func clearPublishTime() {self._publishTime = nil}
 
   /// Optional. If non-empty, identifies related messages for which publish order
   /// should be respected. If a `Subscription` has `enable_message_ordering` set
@@ -425,88 +1371,88 @@ struct Google_Pubsub_V1_PubsubMessage: @unchecked Sendable {
   /// `PublishRequest` must specify the same `ordering_key` value. For more
   /// information, see [ordering
   /// messages](https://cloud.google.com/pubsub/docs/ordering).
-  var orderingKey: String = String()
+  package var orderingKey: String = String()
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  package var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  package init() {}
 
   fileprivate var _publishTime: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
 }
 
 /// Request for the GetTopic method.
-struct Google_Pubsub_V1_GetTopicRequest: Sendable {
+package struct Google_Pubsub_V1_GetTopicRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// Required. The name of the topic to get.
   /// Format is `projects/{project}/topics/{topic}`.
-  var topic: String = String()
+  package var topic: String = String()
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  package var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  package init() {}
 }
 
 /// Request for the UpdateTopic method.
-struct Google_Pubsub_V1_UpdateTopicRequest: Sendable {
+package struct Google_Pubsub_V1_UpdateTopicRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// Required. The updated topic object.
-  var topic: Google_Pubsub_V1_Topic {
+  package var topic: Google_Pubsub_V1_Topic {
     get {return _topic ?? Google_Pubsub_V1_Topic()}
     set {_topic = newValue}
   }
   /// Returns true if `topic` has been explicitly set.
-  var hasTopic: Bool {return self._topic != nil}
+  package var hasTopic: Bool {return self._topic != nil}
   /// Clears the value of `topic`. Subsequent reads from it will return its default value.
-  mutating func clearTopic() {self._topic = nil}
+  package mutating func clearTopic() {self._topic = nil}
 
   /// Required. Indicates which fields in the provided topic to update. Must be
   /// specified and non-empty. Note that if `update_mask` contains
   /// "message_storage_policy" but the `message_storage_policy` is not set in
   /// the `topic` provided above, then the updated value is determined by the
   /// policy configured at the project or organization level.
-  var updateMask: SwiftProtobuf.Google_Protobuf_FieldMask {
+  package var updateMask: SwiftProtobuf.Google_Protobuf_FieldMask {
     get {return _updateMask ?? SwiftProtobuf.Google_Protobuf_FieldMask()}
     set {_updateMask = newValue}
   }
   /// Returns true if `updateMask` has been explicitly set.
-  var hasUpdateMask: Bool {return self._updateMask != nil}
+  package var hasUpdateMask: Bool {return self._updateMask != nil}
   /// Clears the value of `updateMask`. Subsequent reads from it will return its default value.
-  mutating func clearUpdateMask() {self._updateMask = nil}
+  package mutating func clearUpdateMask() {self._updateMask = nil}
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  package var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  package init() {}
 
   fileprivate var _topic: Google_Pubsub_V1_Topic? = nil
   fileprivate var _updateMask: SwiftProtobuf.Google_Protobuf_FieldMask? = nil
 }
 
 /// Request for the Publish method.
-struct Google_Pubsub_V1_PublishRequest: Sendable {
+package struct Google_Pubsub_V1_PublishRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// Required. The messages in the request will be published on this topic.
   /// Format is `projects/{project}/topics/{topic}`.
-  var topic: String = String()
+  package var topic: String = String()
 
   /// Required. The messages to publish.
-  var messages: [Google_Pubsub_V1_PubsubMessage] = []
+  package var messages: [Google_Pubsub_V1_PubsubMessage] = []
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  package var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  package init() {}
 }
 
 /// Response for the `Publish` method.
-struct Google_Pubsub_V1_PublishResponse: Sendable {
+package struct Google_Pubsub_V1_PublishResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -514,185 +1460,185 @@ struct Google_Pubsub_V1_PublishResponse: Sendable {
   /// Optional. The server-assigned ID of each published message, in the same
   /// order as the messages in the request. IDs are guaranteed to be unique
   /// within the topic.
-  var messageIds: [String] = []
+  package var messageIds: [String] = []
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  package var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  package init() {}
 }
 
 /// Request for the `ListTopics` method.
-struct Google_Pubsub_V1_ListTopicsRequest: Sendable {
+package struct Google_Pubsub_V1_ListTopicsRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// Required. The name of the project in which to list topics.
   /// Format is `projects/{project-id}`.
-  var project: String = String()
+  package var project: String = String()
 
   /// Optional. Maximum number of topics to return.
-  var pageSize: Int32 = 0
+  package var pageSize: Int32 = 0
 
   /// Optional. The value returned by the last `ListTopicsResponse`; indicates
   /// that this is a continuation of a prior `ListTopics` call, and that the
   /// system should return the next page of data.
-  var pageToken: String = String()
+  package var pageToken: String = String()
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  package var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  package init() {}
 }
 
 /// Response for the `ListTopics` method.
-struct Google_Pubsub_V1_ListTopicsResponse: Sendable {
+package struct Google_Pubsub_V1_ListTopicsResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// Optional. The resulting topics.
-  var topics: [Google_Pubsub_V1_Topic] = []
+  package var topics: [Google_Pubsub_V1_Topic] = []
 
   /// Optional. If not empty, indicates that there may be more topics that match
   /// the request; this value should be passed in a new `ListTopicsRequest`.
-  var nextPageToken: String = String()
+  package var nextPageToken: String = String()
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  package var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  package init() {}
 }
 
 /// Request for the `ListTopicSubscriptions` method.
-struct Google_Pubsub_V1_ListTopicSubscriptionsRequest: Sendable {
+package struct Google_Pubsub_V1_ListTopicSubscriptionsRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// Required. The name of the topic that subscriptions are attached to.
   /// Format is `projects/{project}/topics/{topic}`.
-  var topic: String = String()
+  package var topic: String = String()
 
   /// Optional. Maximum number of subscription names to return.
-  var pageSize: Int32 = 0
+  package var pageSize: Int32 = 0
 
   /// Optional. The value returned by the last `ListTopicSubscriptionsResponse`;
   /// indicates that this is a continuation of a prior `ListTopicSubscriptions`
   /// call, and that the system should return the next page of data.
-  var pageToken: String = String()
+  package var pageToken: String = String()
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  package var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  package init() {}
 }
 
 /// Response for the `ListTopicSubscriptions` method.
-struct Google_Pubsub_V1_ListTopicSubscriptionsResponse: Sendable {
+package struct Google_Pubsub_V1_ListTopicSubscriptionsResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// Optional. The names of subscriptions attached to the topic specified in the
   /// request.
-  var subscriptions: [String] = []
+  package var subscriptions: [String] = []
 
   /// Optional. If not empty, indicates that there may be more subscriptions that
   /// match the request; this value should be passed in a new
   /// `ListTopicSubscriptionsRequest` to get more subscriptions.
-  var nextPageToken: String = String()
+  package var nextPageToken: String = String()
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  package var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  package init() {}
 }
 
 /// Request for the `ListTopicSnapshots` method.
-struct Google_Pubsub_V1_ListTopicSnapshotsRequest: Sendable {
+package struct Google_Pubsub_V1_ListTopicSnapshotsRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// Required. The name of the topic that snapshots are attached to.
   /// Format is `projects/{project}/topics/{topic}`.
-  var topic: String = String()
+  package var topic: String = String()
 
   /// Optional. Maximum number of snapshot names to return.
-  var pageSize: Int32 = 0
+  package var pageSize: Int32 = 0
 
   /// Optional. The value returned by the last `ListTopicSnapshotsResponse`;
   /// indicates that this is a continuation of a prior `ListTopicSnapshots` call,
   /// and that the system should return the next page of data.
-  var pageToken: String = String()
+  package var pageToken: String = String()
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  package var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  package init() {}
 }
 
 /// Response for the `ListTopicSnapshots` method.
-struct Google_Pubsub_V1_ListTopicSnapshotsResponse: Sendable {
+package struct Google_Pubsub_V1_ListTopicSnapshotsResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// Optional. The names of the snapshots that match the request.
-  var snapshots: [String] = []
+  package var snapshots: [String] = []
 
   /// Optional. If not empty, indicates that there may be more snapshots that
   /// match the request; this value should be passed in a new
   /// `ListTopicSnapshotsRequest` to get more snapshots.
-  var nextPageToken: String = String()
+  package var nextPageToken: String = String()
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  package var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  package init() {}
 }
 
 /// Request for the `DeleteTopic` method.
-struct Google_Pubsub_V1_DeleteTopicRequest: Sendable {
+package struct Google_Pubsub_V1_DeleteTopicRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// Required. Name of the topic to delete.
   /// Format is `projects/{project}/topics/{topic}`.
-  var topic: String = String()
+  package var topic: String = String()
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  package var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  package init() {}
 }
 
 /// Request for the DetachSubscription method.
-struct Google_Pubsub_V1_DetachSubscriptionRequest: Sendable {
+package struct Google_Pubsub_V1_DetachSubscriptionRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// Required. The subscription to detach.
   /// Format is `projects/{project}/subscriptions/{subscription}`.
-  var subscription: String = String()
+  package var subscription: String = String()
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  package var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  package init() {}
 }
 
 /// Response for the DetachSubscription method.
 /// Reserved for future use.
-struct Google_Pubsub_V1_DetachSubscriptionResponse: Sendable {
+package struct Google_Pubsub_V1_DetachSubscriptionResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  package var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  package init() {}
 }
 
 /// A subscription resource. If none of `push_config`, `bigquery_config`, or
 /// `cloud_storage_config` is set, then the subscriber will pull and ack messages
 /// using API methods. At most one of these fields may be set.
-struct Google_Pubsub_V1_Subscription: @unchecked Sendable {
+package struct Google_Pubsub_V1_Subscription: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -703,7 +1649,7 @@ struct Google_Pubsub_V1_Subscription: @unchecked Sendable {
   /// (`[0-9]`), dashes (`-`), underscores (`_`), periods (`.`), tildes (`~`),
   /// plus (`+`) or percent signs (`%`). It must be between 3 and 255 characters
   /// in length, and it must not start with `"goog"`.
-  var name: String {
+  package var name: String {
     get {return _storage._name}
     set {_uniqueStorage()._name = newValue}
   }
@@ -711,43 +1657,43 @@ struct Google_Pubsub_V1_Subscription: @unchecked Sendable {
   /// Required. The name of the topic from which this subscription is receiving
   /// messages. Format is `projects/{project}/topics/{topic}`. The value of this
   /// field will be `_deleted-topic_` if the topic has been deleted.
-  var topic: String {
+  package var topic: String {
     get {return _storage._topic}
     set {_uniqueStorage()._topic = newValue}
   }
 
   /// Optional. If push delivery is used with this subscription, this field is
   /// used to configure it.
-  var pushConfig: Google_Pubsub_V1_PushConfig {
+  package var pushConfig: Google_Pubsub_V1_PushConfig {
     get {return _storage._pushConfig ?? Google_Pubsub_V1_PushConfig()}
     set {_uniqueStorage()._pushConfig = newValue}
   }
   /// Returns true if `pushConfig` has been explicitly set.
-  var hasPushConfig: Bool {return _storage._pushConfig != nil}
+  package var hasPushConfig: Bool {return _storage._pushConfig != nil}
   /// Clears the value of `pushConfig`. Subsequent reads from it will return its default value.
-  mutating func clearPushConfig() {_uniqueStorage()._pushConfig = nil}
+  package mutating func clearPushConfig() {_uniqueStorage()._pushConfig = nil}
 
   /// Optional. If delivery to BigQuery is used with this subscription, this
   /// field is used to configure it.
-  var bigqueryConfig: Google_Pubsub_V1_BigQueryConfig {
+  package var bigqueryConfig: Google_Pubsub_V1_BigQueryConfig {
     get {return _storage._bigqueryConfig ?? Google_Pubsub_V1_BigQueryConfig()}
     set {_uniqueStorage()._bigqueryConfig = newValue}
   }
   /// Returns true if `bigqueryConfig` has been explicitly set.
-  var hasBigqueryConfig: Bool {return _storage._bigqueryConfig != nil}
+  package var hasBigqueryConfig: Bool {return _storage._bigqueryConfig != nil}
   /// Clears the value of `bigqueryConfig`. Subsequent reads from it will return its default value.
-  mutating func clearBigqueryConfig() {_uniqueStorage()._bigqueryConfig = nil}
+  package mutating func clearBigqueryConfig() {_uniqueStorage()._bigqueryConfig = nil}
 
   /// Optional. If delivery to Google Cloud Storage is used with this
   /// subscription, this field is used to configure it.
-  var cloudStorageConfig: Google_Pubsub_V1_CloudStorageConfig {
+  package var cloudStorageConfig: Google_Pubsub_V1_CloudStorageConfig {
     get {return _storage._cloudStorageConfig ?? Google_Pubsub_V1_CloudStorageConfig()}
     set {_uniqueStorage()._cloudStorageConfig = newValue}
   }
   /// Returns true if `cloudStorageConfig` has been explicitly set.
-  var hasCloudStorageConfig: Bool {return _storage._cloudStorageConfig != nil}
+  package var hasCloudStorageConfig: Bool {return _storage._cloudStorageConfig != nil}
   /// Clears the value of `cloudStorageConfig`. Subsequent reads from it will return its default value.
-  mutating func clearCloudStorageConfig() {_uniqueStorage()._cloudStorageConfig = nil}
+  package mutating func clearCloudStorageConfig() {_uniqueStorage()._cloudStorageConfig = nil}
 
   /// Optional. The approximate amount of time (on a best-effort basis) Pub/Sub
   /// waits for the subscriber to acknowledge receipt before resending the
@@ -769,7 +1715,7 @@ struct Google_Pubsub_V1_Subscription: @unchecked Sendable {
   ///
   /// If the subscriber never acknowledges the message, the Pub/Sub
   /// system will eventually redeliver the message.
-  var ackDeadlineSeconds: Int32 {
+  package var ackDeadlineSeconds: Int32 {
     get {return _storage._ackDeadlineSeconds}
     set {_uniqueStorage()._ackDeadlineSeconds = newValue}
   }
@@ -780,7 +1726,7 @@ struct Google_Pubsub_V1_Subscription: @unchecked Sendable {
   /// window. This must be true if you would like to [`Seek` to a timestamp]
   /// (https://cloud.google.com/pubsub/docs/replay-overview#seek_to_a_time) in
   /// the past to replay previously-acknowledged messages.
-  var retainAckedMessages: Bool {
+  package var retainAckedMessages: Bool {
     get {return _storage._retainAckedMessages}
     set {_uniqueStorage()._retainAckedMessages = newValue}
   }
@@ -789,19 +1735,19 @@ struct Google_Pubsub_V1_Subscription: @unchecked Sendable {
   /// backlog, from the moment a message is published. If `retain_acked_messages`
   /// is true, then this also configures the retention of acknowledged messages,
   /// and thus configures how far back in time a `Seek` can be done. Defaults to
-  /// 7 days. Cannot be more than 7 days or less than 10 minutes.
-  var messageRetentionDuration: SwiftProtobuf.Google_Protobuf_Duration {
+  /// 7 days. Cannot be more than 31 days or less than 10 minutes.
+  package var messageRetentionDuration: SwiftProtobuf.Google_Protobuf_Duration {
     get {return _storage._messageRetentionDuration ?? SwiftProtobuf.Google_Protobuf_Duration()}
     set {_uniqueStorage()._messageRetentionDuration = newValue}
   }
   /// Returns true if `messageRetentionDuration` has been explicitly set.
-  var hasMessageRetentionDuration: Bool {return _storage._messageRetentionDuration != nil}
+  package var hasMessageRetentionDuration: Bool {return _storage._messageRetentionDuration != nil}
   /// Clears the value of `messageRetentionDuration`. Subsequent reads from it will return its default value.
-  mutating func clearMessageRetentionDuration() {_uniqueStorage()._messageRetentionDuration = nil}
+  package mutating func clearMessageRetentionDuration() {_uniqueStorage()._messageRetentionDuration = nil}
 
   /// Optional. See [Creating and managing
   /// labels](https://cloud.google.com/pubsub/docs/labels).
-  var labels: Dictionary<String,String> {
+  package var labels: Dictionary<String,String> {
     get {return _storage._labels}
     set {_uniqueStorage()._labels = newValue}
   }
@@ -810,7 +1756,7 @@ struct Google_Pubsub_V1_Subscription: @unchecked Sendable {
   /// `PubsubMessage` will be delivered to the subscribers in the order in which
   /// they are received by the Pub/Sub system. Otherwise, they may be delivered
   /// in any order.
-  var enableMessageOrdering: Bool {
+  package var enableMessageOrdering: Bool {
     get {return _storage._enableMessageOrdering}
     set {_uniqueStorage()._enableMessageOrdering = newValue}
   }
@@ -822,21 +1768,21 @@ struct Google_Pubsub_V1_Subscription: @unchecked Sendable {
   /// a *default policy* with `ttl` of 31 days will be used. The minimum allowed
   /// value for `expiration_policy.ttl` is 1 day. If `expiration_policy` is set,
   /// but `expiration_policy.ttl` is not set, the subscription never expires.
-  var expirationPolicy: Google_Pubsub_V1_ExpirationPolicy {
+  package var expirationPolicy: Google_Pubsub_V1_ExpirationPolicy {
     get {return _storage._expirationPolicy ?? Google_Pubsub_V1_ExpirationPolicy()}
     set {_uniqueStorage()._expirationPolicy = newValue}
   }
   /// Returns true if `expirationPolicy` has been explicitly set.
-  var hasExpirationPolicy: Bool {return _storage._expirationPolicy != nil}
+  package var hasExpirationPolicy: Bool {return _storage._expirationPolicy != nil}
   /// Clears the value of `expirationPolicy`. Subsequent reads from it will return its default value.
-  mutating func clearExpirationPolicy() {_uniqueStorage()._expirationPolicy = nil}
+  package mutating func clearExpirationPolicy() {_uniqueStorage()._expirationPolicy = nil}
 
   /// Optional. An expression written in the Pub/Sub [filter
   /// language](https://cloud.google.com/pubsub/docs/filtering). If non-empty,
   /// then only `PubsubMessage`s whose `attributes` field matches the filter are
   /// delivered on this subscription. If empty, then no messages are filtered
   /// out.
-  var filter: String {
+  package var filter: String {
     get {return _storage._filter}
     set {_uniqueStorage()._filter = newValue}
   }
@@ -849,14 +1795,14 @@ struct Google_Pubsub_V1_Subscription: @unchecked Sendable {
   /// parent project (i.e.,
   /// service-{project_number}@gcp-sa-pubsub.iam.gserviceaccount.com) must have
   /// permission to Acknowledge() messages on this subscription.
-  var deadLetterPolicy: Google_Pubsub_V1_DeadLetterPolicy {
+  package var deadLetterPolicy: Google_Pubsub_V1_DeadLetterPolicy {
     get {return _storage._deadLetterPolicy ?? Google_Pubsub_V1_DeadLetterPolicy()}
     set {_uniqueStorage()._deadLetterPolicy = newValue}
   }
   /// Returns true if `deadLetterPolicy` has been explicitly set.
-  var hasDeadLetterPolicy: Bool {return _storage._deadLetterPolicy != nil}
+  package var hasDeadLetterPolicy: Bool {return _storage._deadLetterPolicy != nil}
   /// Clears the value of `deadLetterPolicy`. Subsequent reads from it will return its default value.
-  mutating func clearDeadLetterPolicy() {_uniqueStorage()._deadLetterPolicy = nil}
+  package mutating func clearDeadLetterPolicy() {_uniqueStorage()._deadLetterPolicy = nil}
 
   /// Optional. A policy that specifies how Pub/Sub retries message delivery for
   /// this subscription.
@@ -865,21 +1811,21 @@ struct Google_Pubsub_V1_Subscription: @unchecked Sendable {
   /// that messages will be retried as soon as possible for healthy subscribers.
   /// RetryPolicy will be triggered on NACKs or acknowledgement deadline
   /// exceeded events for a given message.
-  var retryPolicy: Google_Pubsub_V1_RetryPolicy {
+  package var retryPolicy: Google_Pubsub_V1_RetryPolicy {
     get {return _storage._retryPolicy ?? Google_Pubsub_V1_RetryPolicy()}
     set {_uniqueStorage()._retryPolicy = newValue}
   }
   /// Returns true if `retryPolicy` has been explicitly set.
-  var hasRetryPolicy: Bool {return _storage._retryPolicy != nil}
+  package var hasRetryPolicy: Bool {return _storage._retryPolicy != nil}
   /// Clears the value of `retryPolicy`. Subsequent reads from it will return its default value.
-  mutating func clearRetryPolicy() {_uniqueStorage()._retryPolicy = nil}
+  package mutating func clearRetryPolicy() {_uniqueStorage()._retryPolicy = nil}
 
   /// Optional. Indicates whether the subscription is detached from its topic.
   /// Detached subscriptions don't receive messages from their topic and don't
   /// retain any backlog. `Pull` and `StreamingPull` requests will return
   /// FAILED_PRECONDITION. If the subscription is a push subscription, pushes to
   /// the endpoint will not be made.
-  var detached: Bool {
+  package var detached: Bool {
     get {return _storage._detached}
     set {_uniqueStorage()._detached = newValue}
   }
@@ -896,7 +1842,7 @@ struct Google_Pubsub_V1_Subscription: @unchecked Sendable {
   /// when `enable_exactly_once_delivery` is true if the message was published
   /// multiple times by a publisher client. These copies are  considered distinct
   /// by Pub/Sub and have distinct `message_id` values.
-  var enableExactlyOnceDelivery: Bool {
+  package var enableExactlyOnceDelivery: Bool {
     get {return _storage._enableExactlyOnceDelivery}
     set {_uniqueStorage()._enableExactlyOnceDelivery = newValue}
   }
@@ -907,27 +1853,38 @@ struct Google_Pubsub_V1_Subscription: @unchecked Sendable {
   /// `topic_message_retention_duration` are always available to subscribers. See
   /// the `message_retention_duration` field in `Topic`. This field is set only
   /// in responses from the server; it is ignored if it is set in any requests.
-  var topicMessageRetentionDuration: SwiftProtobuf.Google_Protobuf_Duration {
+  package var topicMessageRetentionDuration: SwiftProtobuf.Google_Protobuf_Duration {
     get {return _storage._topicMessageRetentionDuration ?? SwiftProtobuf.Google_Protobuf_Duration()}
     set {_uniqueStorage()._topicMessageRetentionDuration = newValue}
   }
   /// Returns true if `topicMessageRetentionDuration` has been explicitly set.
-  var hasTopicMessageRetentionDuration: Bool {return _storage._topicMessageRetentionDuration != nil}
+  package var hasTopicMessageRetentionDuration: Bool {return _storage._topicMessageRetentionDuration != nil}
   /// Clears the value of `topicMessageRetentionDuration`. Subsequent reads from it will return its default value.
-  mutating func clearTopicMessageRetentionDuration() {_uniqueStorage()._topicMessageRetentionDuration = nil}
+  package mutating func clearTopicMessageRetentionDuration() {_uniqueStorage()._topicMessageRetentionDuration = nil}
 
   /// Output only. An output-only field indicating whether or not the
   /// subscription can receive messages.
-  var state: Google_Pubsub_V1_Subscription.State {
+  package var state: Google_Pubsub_V1_Subscription.State {
     get {return _storage._state}
     set {_uniqueStorage()._state = newValue}
   }
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  /// Output only. Information about the associated Analytics Hub subscription.
+  /// Only set if the subscritpion is created by Analytics Hub.
+  package var analyticsHubSubscriptionInfo: Google_Pubsub_V1_Subscription.AnalyticsHubSubscriptionInfo {
+    get {return _storage._analyticsHubSubscriptionInfo ?? Google_Pubsub_V1_Subscription.AnalyticsHubSubscriptionInfo()}
+    set {_uniqueStorage()._analyticsHubSubscriptionInfo = newValue}
+  }
+  /// Returns true if `analyticsHubSubscriptionInfo` has been explicitly set.
+  package var hasAnalyticsHubSubscriptionInfo: Bool {return _storage._analyticsHubSubscriptionInfo != nil}
+  /// Clears the value of `analyticsHubSubscriptionInfo`. Subsequent reads from it will return its default value.
+  package mutating func clearAnalyticsHubSubscriptionInfo() {_uniqueStorage()._analyticsHubSubscriptionInfo = nil}
+
+  package var unknownFields = SwiftProtobuf.UnknownStorage()
 
   /// Possible states for a subscription.
-  enum State: SwiftProtobuf.Enum, Swift.CaseIterable {
-    typealias RawValue = Int
+  package enum State: SwiftProtobuf.Enum, Swift.CaseIterable {
+    package typealias RawValue = Int
 
     /// Default value. This value is unused.
     case unspecified // = 0
@@ -941,11 +1898,11 @@ struct Google_Pubsub_V1_Subscription: @unchecked Sendable {
     case resourceError // = 2
     case UNRECOGNIZED(Int)
 
-    init() {
+    package init() {
       self = .unspecified
     }
 
-    init?(rawValue: Int) {
+    package init?(rawValue: Int) {
       switch rawValue {
       case 0: self = .unspecified
       case 1: self = .active
@@ -954,7 +1911,7 @@ struct Google_Pubsub_V1_Subscription: @unchecked Sendable {
       }
     }
 
-    var rawValue: Int {
+    package var rawValue: Int {
       switch self {
       case .unspecified: return 0
       case .active: return 1
@@ -964,7 +1921,7 @@ struct Google_Pubsub_V1_Subscription: @unchecked Sendable {
     }
 
     // The compiler won't synthesize support with the UNRECOGNIZED case.
-    static let allCases: [Google_Pubsub_V1_Subscription.State] = [
+    package static let allCases: [Google_Pubsub_V1_Subscription.State] = [
       .unspecified,
       .active,
       .resourceError,
@@ -972,7 +1929,29 @@ struct Google_Pubsub_V1_Subscription: @unchecked Sendable {
 
   }
 
-  init() {}
+  /// Information about an associated Analytics Hub subscription
+  /// (https://cloud.google.com/bigquery/docs/analytics-hub-manage-subscriptions).
+  package struct AnalyticsHubSubscriptionInfo: Sendable {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    /// Optional. The name of the associated Analytics Hub listing resource.
+    /// Pattern:
+    /// "projects/{project}/locations/{location}/dataExchanges/{data_exchange}/listings/{listing}"
+    package var listing: String = String()
+
+    /// Optional. The name of the associated Analytics Hub subscription resource.
+    /// Pattern:
+    /// "projects/{project}/locations/{location}/subscriptions/{subscription}"
+    package var subscription: String = String()
+
+    package var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    package init() {}
+  }
+
+  package init() {}
 
   fileprivate var _storage = _StorageClass.defaultInstance
 }
@@ -988,37 +1967,37 @@ struct Google_Pubsub_V1_Subscription: @unchecked Sendable {
 /// Retry Policy is implemented on a best effort basis. At times, the delay
 /// between consecutive deliveries may not match the configuration. That is,
 /// delay can be more or less than configured backoff.
-struct Google_Pubsub_V1_RetryPolicy: Sendable {
+package struct Google_Pubsub_V1_RetryPolicy: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// Optional. The minimum delay between consecutive deliveries of a given
   /// message. Value should be between 0 and 600 seconds. Defaults to 10 seconds.
-  var minimumBackoff: SwiftProtobuf.Google_Protobuf_Duration {
+  package var minimumBackoff: SwiftProtobuf.Google_Protobuf_Duration {
     get {return _minimumBackoff ?? SwiftProtobuf.Google_Protobuf_Duration()}
     set {_minimumBackoff = newValue}
   }
   /// Returns true if `minimumBackoff` has been explicitly set.
-  var hasMinimumBackoff: Bool {return self._minimumBackoff != nil}
+  package var hasMinimumBackoff: Bool {return self._minimumBackoff != nil}
   /// Clears the value of `minimumBackoff`. Subsequent reads from it will return its default value.
-  mutating func clearMinimumBackoff() {self._minimumBackoff = nil}
+  package mutating func clearMinimumBackoff() {self._minimumBackoff = nil}
 
   /// Optional. The maximum delay between consecutive deliveries of a given
   /// message. Value should be between 0 and 600 seconds. Defaults to 600
   /// seconds.
-  var maximumBackoff: SwiftProtobuf.Google_Protobuf_Duration {
+  package var maximumBackoff: SwiftProtobuf.Google_Protobuf_Duration {
     get {return _maximumBackoff ?? SwiftProtobuf.Google_Protobuf_Duration()}
     set {_maximumBackoff = newValue}
   }
   /// Returns true if `maximumBackoff` has been explicitly set.
-  var hasMaximumBackoff: Bool {return self._maximumBackoff != nil}
+  package var hasMaximumBackoff: Bool {return self._maximumBackoff != nil}
   /// Clears the value of `maximumBackoff`. Subsequent reads from it will return its default value.
-  mutating func clearMaximumBackoff() {self._maximumBackoff = nil}
+  package mutating func clearMaximumBackoff() {self._maximumBackoff = nil}
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  package var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  package init() {}
 
   fileprivate var _minimumBackoff: SwiftProtobuf.Google_Protobuf_Duration? = nil
   fileprivate var _maximumBackoff: SwiftProtobuf.Google_Protobuf_Duration? = nil
@@ -1029,7 +2008,7 @@ struct Google_Pubsub_V1_RetryPolicy: Sendable {
 ///
 /// If validation on any of the fields fails at subscription creation/updation,
 /// the create/update subscription request will fail.
-struct Google_Pubsub_V1_DeadLetterPolicy: Sendable {
+package struct Google_Pubsub_V1_DeadLetterPolicy: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1043,7 +2022,7 @@ struct Google_Pubsub_V1_DeadLetterPolicy: Sendable {
   /// The operation will fail if the topic does not exist.
   /// Users should ensure that there is a subscription attached to this topic
   /// since messages published to a topic with no subscriptions are lost.
-  var deadLetterTopic: String = String()
+  package var deadLetterTopic: String = String()
 
   /// Optional. The maximum number of delivery attempts for any message. The
   /// value must be between 5 and 100.
@@ -1058,16 +2037,16 @@ struct Google_Pubsub_V1_DeadLetterPolicy: Sendable {
   /// This field will be honored on a best effort basis.
   ///
   /// If this parameter is 0, a default value of 5 is used.
-  var maxDeliveryAttempts: Int32 = 0
+  package var maxDeliveryAttempts: Int32 = 0
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  package var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  package init() {}
 }
 
 /// A policy that specifies the conditions for resource expiration (i.e.,
 /// automatic resource deletion).
-struct Google_Pubsub_V1_ExpirationPolicy: Sendable {
+package struct Google_Pubsub_V1_ExpirationPolicy: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1078,31 +2057,31 @@ struct Google_Pubsub_V1_ExpirationPolicy: Sendable {
   /// The minimum and maximum allowed values for `ttl` depend on the type of the
   /// associated resource, as well. If `ttl` is not set, the associated resource
   /// never expires.
-  var ttl: SwiftProtobuf.Google_Protobuf_Duration {
+  package var ttl: SwiftProtobuf.Google_Protobuf_Duration {
     get {return _ttl ?? SwiftProtobuf.Google_Protobuf_Duration()}
     set {_ttl = newValue}
   }
   /// Returns true if `ttl` has been explicitly set.
-  var hasTtl: Bool {return self._ttl != nil}
+  package var hasTtl: Bool {return self._ttl != nil}
   /// Clears the value of `ttl`. Subsequent reads from it will return its default value.
-  mutating func clearTtl() {self._ttl = nil}
+  package mutating func clearTtl() {self._ttl = nil}
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  package var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  package init() {}
 
   fileprivate var _ttl: SwiftProtobuf.Google_Protobuf_Duration? = nil
 }
 
 /// Configuration for a push delivery endpoint.
-struct Google_Pubsub_V1_PushConfig: Sendable {
+package struct Google_Pubsub_V1_PushConfig: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// Optional. A URL locating the endpoint to which messages should be pushed.
   /// For example, a Webhook endpoint might use `https://example.com/push`.
-  var pushEndpoint: String = String()
+  package var pushEndpoint: String = String()
 
   /// Optional. Endpoint configuration attributes that can be used to control
   /// different aspects of the message delivery.
@@ -1125,19 +2104,19 @@ struct Google_Pubsub_V1_PushConfig: Sendable {
   ///
   /// For example:
   /// `attributes { "x-goog-version": "v1" }`
-  var attributes: Dictionary<String,String> = [:]
+  package var attributes: Dictionary<String,String> = [:]
 
   /// An authentication method used by push endpoints to verify the source of
   /// push requests. This can be used with push endpoints that are private by
   /// default to allow requests only from the Pub/Sub system, for example.
   /// This field is optional and should be set only by users interested in
   /// authenticated push.
-  var authenticationMethod: Google_Pubsub_V1_PushConfig.OneOf_AuthenticationMethod? = nil
+  package var authenticationMethod: Google_Pubsub_V1_PushConfig.OneOf_AuthenticationMethod? = nil
 
   /// Optional. If specified, Pub/Sub will generate and attach an OIDC JWT
   /// token as an `Authorization` header in the HTTP request for every pushed
   /// message.
-  var oidcToken: Google_Pubsub_V1_PushConfig.OidcToken {
+  package var oidcToken: Google_Pubsub_V1_PushConfig.OidcToken {
     get {
       if case .oidcToken(let v)? = authenticationMethod {return v}
       return Google_Pubsub_V1_PushConfig.OidcToken()
@@ -1147,12 +2126,12 @@ struct Google_Pubsub_V1_PushConfig: Sendable {
 
   /// The format of the delivered message to the push endpoint is defined by
   /// the chosen wrapper. When unset, `PubsubWrapper` is used.
-  var wrapper: Google_Pubsub_V1_PushConfig.OneOf_Wrapper? = nil
+  package var wrapper: Google_Pubsub_V1_PushConfig.OneOf_Wrapper? = nil
 
   /// Optional. When set, the payload to the push endpoint is in the form of
   /// the JSON representation of a PubsubMessage
   /// (https://cloud.google.com/pubsub/docs/reference/rpc/google.pubsub.v1#pubsubmessage).
-  var pubsubWrapper: Google_Pubsub_V1_PushConfig.PubsubWrapper {
+  package var pubsubWrapper: Google_Pubsub_V1_PushConfig.PubsubWrapper {
     get {
       if case .pubsubWrapper(let v)? = wrapper {return v}
       return Google_Pubsub_V1_PushConfig.PubsubWrapper()
@@ -1161,7 +2140,7 @@ struct Google_Pubsub_V1_PushConfig: Sendable {
   }
 
   /// Optional. When set, the payload to the push endpoint is not wrapped.
-  var noWrapper: Google_Pubsub_V1_PushConfig.NoWrapper {
+  package var noWrapper: Google_Pubsub_V1_PushConfig.NoWrapper {
     get {
       if case .noWrapper(let v)? = wrapper {return v}
       return Google_Pubsub_V1_PushConfig.NoWrapper()
@@ -1169,14 +2148,14 @@ struct Google_Pubsub_V1_PushConfig: Sendable {
     set {wrapper = .noWrapper(newValue)}
   }
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  package var unknownFields = SwiftProtobuf.UnknownStorage()
 
   /// An authentication method used by push endpoints to verify the source of
   /// push requests. This can be used with push endpoints that are private by
   /// default to allow requests only from the Pub/Sub system, for example.
   /// This field is optional and should be set only by users interested in
   /// authenticated push.
-  enum OneOf_AuthenticationMethod: Equatable, Sendable {
+  package enum OneOf_AuthenticationMethod: Equatable, Sendable {
     /// Optional. If specified, Pub/Sub will generate and attach an OIDC JWT
     /// token as an `Authorization` header in the HTTP request for every pushed
     /// message.
@@ -1186,7 +2165,7 @@ struct Google_Pubsub_V1_PushConfig: Sendable {
 
   /// The format of the delivered message to the push endpoint is defined by
   /// the chosen wrapper. When unset, `PubsubWrapper` is used.
-  enum OneOf_Wrapper: Equatable, Sendable {
+  package enum OneOf_Wrapper: Equatable, Sendable {
     /// Optional. When set, the payload to the push endpoint is in the form of
     /// the JSON representation of a PubsubMessage
     /// (https://cloud.google.com/pubsub/docs/reference/rpc/google.pubsub.v1#pubsubmessage).
@@ -1199,7 +2178,7 @@ struct Google_Pubsub_V1_PushConfig: Sendable {
   /// Contains information needed for generating an
   /// [OpenID Connect
   /// token](https://developers.google.com/identity/protocols/OpenIDConnect).
-  struct OidcToken: Sendable {
+  package struct OidcToken: Sendable {
     // SwiftProtobuf.Message conformance is added in an extension below. See the
     // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
     // methods supported on all messages.
@@ -1209,7 +2188,7 @@ struct Google_Pubsub_V1_PushConfig: Sendable {
     /// used for generating the OIDC token. For more information
     /// on setting up authentication, see
     /// [Push subscriptions](https://cloud.google.com/pubsub/docs/push).
-    var serviceAccountEmail: String = String()
+    package var serviceAccountEmail: String = String()
 
     /// Optional. Audience to be used when generating OIDC token. The audience
     /// claim identifies the recipients that the JWT is intended for. The
@@ -1218,28 +2197,28 @@ struct Google_Pubsub_V1_PushConfig: Sendable {
     /// JWT token audience here:
     /// https://tools.ietf.org/html/rfc7519#section-4.1.3 Note: if not specified,
     /// the Push endpoint URL will be used.
-    var audience: String = String()
+    package var audience: String = String()
 
-    var unknownFields = SwiftProtobuf.UnknownStorage()
+    package var unknownFields = SwiftProtobuf.UnknownStorage()
 
-    init() {}
+    package init() {}
   }
 
   /// The payload to the push endpoint is in the form of the JSON representation
   /// of a PubsubMessage
   /// (https://cloud.google.com/pubsub/docs/reference/rpc/google.pubsub.v1#pubsubmessage).
-  struct PubsubWrapper: Sendable {
+  package struct PubsubWrapper: Sendable {
     // SwiftProtobuf.Message conformance is added in an extension below. See the
     // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
     // methods supported on all messages.
 
-    var unknownFields = SwiftProtobuf.UnknownStorage()
+    package var unknownFields = SwiftProtobuf.UnknownStorage()
 
-    init() {}
+    package init() {}
   }
 
   /// Sets the `data` field as the HTTP body for delivery.
-  struct NoWrapper: Sendable {
+  package struct NoWrapper: Sendable {
     // SwiftProtobuf.Message conformance is added in an extension below. See the
     // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
     // methods supported on all messages.
@@ -1247,53 +2226,53 @@ struct Google_Pubsub_V1_PushConfig: Sendable {
     /// Optional. When true, writes the Pub/Sub message metadata to
     /// `x-goog-pubsub-<KEY>:<VAL>` headers of the HTTP request. Writes the
     /// Pub/Sub message attributes to `<KEY>:<VAL>` headers of the HTTP request.
-    var writeMetadata: Bool = false
+    package var writeMetadata: Bool = false
 
-    var unknownFields = SwiftProtobuf.UnknownStorage()
+    package var unknownFields = SwiftProtobuf.UnknownStorage()
 
-    init() {}
+    package init() {}
   }
 
-  init() {}
+  package init() {}
 }
 
 /// Configuration for a BigQuery subscription.
-struct Google_Pubsub_V1_BigQueryConfig: Sendable {
+package struct Google_Pubsub_V1_BigQueryConfig: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// Optional. The name of the table to which to write data, of the form
   /// {projectId}.{datasetId}.{tableId}
-  var table: String = String()
+  package var table: String = String()
 
   /// Optional. When true, use the topic's schema as the columns to write to in
   /// BigQuery, if it exists. `use_topic_schema` and `use_table_schema` cannot be
   /// enabled at the same time.
-  var useTopicSchema: Bool = false
+  package var useTopicSchema: Bool = false
 
   /// Optional. When true, write the subscription name, message_id, publish_time,
   /// attributes, and ordering_key to additional columns in the table. The
   /// subscription name, message_id, and publish_time fields are put in their own
   /// columns while all other message properties (other than data) are written to
   /// a JSON object in the attributes column.
-  var writeMetadata: Bool = false
+  package var writeMetadata: Bool = false
 
   /// Optional. When true and use_topic_schema is true, any fields that are a
   /// part of the topic schema that are not part of the BigQuery table schema are
   /// dropped when writing to BigQuery. Otherwise, the schemas must be kept in
   /// sync and any messages with extra fields are not written and remain in the
   /// subscription's backlog.
-  var dropUnknownFields: Bool = false
+  package var dropUnknownFields: Bool = false
 
   /// Output only. An output-only field that indicates whether or not the
   /// subscription can receive messages.
-  var state: Google_Pubsub_V1_BigQueryConfig.State = .unspecified
+  package var state: Google_Pubsub_V1_BigQueryConfig.State = .unspecified
 
   /// Optional. When true, use the BigQuery table's schema as the columns to
   /// write to in BigQuery. `use_table_schema` and `use_topic_schema` cannot be
   /// enabled at the same time.
-  var useTableSchema: Bool = false
+  package var useTableSchema: Bool = false
 
   /// Optional. The service account to use to write to BigQuery. The subscription
   /// creator or updater that specifies this field must have
@@ -1301,13 +2280,13 @@ struct Google_Pubsub_V1_BigQueryConfig: Sendable {
   /// specified, the Pub/Sub [service
   /// agent](https://cloud.google.com/iam/docs/service-agents),
   /// service-{project_number}@gcp-sa-pubsub.iam.gserviceaccount.com, is used.
-  var serviceAccountEmail: String = String()
+  package var serviceAccountEmail: String = String()
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  package var unknownFields = SwiftProtobuf.UnknownStorage()
 
   /// Possible states for a BigQuery subscription.
-  enum State: SwiftProtobuf.Enum, Swift.CaseIterable {
-    typealias RawValue = Int
+  package enum State: SwiftProtobuf.Enum, Swift.CaseIterable {
+    package typealias RawValue = Int
 
     /// Default value. This value is unused.
     case unspecified // = 0
@@ -1334,11 +2313,11 @@ struct Google_Pubsub_V1_BigQueryConfig: Sendable {
     case inTransitLocationRestriction // = 5
     case UNRECOGNIZED(Int)
 
-    init() {
+    package init() {
       self = .unspecified
     }
 
-    init?(rawValue: Int) {
+    package init?(rawValue: Int) {
       switch rawValue {
       case 0: self = .unspecified
       case 1: self = .active
@@ -1350,7 +2329,7 @@ struct Google_Pubsub_V1_BigQueryConfig: Sendable {
       }
     }
 
-    var rawValue: Int {
+    package var rawValue: Int {
       switch self {
       case .unspecified: return 0
       case .active: return 1
@@ -1363,7 +2342,7 @@ struct Google_Pubsub_V1_BigQueryConfig: Sendable {
     }
 
     // The compiler won't synthesize support with the UNRECOGNIZED case.
-    static let allCases: [Google_Pubsub_V1_BigQueryConfig.State] = [
+    package static let allCases: [Google_Pubsub_V1_BigQueryConfig.State] = [
       .unspecified,
       .active,
       .permissionDenied,
@@ -1374,11 +2353,11 @@ struct Google_Pubsub_V1_BigQueryConfig: Sendable {
 
   }
 
-  init() {}
+  package init() {}
 }
 
 /// Configuration for a Cloud Storage subscription.
-struct Google_Pubsub_V1_CloudStorageConfig: Sendable {
+package struct Google_Pubsub_V1_CloudStorageConfig: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1387,28 +2366,28 @@ struct Google_Pubsub_V1_CloudStorageConfig: Sendable {
   /// The bucket must be created by the user. The bucket name must be without
   /// any prefix like "gs://". See the [bucket naming
   /// requirements] (https://cloud.google.com/storage/docs/buckets#naming).
-  var bucket: String = String()
+  package var bucket: String = String()
 
   /// Optional. User-provided prefix for Cloud Storage filename. See the [object
   /// naming requirements](https://cloud.google.com/storage/docs/objects#naming).
-  var filenamePrefix: String = String()
+  package var filenamePrefix: String = String()
 
   /// Optional. User-provided suffix for Cloud Storage filename. See the [object
   /// naming requirements](https://cloud.google.com/storage/docs/objects#naming).
   /// Must not end in "/".
-  var filenameSuffix: String = String()
+  package var filenameSuffix: String = String()
 
   /// Optional. User-provided format string specifying how to represent datetimes
   /// in Cloud Storage filenames. See the [datetime format
   /// guidance](https://cloud.google.com/pubsub/docs/create-cloudstorage-subscription#file_names).
-  var filenameDatetimeFormat: String = String()
+  package var filenameDatetimeFormat: String = String()
 
   /// Defaults to text format.
-  var outputFormat: Google_Pubsub_V1_CloudStorageConfig.OneOf_OutputFormat? = nil
+  package var outputFormat: Google_Pubsub_V1_CloudStorageConfig.OneOf_OutputFormat? = nil
 
   /// Optional. If set, message data will be written to Cloud Storage in text
   /// format.
-  var textConfig: Google_Pubsub_V1_CloudStorageConfig.TextConfig {
+  package var textConfig: Google_Pubsub_V1_CloudStorageConfig.TextConfig {
     get {
       if case .textConfig(let v)? = outputFormat {return v}
       return Google_Pubsub_V1_CloudStorageConfig.TextConfig()
@@ -1418,7 +2397,7 @@ struct Google_Pubsub_V1_CloudStorageConfig: Sendable {
 
   /// Optional. If set, message data will be written to Cloud Storage in Avro
   /// format.
-  var avroConfig: Google_Pubsub_V1_CloudStorageConfig.AvroConfig {
+  package var avroConfig: Google_Pubsub_V1_CloudStorageConfig.AvroConfig {
     get {
       if case .avroConfig(let v)? = outputFormat {return v}
       return Google_Pubsub_V1_CloudStorageConfig.AvroConfig()
@@ -1429,27 +2408,27 @@ struct Google_Pubsub_V1_CloudStorageConfig: Sendable {
   /// Optional. The maximum duration that can elapse before a new Cloud Storage
   /// file is created. Min 1 minute, max 10 minutes, default 5 minutes. May not
   /// exceed the subscription's acknowledgement deadline.
-  var maxDuration: SwiftProtobuf.Google_Protobuf_Duration {
+  package var maxDuration: SwiftProtobuf.Google_Protobuf_Duration {
     get {return _maxDuration ?? SwiftProtobuf.Google_Protobuf_Duration()}
     set {_maxDuration = newValue}
   }
   /// Returns true if `maxDuration` has been explicitly set.
-  var hasMaxDuration: Bool {return self._maxDuration != nil}
+  package var hasMaxDuration: Bool {return self._maxDuration != nil}
   /// Clears the value of `maxDuration`. Subsequent reads from it will return its default value.
-  mutating func clearMaxDuration() {self._maxDuration = nil}
+  package mutating func clearMaxDuration() {self._maxDuration = nil}
 
   /// Optional. The maximum bytes that can be written to a Cloud Storage file
   /// before a new file is created. Min 1 KB, max 10 GiB. The max_bytes limit may
   /// be exceeded in cases where messages are larger than the limit.
-  var maxBytes: Int64 = 0
+  package var maxBytes: Int64 = 0
 
   /// Optional. The maximum number of messages that can be written to a Cloud
   /// Storage file before a new file is created. Min 1000 messages.
-  var maxMessages: Int64 = 0
+  package var maxMessages: Int64 = 0
 
   /// Output only. An output-only field that indicates whether or not the
   /// subscription can receive messages.
-  var state: Google_Pubsub_V1_CloudStorageConfig.State = .unspecified
+  package var state: Google_Pubsub_V1_CloudStorageConfig.State = .unspecified
 
   /// Optional. The service account to use to write to Cloud Storage. The
   /// subscription creator or updater that specifies this field must have
@@ -1457,12 +2436,12 @@ struct Google_Pubsub_V1_CloudStorageConfig: Sendable {
   /// specified, the Pub/Sub
   /// [service agent](https://cloud.google.com/iam/docs/service-agents),
   /// service-{project_number}@gcp-sa-pubsub.iam.gserviceaccount.com, is used.
-  var serviceAccountEmail: String = String()
+  package var serviceAccountEmail: String = String()
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  package var unknownFields = SwiftProtobuf.UnknownStorage()
 
   /// Defaults to text format.
-  enum OneOf_OutputFormat: Equatable, Sendable {
+  package enum OneOf_OutputFormat: Equatable, Sendable {
     /// Optional. If set, message data will be written to Cloud Storage in text
     /// format.
     case textConfig(Google_Pubsub_V1_CloudStorageConfig.TextConfig)
@@ -1473,8 +2452,8 @@ struct Google_Pubsub_V1_CloudStorageConfig: Sendable {
   }
 
   /// Possible states for a Cloud Storage subscription.
-  enum State: SwiftProtobuf.Enum, Swift.CaseIterable {
-    typealias RawValue = Int
+  package enum State: SwiftProtobuf.Enum, Swift.CaseIterable {
+    package typealias RawValue = Int
 
     /// Default value. This value is unused.
     case unspecified // = 0
@@ -1498,11 +2477,11 @@ struct Google_Pubsub_V1_CloudStorageConfig: Sendable {
     case schemaMismatch // = 5
     case UNRECOGNIZED(Int)
 
-    init() {
+    package init() {
       self = .unspecified
     }
 
-    init?(rawValue: Int) {
+    package init?(rawValue: Int) {
       switch rawValue {
       case 0: self = .unspecified
       case 1: self = .active
@@ -1514,7 +2493,7 @@ struct Google_Pubsub_V1_CloudStorageConfig: Sendable {
       }
     }
 
-    var rawValue: Int {
+    package var rawValue: Int {
       switch self {
       case .unspecified: return 0
       case .active: return 1
@@ -1527,7 +2506,7 @@ struct Google_Pubsub_V1_CloudStorageConfig: Sendable {
     }
 
     // The compiler won't synthesize support with the UNRECOGNIZED case.
-    static let allCases: [Google_Pubsub_V1_CloudStorageConfig.State] = [
+    package static let allCases: [Google_Pubsub_V1_CloudStorageConfig.State] = [
       .unspecified,
       .active,
       .permissionDenied,
@@ -1541,19 +2520,19 @@ struct Google_Pubsub_V1_CloudStorageConfig: Sendable {
   /// Configuration for writing message data in text format.
   /// Message payloads will be written to files as raw text, separated by a
   /// newline.
-  struct TextConfig: Sendable {
+  package struct TextConfig: Sendable {
     // SwiftProtobuf.Message conformance is added in an extension below. See the
     // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
     // methods supported on all messages.
 
-    var unknownFields = SwiftProtobuf.UnknownStorage()
+    package var unknownFields = SwiftProtobuf.UnknownStorage()
 
-    init() {}
+    package init() {}
   }
 
   /// Configuration for writing message data in Avro format.
   /// Message payloads and metadata will be written to files as an Avro binary.
-  struct AvroConfig: Sendable {
+  package struct AvroConfig: Sendable {
     // SwiftProtobuf.Message conformance is added in an extension below. See the
     // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
     // methods supported on all messages.
@@ -1564,40 +2543,40 @@ struct Google_Pubsub_V1_CloudStorageConfig: Sendable {
     /// put in their own fields while all other message properties other than
     /// data (for example, an ordering_key, if present) are added as entries in
     /// the attributes map.
-    var writeMetadata: Bool = false
+    package var writeMetadata: Bool = false
 
     /// Optional. When true, the output Cloud Storage file will be serialized
     /// using the topic schema, if it exists.
-    var useTopicSchema: Bool = false
+    package var useTopicSchema: Bool = false
 
-    var unknownFields = SwiftProtobuf.UnknownStorage()
+    package var unknownFields = SwiftProtobuf.UnknownStorage()
 
-    init() {}
+    package init() {}
   }
 
-  init() {}
+  package init() {}
 
   fileprivate var _maxDuration: SwiftProtobuf.Google_Protobuf_Duration? = nil
 }
 
 /// A message and its corresponding acknowledgment ID.
-struct Google_Pubsub_V1_ReceivedMessage: Sendable {
+package struct Google_Pubsub_V1_ReceivedMessage: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// Optional. This ID can be used to acknowledge the received message.
-  var ackID: String = String()
+  package var ackID: String = String()
 
   /// Optional. The message.
-  var message: Google_Pubsub_V1_PubsubMessage {
+  package var message: Google_Pubsub_V1_PubsubMessage {
     get {return _message ?? Google_Pubsub_V1_PubsubMessage()}
     set {_message = newValue}
   }
   /// Returns true if `message` has been explicitly set.
-  var hasMessage: Bool {return self._message != nil}
+  package var hasMessage: Bool {return self._message != nil}
   /// Clears the value of `message`. Subsequent reads from it will return its default value.
-  mutating func clearMessage() {self._message = nil}
+  package mutating func clearMessage() {self._message = nil}
 
   /// Optional. The approximate number of times that Pub/Sub has attempted to
   /// deliver the associated message to a subscriber.
@@ -1615,131 +2594,131 @@ struct Google_Pubsub_V1_ReceivedMessage: Sendable {
   /// value of 1. The value is calculated at best effort and is approximate.
   ///
   /// If a DeadLetterPolicy is not set on the subscription, this will be 0.
-  var deliveryAttempt: Int32 = 0
+  package var deliveryAttempt: Int32 = 0
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  package var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  package init() {}
 
   fileprivate var _message: Google_Pubsub_V1_PubsubMessage? = nil
 }
 
 /// Request for the GetSubscription method.
-struct Google_Pubsub_V1_GetSubscriptionRequest: Sendable {
+package struct Google_Pubsub_V1_GetSubscriptionRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// Required. The name of the subscription to get.
   /// Format is `projects/{project}/subscriptions/{sub}`.
-  var subscription: String = String()
+  package var subscription: String = String()
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  package var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  package init() {}
 }
 
 /// Request for the UpdateSubscription method.
-struct Google_Pubsub_V1_UpdateSubscriptionRequest: Sendable {
+package struct Google_Pubsub_V1_UpdateSubscriptionRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// Required. The updated subscription object.
-  var subscription: Google_Pubsub_V1_Subscription {
+  package var subscription: Google_Pubsub_V1_Subscription {
     get {return _subscription ?? Google_Pubsub_V1_Subscription()}
     set {_subscription = newValue}
   }
   /// Returns true if `subscription` has been explicitly set.
-  var hasSubscription: Bool {return self._subscription != nil}
+  package var hasSubscription: Bool {return self._subscription != nil}
   /// Clears the value of `subscription`. Subsequent reads from it will return its default value.
-  mutating func clearSubscription() {self._subscription = nil}
+  package mutating func clearSubscription() {self._subscription = nil}
 
   /// Required. Indicates which fields in the provided subscription to update.
   /// Must be specified and non-empty.
-  var updateMask: SwiftProtobuf.Google_Protobuf_FieldMask {
+  package var updateMask: SwiftProtobuf.Google_Protobuf_FieldMask {
     get {return _updateMask ?? SwiftProtobuf.Google_Protobuf_FieldMask()}
     set {_updateMask = newValue}
   }
   /// Returns true if `updateMask` has been explicitly set.
-  var hasUpdateMask: Bool {return self._updateMask != nil}
+  package var hasUpdateMask: Bool {return self._updateMask != nil}
   /// Clears the value of `updateMask`. Subsequent reads from it will return its default value.
-  mutating func clearUpdateMask() {self._updateMask = nil}
+  package mutating func clearUpdateMask() {self._updateMask = nil}
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  package var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  package init() {}
 
   fileprivate var _subscription: Google_Pubsub_V1_Subscription? = nil
   fileprivate var _updateMask: SwiftProtobuf.Google_Protobuf_FieldMask? = nil
 }
 
 /// Request for the `ListSubscriptions` method.
-struct Google_Pubsub_V1_ListSubscriptionsRequest: Sendable {
+package struct Google_Pubsub_V1_ListSubscriptionsRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// Required. The name of the project in which to list subscriptions.
   /// Format is `projects/{project-id}`.
-  var project: String = String()
+  package var project: String = String()
 
   /// Optional. Maximum number of subscriptions to return.
-  var pageSize: Int32 = 0
+  package var pageSize: Int32 = 0
 
   /// Optional. The value returned by the last `ListSubscriptionsResponse`;
   /// indicates that this is a continuation of a prior `ListSubscriptions` call,
   /// and that the system should return the next page of data.
-  var pageToken: String = String()
+  package var pageToken: String = String()
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  package var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  package init() {}
 }
 
 /// Response for the `ListSubscriptions` method.
-struct Google_Pubsub_V1_ListSubscriptionsResponse: Sendable {
+package struct Google_Pubsub_V1_ListSubscriptionsResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// Optional. The subscriptions that match the request.
-  var subscriptions: [Google_Pubsub_V1_Subscription] = []
+  package var subscriptions: [Google_Pubsub_V1_Subscription] = []
 
   /// Optional. If not empty, indicates that there may be more subscriptions that
   /// match the request; this value should be passed in a new
   /// `ListSubscriptionsRequest` to get more subscriptions.
-  var nextPageToken: String = String()
+  package var nextPageToken: String = String()
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  package var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  package init() {}
 }
 
 /// Request for the DeleteSubscription method.
-struct Google_Pubsub_V1_DeleteSubscriptionRequest: Sendable {
+package struct Google_Pubsub_V1_DeleteSubscriptionRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// Required. The subscription to delete.
   /// Format is `projects/{project}/subscriptions/{sub}`.
-  var subscription: String = String()
+  package var subscription: String = String()
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  package var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  package init() {}
 }
 
 /// Request for the ModifyPushConfig method.
-struct Google_Pubsub_V1_ModifyPushConfigRequest: Sendable {
+package struct Google_Pubsub_V1_ModifyPushConfigRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// Required. The name of the subscription.
   /// Format is `projects/{project}/subscriptions/{sub}`.
-  var subscription: String = String()
+  package var subscription: String = String()
 
   /// Required. The push configuration for future deliveries.
   ///
@@ -1747,31 +2726,31 @@ struct Google_Pubsub_V1_ModifyPushConfigRequest: Sendable {
   /// stop pushing messages from the given subscription and allow
   /// messages to be pulled and acknowledged - effectively pausing
   /// the subscription if `Pull` or `StreamingPull` is not called.
-  var pushConfig: Google_Pubsub_V1_PushConfig {
+  package var pushConfig: Google_Pubsub_V1_PushConfig {
     get {return _pushConfig ?? Google_Pubsub_V1_PushConfig()}
     set {_pushConfig = newValue}
   }
   /// Returns true if `pushConfig` has been explicitly set.
-  var hasPushConfig: Bool {return self._pushConfig != nil}
+  package var hasPushConfig: Bool {return self._pushConfig != nil}
   /// Clears the value of `pushConfig`. Subsequent reads from it will return its default value.
-  mutating func clearPushConfig() {self._pushConfig = nil}
+  package mutating func clearPushConfig() {self._pushConfig = nil}
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  package var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  package init() {}
 
   fileprivate var _pushConfig: Google_Pubsub_V1_PushConfig? = nil
 }
 
 /// Request for the `Pull` method.
-struct Google_Pubsub_V1_PullRequest: Sendable {
+package struct Google_Pubsub_V1_PullRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// Required. The subscription from which messages should be pulled.
   /// Format is `projects/{project}/subscriptions/{sub}`.
-  var subscription: String = String()
+  package var subscription: String = String()
 
   /// Optional. If this field set to true, the system will respond immediately
   /// even if it there are no messages available to return in the `Pull`
@@ -1782,20 +2761,20 @@ struct Google_Pubsub_V1_PullRequest: Sendable {
   /// not set this field.
   ///
   /// NOTE: This field was marked as deprecated in the .proto file.
-  var returnImmediately: Bool = false
+  package var returnImmediately: Bool = false
 
   /// Required. The maximum number of messages to return for this request. Must
   /// be a positive integer. The Pub/Sub system may return fewer than the number
   /// specified.
-  var maxMessages: Int32 = 0
+  package var maxMessages: Int32 = 0
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  package var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  package init() {}
 }
 
 /// Response for the `Pull` method.
-struct Google_Pubsub_V1_PullResponse: Sendable {
+package struct Google_Pubsub_V1_PullResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1805,25 +2784,25 @@ struct Google_Pubsub_V1_PullResponse: Sendable {
   /// before the request timeout. For JSON, the response can be entirely
   /// empty. The Pub/Sub system may return fewer than the `maxMessages` requested
   /// even if there are more messages available in the backlog.
-  var receivedMessages: [Google_Pubsub_V1_ReceivedMessage] = []
+  package var receivedMessages: [Google_Pubsub_V1_ReceivedMessage] = []
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  package var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  package init() {}
 }
 
 /// Request for the ModifyAckDeadline method.
-struct Google_Pubsub_V1_ModifyAckDeadlineRequest: Sendable {
+package struct Google_Pubsub_V1_ModifyAckDeadlineRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// Required. The name of the subscription.
   /// Format is `projects/{project}/subscriptions/{sub}`.
-  var subscription: String = String()
+  package var subscription: String = String()
 
   /// Required. List of acknowledgment IDs.
-  var ackIds: [String] = []
+  package var ackIds: [String] = []
 
   /// Required. The new ack deadline with respect to the time this request was
   /// sent to the Pub/Sub system. For example, if the value is 10, the new ack
@@ -1834,37 +2813,37 @@ struct Google_Pubsub_V1_ModifyAckDeadlineRequest: Sendable {
   /// The minimum deadline you can specify is 0 seconds.
   /// The maximum deadline you can specify in a single request is 600 seconds
   /// (10 minutes).
-  var ackDeadlineSeconds: Int32 = 0
+  package var ackDeadlineSeconds: Int32 = 0
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  package var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  package init() {}
 }
 
 /// Request for the Acknowledge method.
-struct Google_Pubsub_V1_AcknowledgeRequest: Sendable {
+package struct Google_Pubsub_V1_AcknowledgeRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// Required. The subscription whose message is being acknowledged.
   /// Format is `projects/{project}/subscriptions/{sub}`.
-  var subscription: String = String()
+  package var subscription: String = String()
 
   /// Required. The acknowledgment ID for the messages being acknowledged that
   /// was returned by the Pub/Sub system in the `Pull` response. Must not be
   /// empty.
-  var ackIds: [String] = []
+  package var ackIds: [String] = []
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  package var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  package init() {}
 }
 
 /// Request for the `StreamingPull` streaming RPC method. This request is used to
 /// establish the initial stream as well as to stream acknowledgements and ack
 /// deadline modifications from the client to the server.
-struct Google_Pubsub_V1_StreamingPullRequest: Sendable {
+package struct Google_Pubsub_V1_StreamingPullRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1873,7 +2852,7 @@ struct Google_Pubsub_V1_StreamingPullRequest: Sendable {
   /// must be provided in the first request on the stream, and must not be set in
   /// subsequent requests from client to server.
   /// Format is `projects/{project}/subscriptions/{sub}`.
-  var subscription: String = String()
+  package var subscription: String = String()
 
   /// Optional. List of acknowledgement IDs for acknowledging previously received
   /// messages (received on this stream or a different stream). If an ack ID has
@@ -1881,7 +2860,7 @@ struct Google_Pubsub_V1_StreamingPullRequest: Sendable {
   /// a message more than once will not result in an error. If the
   /// acknowledgement ID is malformed, the stream will be aborted with status
   /// `INVALID_ARGUMENT`.
-  var ackIds: [String] = []
+  package var ackIds: [String] = []
 
   /// Optional. The list of new ack deadlines for the IDs listed in
   /// `modify_deadline_ack_ids`. The size of this list must be the same as the
@@ -1894,20 +2873,20 @@ struct Google_Pubsub_V1_StreamingPullRequest: Sendable {
   /// the message is immediately made available for another streaming or
   /// non-streaming pull request. If the value is < 0 (an error), the stream will
   /// be aborted with status `INVALID_ARGUMENT`.
-  var modifyDeadlineSeconds: [Int32] = []
+  package var modifyDeadlineSeconds: [Int32] = []
 
   /// Optional. List of acknowledgement IDs whose deadline will be modified based
   /// on the corresponding element in `modify_deadline_seconds`. This field can
   /// be used to indicate that more time is needed to process a message by the
   /// subscriber, or to make the message available for redelivery if the
   /// processing was interrupted.
-  var modifyDeadlineAckIds: [String] = []
+  package var modifyDeadlineAckIds: [String] = []
 
   /// Required. The ack deadline to use for the stream. This must be provided in
   /// the first request on the stream, but it can also be updated on subsequent
   /// requests from client to server. The minimum deadline you can specify is 10
   /// seconds. The maximum deadline you can specify is 600 seconds (10 minutes).
-  var streamAckDeadlineSeconds: Int32 = 0
+  package var streamAckDeadlineSeconds: Int32 = 0
 
   /// Optional. A unique identifier that is used to distinguish client instances
   /// from each other. Only needs to be provided on the initial request. When a
@@ -1915,7 +2894,7 @@ struct Google_Pubsub_V1_StreamingPullRequest: Sendable {
   /// be set to the same value so that state associated with the old stream can
   /// be transferred to the new stream. The same client_id should not be used for
   /// different client instances.
-  var clientID: String = String()
+  package var clientID: String = String()
 
   /// Optional. Flow control settings for the maximum number of outstanding
   /// messages. When there are `max_outstanding_messages` currently sent to the
@@ -1926,7 +2905,7 @@ struct Google_Pubsub_V1_StreamingPullRequest: Sendable {
   /// property can only be set on the initial StreamingPullRequest. If it is set
   /// on a subsequent request, the stream will be aborted with status
   /// `INVALID_ARGUMENT`.
-  var maxOutstandingMessages: Int64 = 0
+  package var maxOutstandingMessages: Int64 = 0
 
   /// Optional. Flow control settings for the maximum number of outstanding
   /// bytes. When there are `max_outstanding_bytes` or more worth of messages
@@ -1937,125 +2916,125 @@ struct Google_Pubsub_V1_StreamingPullRequest: Sendable {
   /// This property can only be set on the initial StreamingPullRequest. If it is
   /// set on a subsequent request, the stream will be aborted with status
   /// `INVALID_ARGUMENT`.
-  var maxOutstandingBytes: Int64 = 0
+  package var maxOutstandingBytes: Int64 = 0
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  package var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  package init() {}
 }
 
 /// Response for the `StreamingPull` method. This response is used to stream
 /// messages from the server to the client.
-struct Google_Pubsub_V1_StreamingPullResponse: Sendable {
+package struct Google_Pubsub_V1_StreamingPullResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// Optional. Received Pub/Sub messages. This will not be empty.
-  var receivedMessages: [Google_Pubsub_V1_ReceivedMessage] = []
+  package var receivedMessages: [Google_Pubsub_V1_ReceivedMessage] = []
 
   /// Optional. This field will only be set if `enable_exactly_once_delivery` is
   /// set to `true`.
-  var acknowledgeConfirmation: Google_Pubsub_V1_StreamingPullResponse.AcknowledgeConfirmation {
+  package var acknowledgeConfirmation: Google_Pubsub_V1_StreamingPullResponse.AcknowledgeConfirmation {
     get {return _acknowledgeConfirmation ?? Google_Pubsub_V1_StreamingPullResponse.AcknowledgeConfirmation()}
     set {_acknowledgeConfirmation = newValue}
   }
   /// Returns true if `acknowledgeConfirmation` has been explicitly set.
-  var hasAcknowledgeConfirmation: Bool {return self._acknowledgeConfirmation != nil}
+  package var hasAcknowledgeConfirmation: Bool {return self._acknowledgeConfirmation != nil}
   /// Clears the value of `acknowledgeConfirmation`. Subsequent reads from it will return its default value.
-  mutating func clearAcknowledgeConfirmation() {self._acknowledgeConfirmation = nil}
+  package mutating func clearAcknowledgeConfirmation() {self._acknowledgeConfirmation = nil}
 
   /// Optional. This field will only be set if `enable_exactly_once_delivery` is
   /// set to `true`.
-  var modifyAckDeadlineConfirmation: Google_Pubsub_V1_StreamingPullResponse.ModifyAckDeadlineConfirmation {
+  package var modifyAckDeadlineConfirmation: Google_Pubsub_V1_StreamingPullResponse.ModifyAckDeadlineConfirmation {
     get {return _modifyAckDeadlineConfirmation ?? Google_Pubsub_V1_StreamingPullResponse.ModifyAckDeadlineConfirmation()}
     set {_modifyAckDeadlineConfirmation = newValue}
   }
   /// Returns true if `modifyAckDeadlineConfirmation` has been explicitly set.
-  var hasModifyAckDeadlineConfirmation: Bool {return self._modifyAckDeadlineConfirmation != nil}
+  package var hasModifyAckDeadlineConfirmation: Bool {return self._modifyAckDeadlineConfirmation != nil}
   /// Clears the value of `modifyAckDeadlineConfirmation`. Subsequent reads from it will return its default value.
-  mutating func clearModifyAckDeadlineConfirmation() {self._modifyAckDeadlineConfirmation = nil}
+  package mutating func clearModifyAckDeadlineConfirmation() {self._modifyAckDeadlineConfirmation = nil}
 
   /// Optional. Properties associated with this subscription.
-  var subscriptionProperties: Google_Pubsub_V1_StreamingPullResponse.SubscriptionProperties {
+  package var subscriptionProperties: Google_Pubsub_V1_StreamingPullResponse.SubscriptionProperties {
     get {return _subscriptionProperties ?? Google_Pubsub_V1_StreamingPullResponse.SubscriptionProperties()}
     set {_subscriptionProperties = newValue}
   }
   /// Returns true if `subscriptionProperties` has been explicitly set.
-  var hasSubscriptionProperties: Bool {return self._subscriptionProperties != nil}
+  package var hasSubscriptionProperties: Bool {return self._subscriptionProperties != nil}
   /// Clears the value of `subscriptionProperties`. Subsequent reads from it will return its default value.
-  mutating func clearSubscriptionProperties() {self._subscriptionProperties = nil}
+  package mutating func clearSubscriptionProperties() {self._subscriptionProperties = nil}
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  package var unknownFields = SwiftProtobuf.UnknownStorage()
 
   /// Acknowledgement IDs sent in one or more previous requests to acknowledge a
   /// previously received message.
-  struct AcknowledgeConfirmation: Sendable {
+  package struct AcknowledgeConfirmation: Sendable {
     // SwiftProtobuf.Message conformance is added in an extension below. See the
     // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
     // methods supported on all messages.
 
     /// Optional. Successfully processed acknowledgement IDs.
-    var ackIds: [String] = []
+    package var ackIds: [String] = []
 
     /// Optional. List of acknowledgement IDs that were malformed or whose
     /// acknowledgement deadline has expired.
-    var invalidAckIds: [String] = []
+    package var invalidAckIds: [String] = []
 
     /// Optional. List of acknowledgement IDs that were out of order.
-    var unorderedAckIds: [String] = []
+    package var unorderedAckIds: [String] = []
 
     /// Optional. List of acknowledgement IDs that failed processing with
     /// temporary issues.
-    var temporaryFailedAckIds: [String] = []
+    package var temporaryFailedAckIds: [String] = []
 
-    var unknownFields = SwiftProtobuf.UnknownStorage()
+    package var unknownFields = SwiftProtobuf.UnknownStorage()
 
-    init() {}
+    package init() {}
   }
 
   /// Acknowledgement IDs sent in one or more previous requests to modify the
   /// deadline for a specific message.
-  struct ModifyAckDeadlineConfirmation: Sendable {
+  package struct ModifyAckDeadlineConfirmation: Sendable {
     // SwiftProtobuf.Message conformance is added in an extension below. See the
     // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
     // methods supported on all messages.
 
     /// Optional. Successfully processed acknowledgement IDs.
-    var ackIds: [String] = []
+    package var ackIds: [String] = []
 
     /// Optional. List of acknowledgement IDs that were malformed or whose
     /// acknowledgement deadline has expired.
-    var invalidAckIds: [String] = []
+    package var invalidAckIds: [String] = []
 
     /// Optional. List of acknowledgement IDs that failed processing with
     /// temporary issues.
-    var temporaryFailedAckIds: [String] = []
+    package var temporaryFailedAckIds: [String] = []
 
-    var unknownFields = SwiftProtobuf.UnknownStorage()
+    package var unknownFields = SwiftProtobuf.UnknownStorage()
 
-    init() {}
+    package init() {}
   }
 
   /// Subscription properties sent as part of the response.
-  struct SubscriptionProperties: Sendable {
+  package struct SubscriptionProperties: Sendable {
     // SwiftProtobuf.Message conformance is added in an extension below. See the
     // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
     // methods supported on all messages.
 
     /// Optional. True iff exactly once delivery is enabled for this
     /// subscription.
-    var exactlyOnceDeliveryEnabled: Bool = false
+    package var exactlyOnceDeliveryEnabled: Bool = false
 
     /// Optional. True iff message ordering is enabled for this subscription.
-    var messageOrderingEnabled: Bool = false
+    package var messageOrderingEnabled: Bool = false
 
-    var unknownFields = SwiftProtobuf.UnknownStorage()
+    package var unknownFields = SwiftProtobuf.UnknownStorage()
 
-    init() {}
+    package init() {}
   }
 
-  init() {}
+  package init() {}
 
   fileprivate var _acknowledgeConfirmation: Google_Pubsub_V1_StreamingPullResponse.AcknowledgeConfirmation? = nil
   fileprivate var _modifyAckDeadlineConfirmation: Google_Pubsub_V1_StreamingPullResponse.ModifyAckDeadlineConfirmation? = nil
@@ -2063,7 +3042,7 @@ struct Google_Pubsub_V1_StreamingPullResponse: Sendable {
 }
 
 /// Request for the `CreateSnapshot` method.
-struct Google_Pubsub_V1_CreateSnapshotRequest: Sendable {
+package struct Google_Pubsub_V1_CreateSnapshotRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -2074,7 +3053,7 @@ struct Google_Pubsub_V1_CreateSnapshotRequest: Sendable {
   /// must specify a name.  See the [resource name
   /// rules](https://cloud.google.com/pubsub/docs/pubsub-basics#resource_names).
   /// Format is `projects/{project}/snapshots/{snap}`.
-  var name: String = String()
+  package var name: String = String()
 
   /// Required. The subscription whose backlog the snapshot retains.
   /// Specifically, the created snapshot is guaranteed to retain:
@@ -2085,47 +3064,47 @@ struct Google_Pubsub_V1_CreateSnapshotRequest: Sendable {
   ///  (b) Any messages published to the subscription's topic following the
   ///      successful completion of the CreateSnapshot request.
   /// Format is `projects/{project}/subscriptions/{sub}`.
-  var subscription: String = String()
+  package var subscription: String = String()
 
   /// Optional. See [Creating and managing
   /// labels](https://cloud.google.com/pubsub/docs/labels).
-  var labels: Dictionary<String,String> = [:]
+  package var labels: Dictionary<String,String> = [:]
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  package var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  package init() {}
 }
 
 /// Request for the UpdateSnapshot method.
-struct Google_Pubsub_V1_UpdateSnapshotRequest: Sendable {
+package struct Google_Pubsub_V1_UpdateSnapshotRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// Required. The updated snapshot object.
-  var snapshot: Google_Pubsub_V1_Snapshot {
+  package var snapshot: Google_Pubsub_V1_Snapshot {
     get {return _snapshot ?? Google_Pubsub_V1_Snapshot()}
     set {_snapshot = newValue}
   }
   /// Returns true if `snapshot` has been explicitly set.
-  var hasSnapshot: Bool {return self._snapshot != nil}
+  package var hasSnapshot: Bool {return self._snapshot != nil}
   /// Clears the value of `snapshot`. Subsequent reads from it will return its default value.
-  mutating func clearSnapshot() {self._snapshot = nil}
+  package mutating func clearSnapshot() {self._snapshot = nil}
 
   /// Required. Indicates which fields in the provided snapshot to update.
   /// Must be specified and non-empty.
-  var updateMask: SwiftProtobuf.Google_Protobuf_FieldMask {
+  package var updateMask: SwiftProtobuf.Google_Protobuf_FieldMask {
     get {return _updateMask ?? SwiftProtobuf.Google_Protobuf_FieldMask()}
     set {_updateMask = newValue}
   }
   /// Returns true if `updateMask` has been explicitly set.
-  var hasUpdateMask: Bool {return self._updateMask != nil}
+  package var hasUpdateMask: Bool {return self._updateMask != nil}
   /// Clears the value of `updateMask`. Subsequent reads from it will return its default value.
-  mutating func clearUpdateMask() {self._updateMask = nil}
+  package mutating func clearUpdateMask() {self._updateMask = nil}
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  package var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  package init() {}
 
   fileprivate var _snapshot: Google_Pubsub_V1_Snapshot? = nil
   fileprivate var _updateMask: SwiftProtobuf.Google_Protobuf_FieldMask? = nil
@@ -2136,17 +3115,17 @@ struct Google_Pubsub_V1_UpdateSnapshotRequest: Sendable {
 /// operations, which allow you to manage message acknowledgments in bulk. That
 /// is, you can set the acknowledgment state of messages in an existing
 /// subscription to the state captured by a snapshot.
-struct Google_Pubsub_V1_Snapshot: Sendable {
+package struct Google_Pubsub_V1_Snapshot: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// Optional. The name of the snapshot.
-  var name: String = String()
+  package var name: String = String()
 
   /// Optional. The name of the topic from which this snapshot is retaining
   /// messages.
-  var topic: String = String()
+  package var topic: String = String()
 
   /// Optional. The snapshot is guaranteed to exist up until this time.
   /// A newly-created snapshot expires no later than 7 days from the time of its
@@ -2158,108 +3137,108 @@ struct Google_Pubsub_V1_Snapshot: Sendable {
   /// will always capture this 3-day-old backlog as long as the snapshot
   /// exists -- will expire in 4 days. The service will refuse to create a
   /// snapshot that would expire in less than 1 hour after creation.
-  var expireTime: SwiftProtobuf.Google_Protobuf_Timestamp {
+  package var expireTime: SwiftProtobuf.Google_Protobuf_Timestamp {
     get {return _expireTime ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_expireTime = newValue}
   }
   /// Returns true if `expireTime` has been explicitly set.
-  var hasExpireTime: Bool {return self._expireTime != nil}
+  package var hasExpireTime: Bool {return self._expireTime != nil}
   /// Clears the value of `expireTime`. Subsequent reads from it will return its default value.
-  mutating func clearExpireTime() {self._expireTime = nil}
+  package mutating func clearExpireTime() {self._expireTime = nil}
 
   /// Optional. See [Creating and managing labels]
   /// (https://cloud.google.com/pubsub/docs/labels).
-  var labels: Dictionary<String,String> = [:]
+  package var labels: Dictionary<String,String> = [:]
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  package var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  package init() {}
 
   fileprivate var _expireTime: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
 }
 
 /// Request for the GetSnapshot method.
-struct Google_Pubsub_V1_GetSnapshotRequest: Sendable {
+package struct Google_Pubsub_V1_GetSnapshotRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// Required. The name of the snapshot to get.
   /// Format is `projects/{project}/snapshots/{snap}`.
-  var snapshot: String = String()
+  package var snapshot: String = String()
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  package var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  package init() {}
 }
 
 /// Request for the `ListSnapshots` method.
-struct Google_Pubsub_V1_ListSnapshotsRequest: Sendable {
+package struct Google_Pubsub_V1_ListSnapshotsRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// Required. The name of the project in which to list snapshots.
   /// Format is `projects/{project-id}`.
-  var project: String = String()
+  package var project: String = String()
 
   /// Optional. Maximum number of snapshots to return.
-  var pageSize: Int32 = 0
+  package var pageSize: Int32 = 0
 
   /// Optional. The value returned by the last `ListSnapshotsResponse`; indicates
   /// that this is a continuation of a prior `ListSnapshots` call, and that the
   /// system should return the next page of data.
-  var pageToken: String = String()
+  package var pageToken: String = String()
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  package var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  package init() {}
 }
 
 /// Response for the `ListSnapshots` method.
-struct Google_Pubsub_V1_ListSnapshotsResponse: Sendable {
+package struct Google_Pubsub_V1_ListSnapshotsResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// Optional. The resulting snapshots.
-  var snapshots: [Google_Pubsub_V1_Snapshot] = []
+  package var snapshots: [Google_Pubsub_V1_Snapshot] = []
 
   /// Optional. If not empty, indicates that there may be more snapshot that
   /// match the request; this value should be passed in a new
   /// `ListSnapshotsRequest`.
-  var nextPageToken: String = String()
+  package var nextPageToken: String = String()
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  package var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  package init() {}
 }
 
 /// Request for the `DeleteSnapshot` method.
-struct Google_Pubsub_V1_DeleteSnapshotRequest: Sendable {
+package struct Google_Pubsub_V1_DeleteSnapshotRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// Required. The name of the snapshot to delete.
   /// Format is `projects/{project}/snapshots/{snap}`.
-  var snapshot: String = String()
+  package var snapshot: String = String()
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  package var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  package init() {}
 }
 
 /// Request for the `Seek` method.
-struct Google_Pubsub_V1_SeekRequest: Sendable {
+package struct Google_Pubsub_V1_SeekRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// Required. The subscription to affect.
-  var subscription: String = String()
+  package var subscription: String = String()
 
-  var target: Google_Pubsub_V1_SeekRequest.OneOf_Target? = nil
+  package var target: Google_Pubsub_V1_SeekRequest.OneOf_Target? = nil
 
   /// Optional. The time to seek to.
   /// Messages retained in the subscription that were published before this
@@ -2272,7 +3251,7 @@ struct Google_Pubsub_V1_SeekRequest: Sendable {
   /// window (or to a point before the system's notion of the subscription
   /// creation time), only retained messages will be marked as unacknowledged,
   /// and already-expunged messages will not be restored.
-  var time: SwiftProtobuf.Google_Protobuf_Timestamp {
+  package var time: SwiftProtobuf.Google_Protobuf_Timestamp {
     get {
       if case .time(let v)? = target {return v}
       return SwiftProtobuf.Google_Protobuf_Timestamp()
@@ -2283,7 +3262,7 @@ struct Google_Pubsub_V1_SeekRequest: Sendable {
   /// Optional. The snapshot to seek to. The snapshot's topic must be the same
   /// as that of the provided subscription. Format is
   /// `projects/{project}/snapshots/{snap}`.
-  var snapshot: String {
+  package var snapshot: String {
     get {
       if case .snapshot(let v)? = target {return v}
       return String()
@@ -2291,9 +3270,9 @@ struct Google_Pubsub_V1_SeekRequest: Sendable {
     set {target = .snapshot(newValue)}
   }
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  package var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  enum OneOf_Target: Equatable, Sendable {
+  package enum OneOf_Target: Equatable, Sendable {
     /// Optional. The time to seek to.
     /// Messages retained in the subscription that were published before this
     /// time are marked as acknowledged, and messages retained in the
@@ -2313,18 +3292,18 @@ struct Google_Pubsub_V1_SeekRequest: Sendable {
 
   }
 
-  init() {}
+  package init() {}
 }
 
 /// Response for the `Seek` method (this response is empty).
-struct Google_Pubsub_V1_SeekResponse: Sendable {
+package struct Google_Pubsub_V1_SeekResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  package var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  package init() {}
 }
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -2332,13 +3311,13 @@ struct Google_Pubsub_V1_SeekResponse: Sendable {
 fileprivate let _protobuf_package = "google.pubsub.v1"
 
 extension Google_Pubsub_V1_MessageStoragePolicy: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".MessageStoragePolicy"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = _protobuf_package + ".MessageStoragePolicy"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .standard(proto: "allowed_persistence_regions"),
     2: .standard(proto: "enforce_in_transit"),
   ]
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -2351,7 +3330,7 @@ extension Google_Pubsub_V1_MessageStoragePolicy: SwiftProtobuf.Message, SwiftPro
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.allowedPersistenceRegions.isEmpty {
       try visitor.visitRepeatedStringField(value: self.allowedPersistenceRegions, fieldNumber: 1)
     }
@@ -2361,7 +3340,7 @@ extension Google_Pubsub_V1_MessageStoragePolicy: SwiftProtobuf.Message, SwiftPro
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_MessageStoragePolicy, rhs: Google_Pubsub_V1_MessageStoragePolicy) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_MessageStoragePolicy, rhs: Google_Pubsub_V1_MessageStoragePolicy) -> Bool {
     if lhs.allowedPersistenceRegions != rhs.allowedPersistenceRegions {return false}
     if lhs.enforceInTransit != rhs.enforceInTransit {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -2370,15 +3349,15 @@ extension Google_Pubsub_V1_MessageStoragePolicy: SwiftProtobuf.Message, SwiftPro
 }
 
 extension Google_Pubsub_V1_SchemaSettings: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".SchemaSettings"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = _protobuf_package + ".SchemaSettings"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "schema"),
     2: .same(proto: "encoding"),
     3: .standard(proto: "first_revision_id"),
     4: .standard(proto: "last_revision_id"),
   ]
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -2393,7 +3372,7 @@ extension Google_Pubsub_V1_SchemaSettings: SwiftProtobuf.Message, SwiftProtobuf.
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.schema.isEmpty {
       try visitor.visitSingularStringField(value: self.schema, fieldNumber: 1)
     }
@@ -2409,7 +3388,7 @@ extension Google_Pubsub_V1_SchemaSettings: SwiftProtobuf.Message, SwiftProtobuf.
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_SchemaSettings, rhs: Google_Pubsub_V1_SchemaSettings) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_SchemaSettings, rhs: Google_Pubsub_V1_SchemaSettings) -> Bool {
     if lhs.schema != rhs.schema {return false}
     if lhs.encoding != rhs.encoding {return false}
     if lhs.firstRevisionID != rhs.firstRevisionID {return false}
@@ -2420,12 +3399,17 @@ extension Google_Pubsub_V1_SchemaSettings: SwiftProtobuf.Message, SwiftProtobuf.
 }
 
 extension Google_Pubsub_V1_IngestionDataSourceSettings: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".IngestionDataSourceSettings"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = _protobuf_package + ".IngestionDataSourceSettings"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .standard(proto: "aws_kinesis"),
+    2: .standard(proto: "cloud_storage"),
+    3: .standard(proto: "azure_event_hubs"),
+    5: .standard(proto: "aws_msk"),
+    6: .standard(proto: "confluent_cloud"),
+    4: .standard(proto: "platform_logs_settings"),
   ]
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -2444,32 +3428,112 @@ extension Google_Pubsub_V1_IngestionDataSourceSettings: SwiftProtobuf.Message, S
           self.source = .awsKinesis(v)
         }
       }()
+      case 2: try {
+        var v: Google_Pubsub_V1_IngestionDataSourceSettings.CloudStorage?
+        var hadOneofValue = false
+        if let current = self.source {
+          hadOneofValue = true
+          if case .cloudStorage(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.source = .cloudStorage(v)
+        }
+      }()
+      case 3: try {
+        var v: Google_Pubsub_V1_IngestionDataSourceSettings.AzureEventHubs?
+        var hadOneofValue = false
+        if let current = self.source {
+          hadOneofValue = true
+          if case .azureEventHubs(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.source = .azureEventHubs(v)
+        }
+      }()
+      case 4: try { try decoder.decodeSingularMessageField(value: &self._platformLogsSettings) }()
+      case 5: try {
+        var v: Google_Pubsub_V1_IngestionDataSourceSettings.AwsMsk?
+        var hadOneofValue = false
+        if let current = self.source {
+          hadOneofValue = true
+          if case .awsMsk(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.source = .awsMsk(v)
+        }
+      }()
+      case 6: try {
+        var v: Google_Pubsub_V1_IngestionDataSourceSettings.ConfluentCloud?
+        var hadOneofValue = false
+        if let current = self.source {
+          hadOneofValue = true
+          if case .confluentCloud(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.source = .confluentCloud(v)
+        }
+      }()
       default: break
       }
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     // The use of inline closures is to circumvent an issue where the compiler
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
     // https://github.com/apple/swift-protobuf/issues/1182
-    try { if case .awsKinesis(let v)? = self.source {
+    switch self.source {
+    case .awsKinesis?: try {
+      guard case .awsKinesis(let v)? = self.source else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    }()
+    case .cloudStorage?: try {
+      guard case .cloudStorage(let v)? = self.source else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    }()
+    case .azureEventHubs?: try {
+      guard case .azureEventHubs(let v)? = self.source else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    }()
+    default: break
+    }
+    try { if let v = self._platformLogsSettings {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
     } }()
+    switch self.source {
+    case .awsMsk?: try {
+      guard case .awsMsk(let v)? = self.source else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
+    }()
+    case .confluentCloud?: try {
+      guard case .confluentCloud(let v)? = self.source else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
+    }()
+    default: break
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_IngestionDataSourceSettings, rhs: Google_Pubsub_V1_IngestionDataSourceSettings) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_IngestionDataSourceSettings, rhs: Google_Pubsub_V1_IngestionDataSourceSettings) -> Bool {
     if lhs.source != rhs.source {return false}
+    if lhs._platformLogsSettings != rhs._platformLogsSettings {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
 extension Google_Pubsub_V1_IngestionDataSourceSettings.AwsKinesis: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = Google_Pubsub_V1_IngestionDataSourceSettings.protoMessageName + ".AwsKinesis"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = Google_Pubsub_V1_IngestionDataSourceSettings.protoMessageName + ".AwsKinesis"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "state"),
     2: .standard(proto: "stream_arn"),
     3: .standard(proto: "consumer_arn"),
@@ -2477,7 +3541,7 @@ extension Google_Pubsub_V1_IngestionDataSourceSettings.AwsKinesis: SwiftProtobuf
     5: .standard(proto: "gcp_service_account"),
   ]
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -2493,7 +3557,7 @@ extension Google_Pubsub_V1_IngestionDataSourceSettings.AwsKinesis: SwiftProtobuf
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if self.state != .unspecified {
       try visitor.visitSingularEnumField(value: self.state, fieldNumber: 1)
     }
@@ -2512,7 +3576,7 @@ extension Google_Pubsub_V1_IngestionDataSourceSettings.AwsKinesis: SwiftProtobuf
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_IngestionDataSourceSettings.AwsKinesis, rhs: Google_Pubsub_V1_IngestionDataSourceSettings.AwsKinesis) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_IngestionDataSourceSettings.AwsKinesis, rhs: Google_Pubsub_V1_IngestionDataSourceSettings.AwsKinesis) -> Bool {
     if lhs.state != rhs.state {return false}
     if lhs.streamArn != rhs.streamArn {return false}
     if lhs.consumerArn != rhs.consumerArn {return false}
@@ -2524,7 +3588,7 @@ extension Google_Pubsub_V1_IngestionDataSourceSettings.AwsKinesis: SwiftProtobuf
 }
 
 extension Google_Pubsub_V1_IngestionDataSourceSettings.AwsKinesis.State: SwiftProtobuf._ProtoNameProviding {
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     0: .same(proto: "STATE_UNSPECIFIED"),
     1: .same(proto: "ACTIVE"),
     2: .same(proto: "KINESIS_PERMISSION_DENIED"),
@@ -2534,9 +3598,937 @@ extension Google_Pubsub_V1_IngestionDataSourceSettings.AwsKinesis.State: SwiftPr
   ]
 }
 
+extension Google_Pubsub_V1_IngestionDataSourceSettings.CloudStorage: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  package static let protoMessageName: String = Google_Pubsub_V1_IngestionDataSourceSettings.protoMessageName + ".CloudStorage"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "state"),
+    2: .same(proto: "bucket"),
+    3: .standard(proto: "text_format"),
+    4: .standard(proto: "avro_format"),
+    5: .standard(proto: "pubsub_avro_format"),
+    6: .standard(proto: "minimum_object_create_time"),
+    9: .standard(proto: "match_glob"),
+  ]
+
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.state) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.bucket) }()
+      case 3: try {
+        var v: Google_Pubsub_V1_IngestionDataSourceSettings.CloudStorage.TextFormat?
+        var hadOneofValue = false
+        if let current = self.inputFormat {
+          hadOneofValue = true
+          if case .textFormat(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.inputFormat = .textFormat(v)
+        }
+      }()
+      case 4: try {
+        var v: Google_Pubsub_V1_IngestionDataSourceSettings.CloudStorage.AvroFormat?
+        var hadOneofValue = false
+        if let current = self.inputFormat {
+          hadOneofValue = true
+          if case .avroFormat(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.inputFormat = .avroFormat(v)
+        }
+      }()
+      case 5: try {
+        var v: Google_Pubsub_V1_IngestionDataSourceSettings.CloudStorage.PubSubAvroFormat?
+        var hadOneofValue = false
+        if let current = self.inputFormat {
+          hadOneofValue = true
+          if case .pubsubAvroFormat(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.inputFormat = .pubsubAvroFormat(v)
+        }
+      }()
+      case 6: try { try decoder.decodeSingularMessageField(value: &self._minimumObjectCreateTime) }()
+      case 9: try { try decoder.decodeSingularStringField(value: &self.matchGlob) }()
+      default: break
+      }
+    }
+  }
+
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if self.state != .unspecified {
+      try visitor.visitSingularEnumField(value: self.state, fieldNumber: 1)
+    }
+    if !self.bucket.isEmpty {
+      try visitor.visitSingularStringField(value: self.bucket, fieldNumber: 2)
+    }
+    switch self.inputFormat {
+    case .textFormat?: try {
+      guard case .textFormat(let v)? = self.inputFormat else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    }()
+    case .avroFormat?: try {
+      guard case .avroFormat(let v)? = self.inputFormat else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    }()
+    case .pubsubAvroFormat?: try {
+      guard case .pubsubAvroFormat(let v)? = self.inputFormat else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
+    }()
+    case nil: break
+    }
+    try { if let v = self._minimumObjectCreateTime {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
+    } }()
+    if !self.matchGlob.isEmpty {
+      try visitor.visitSingularStringField(value: self.matchGlob, fieldNumber: 9)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  package static func ==(lhs: Google_Pubsub_V1_IngestionDataSourceSettings.CloudStorage, rhs: Google_Pubsub_V1_IngestionDataSourceSettings.CloudStorage) -> Bool {
+    if lhs.state != rhs.state {return false}
+    if lhs.bucket != rhs.bucket {return false}
+    if lhs.inputFormat != rhs.inputFormat {return false}
+    if lhs._minimumObjectCreateTime != rhs._minimumObjectCreateTime {return false}
+    if lhs.matchGlob != rhs.matchGlob {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Google_Pubsub_V1_IngestionDataSourceSettings.CloudStorage.State: SwiftProtobuf._ProtoNameProviding {
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    0: .same(proto: "STATE_UNSPECIFIED"),
+    1: .same(proto: "ACTIVE"),
+    2: .same(proto: "CLOUD_STORAGE_PERMISSION_DENIED"),
+    3: .same(proto: "PUBLISH_PERMISSION_DENIED"),
+    4: .same(proto: "BUCKET_NOT_FOUND"),
+    5: .same(proto: "TOO_MANY_OBJECTS"),
+  ]
+}
+
+extension Google_Pubsub_V1_IngestionDataSourceSettings.CloudStorage.TextFormat: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  package static let protoMessageName: String = Google_Pubsub_V1_IngestionDataSourceSettings.CloudStorage.protoMessageName + ".TextFormat"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "delimiter"),
+  ]
+
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self._delimiter) }()
+      default: break
+      }
+    }
+  }
+
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._delimiter {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 1)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  package static func ==(lhs: Google_Pubsub_V1_IngestionDataSourceSettings.CloudStorage.TextFormat, rhs: Google_Pubsub_V1_IngestionDataSourceSettings.CloudStorage.TextFormat) -> Bool {
+    if lhs._delimiter != rhs._delimiter {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Google_Pubsub_V1_IngestionDataSourceSettings.CloudStorage.AvroFormat: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  package static let protoMessageName: String = Google_Pubsub_V1_IngestionDataSourceSettings.CloudStorage.protoMessageName + ".AvroFormat"
+  package static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    // Load everything into unknown fields
+    while try decoder.nextFieldNumber() != nil {}
+  }
+
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  package static func ==(lhs: Google_Pubsub_V1_IngestionDataSourceSettings.CloudStorage.AvroFormat, rhs: Google_Pubsub_V1_IngestionDataSourceSettings.CloudStorage.AvroFormat) -> Bool {
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Google_Pubsub_V1_IngestionDataSourceSettings.CloudStorage.PubSubAvroFormat: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  package static let protoMessageName: String = Google_Pubsub_V1_IngestionDataSourceSettings.CloudStorage.protoMessageName + ".PubSubAvroFormat"
+  package static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    // Load everything into unknown fields
+    while try decoder.nextFieldNumber() != nil {}
+  }
+
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  package static func ==(lhs: Google_Pubsub_V1_IngestionDataSourceSettings.CloudStorage.PubSubAvroFormat, rhs: Google_Pubsub_V1_IngestionDataSourceSettings.CloudStorage.PubSubAvroFormat) -> Bool {
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Google_Pubsub_V1_IngestionDataSourceSettings.AzureEventHubs: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  package static let protoMessageName: String = Google_Pubsub_V1_IngestionDataSourceSettings.protoMessageName + ".AzureEventHubs"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "state"),
+    2: .standard(proto: "resource_group"),
+    3: .same(proto: "namespace"),
+    4: .standard(proto: "event_hub"),
+    5: .standard(proto: "client_id"),
+    6: .standard(proto: "tenant_id"),
+    7: .standard(proto: "subscription_id"),
+    8: .standard(proto: "gcp_service_account"),
+  ]
+
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.state) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.resourceGroup) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.namespace) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self.eventHub) }()
+      case 5: try { try decoder.decodeSingularStringField(value: &self.clientID) }()
+      case 6: try { try decoder.decodeSingularStringField(value: &self.tenantID) }()
+      case 7: try { try decoder.decodeSingularStringField(value: &self.subscriptionID) }()
+      case 8: try { try decoder.decodeSingularStringField(value: &self.gcpServiceAccount) }()
+      default: break
+      }
+    }
+  }
+
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.state != .unspecified {
+      try visitor.visitSingularEnumField(value: self.state, fieldNumber: 1)
+    }
+    if !self.resourceGroup.isEmpty {
+      try visitor.visitSingularStringField(value: self.resourceGroup, fieldNumber: 2)
+    }
+    if !self.namespace.isEmpty {
+      try visitor.visitSingularStringField(value: self.namespace, fieldNumber: 3)
+    }
+    if !self.eventHub.isEmpty {
+      try visitor.visitSingularStringField(value: self.eventHub, fieldNumber: 4)
+    }
+    if !self.clientID.isEmpty {
+      try visitor.visitSingularStringField(value: self.clientID, fieldNumber: 5)
+    }
+    if !self.tenantID.isEmpty {
+      try visitor.visitSingularStringField(value: self.tenantID, fieldNumber: 6)
+    }
+    if !self.subscriptionID.isEmpty {
+      try visitor.visitSingularStringField(value: self.subscriptionID, fieldNumber: 7)
+    }
+    if !self.gcpServiceAccount.isEmpty {
+      try visitor.visitSingularStringField(value: self.gcpServiceAccount, fieldNumber: 8)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  package static func ==(lhs: Google_Pubsub_V1_IngestionDataSourceSettings.AzureEventHubs, rhs: Google_Pubsub_V1_IngestionDataSourceSettings.AzureEventHubs) -> Bool {
+    if lhs.state != rhs.state {return false}
+    if lhs.resourceGroup != rhs.resourceGroup {return false}
+    if lhs.namespace != rhs.namespace {return false}
+    if lhs.eventHub != rhs.eventHub {return false}
+    if lhs.clientID != rhs.clientID {return false}
+    if lhs.tenantID != rhs.tenantID {return false}
+    if lhs.subscriptionID != rhs.subscriptionID {return false}
+    if lhs.gcpServiceAccount != rhs.gcpServiceAccount {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Google_Pubsub_V1_IngestionDataSourceSettings.AzureEventHubs.State: SwiftProtobuf._ProtoNameProviding {
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    0: .same(proto: "STATE_UNSPECIFIED"),
+    1: .same(proto: "ACTIVE"),
+    2: .same(proto: "EVENT_HUBS_PERMISSION_DENIED"),
+    3: .same(proto: "PUBLISH_PERMISSION_DENIED"),
+    4: .same(proto: "NAMESPACE_NOT_FOUND"),
+    5: .same(proto: "EVENT_HUB_NOT_FOUND"),
+    6: .same(proto: "SUBSCRIPTION_NOT_FOUND"),
+    7: .same(proto: "RESOURCE_GROUP_NOT_FOUND"),
+  ]
+}
+
+extension Google_Pubsub_V1_IngestionDataSourceSettings.AwsMsk: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  package static let protoMessageName: String = Google_Pubsub_V1_IngestionDataSourceSettings.protoMessageName + ".AwsMsk"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "state"),
+    2: .standard(proto: "cluster_arn"),
+    3: .same(proto: "topic"),
+    4: .standard(proto: "aws_role_arn"),
+    5: .standard(proto: "gcp_service_account"),
+  ]
+
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.state) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.clusterArn) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.topic) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self.awsRoleArn) }()
+      case 5: try { try decoder.decodeSingularStringField(value: &self.gcpServiceAccount) }()
+      default: break
+      }
+    }
+  }
+
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.state != .unspecified {
+      try visitor.visitSingularEnumField(value: self.state, fieldNumber: 1)
+    }
+    if !self.clusterArn.isEmpty {
+      try visitor.visitSingularStringField(value: self.clusterArn, fieldNumber: 2)
+    }
+    if !self.topic.isEmpty {
+      try visitor.visitSingularStringField(value: self.topic, fieldNumber: 3)
+    }
+    if !self.awsRoleArn.isEmpty {
+      try visitor.visitSingularStringField(value: self.awsRoleArn, fieldNumber: 4)
+    }
+    if !self.gcpServiceAccount.isEmpty {
+      try visitor.visitSingularStringField(value: self.gcpServiceAccount, fieldNumber: 5)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  package static func ==(lhs: Google_Pubsub_V1_IngestionDataSourceSettings.AwsMsk, rhs: Google_Pubsub_V1_IngestionDataSourceSettings.AwsMsk) -> Bool {
+    if lhs.state != rhs.state {return false}
+    if lhs.clusterArn != rhs.clusterArn {return false}
+    if lhs.topic != rhs.topic {return false}
+    if lhs.awsRoleArn != rhs.awsRoleArn {return false}
+    if lhs.gcpServiceAccount != rhs.gcpServiceAccount {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Google_Pubsub_V1_IngestionDataSourceSettings.AwsMsk.State: SwiftProtobuf._ProtoNameProviding {
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    0: .same(proto: "STATE_UNSPECIFIED"),
+    1: .same(proto: "ACTIVE"),
+    2: .same(proto: "MSK_PERMISSION_DENIED"),
+    3: .same(proto: "PUBLISH_PERMISSION_DENIED"),
+    4: .same(proto: "CLUSTER_NOT_FOUND"),
+    5: .same(proto: "TOPIC_NOT_FOUND"),
+  ]
+}
+
+extension Google_Pubsub_V1_IngestionDataSourceSettings.ConfluentCloud: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  package static let protoMessageName: String = Google_Pubsub_V1_IngestionDataSourceSettings.protoMessageName + ".ConfluentCloud"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "state"),
+    2: .standard(proto: "bootstrap_server"),
+    3: .standard(proto: "cluster_id"),
+    4: .same(proto: "topic"),
+    5: .standard(proto: "identity_pool_id"),
+    6: .standard(proto: "gcp_service_account"),
+  ]
+
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.state) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.bootstrapServer) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.clusterID) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self.topic) }()
+      case 5: try { try decoder.decodeSingularStringField(value: &self.identityPoolID) }()
+      case 6: try { try decoder.decodeSingularStringField(value: &self.gcpServiceAccount) }()
+      default: break
+      }
+    }
+  }
+
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.state != .unspecified {
+      try visitor.visitSingularEnumField(value: self.state, fieldNumber: 1)
+    }
+    if !self.bootstrapServer.isEmpty {
+      try visitor.visitSingularStringField(value: self.bootstrapServer, fieldNumber: 2)
+    }
+    if !self.clusterID.isEmpty {
+      try visitor.visitSingularStringField(value: self.clusterID, fieldNumber: 3)
+    }
+    if !self.topic.isEmpty {
+      try visitor.visitSingularStringField(value: self.topic, fieldNumber: 4)
+    }
+    if !self.identityPoolID.isEmpty {
+      try visitor.visitSingularStringField(value: self.identityPoolID, fieldNumber: 5)
+    }
+    if !self.gcpServiceAccount.isEmpty {
+      try visitor.visitSingularStringField(value: self.gcpServiceAccount, fieldNumber: 6)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  package static func ==(lhs: Google_Pubsub_V1_IngestionDataSourceSettings.ConfluentCloud, rhs: Google_Pubsub_V1_IngestionDataSourceSettings.ConfluentCloud) -> Bool {
+    if lhs.state != rhs.state {return false}
+    if lhs.bootstrapServer != rhs.bootstrapServer {return false}
+    if lhs.clusterID != rhs.clusterID {return false}
+    if lhs.topic != rhs.topic {return false}
+    if lhs.identityPoolID != rhs.identityPoolID {return false}
+    if lhs.gcpServiceAccount != rhs.gcpServiceAccount {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Google_Pubsub_V1_IngestionDataSourceSettings.ConfluentCloud.State: SwiftProtobuf._ProtoNameProviding {
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    0: .same(proto: "STATE_UNSPECIFIED"),
+    1: .same(proto: "ACTIVE"),
+    2: .same(proto: "CONFLUENT_CLOUD_PERMISSION_DENIED"),
+    3: .same(proto: "PUBLISH_PERMISSION_DENIED"),
+    4: .same(proto: "UNREACHABLE_BOOTSTRAP_SERVER"),
+    5: .same(proto: "CLUSTER_NOT_FOUND"),
+    6: .same(proto: "TOPIC_NOT_FOUND"),
+  ]
+}
+
+extension Google_Pubsub_V1_PlatformLogsSettings: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  package static let protoMessageName: String = _protobuf_package + ".PlatformLogsSettings"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "severity"),
+  ]
+
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.severity) }()
+      default: break
+      }
+    }
+  }
+
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.severity != .unspecified {
+      try visitor.visitSingularEnumField(value: self.severity, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  package static func ==(lhs: Google_Pubsub_V1_PlatformLogsSettings, rhs: Google_Pubsub_V1_PlatformLogsSettings) -> Bool {
+    if lhs.severity != rhs.severity {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Google_Pubsub_V1_PlatformLogsSettings.Severity: SwiftProtobuf._ProtoNameProviding {
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    0: .same(proto: "SEVERITY_UNSPECIFIED"),
+    1: .same(proto: "DISABLED"),
+    2: .same(proto: "DEBUG"),
+    3: .same(proto: "INFO"),
+    4: .same(proto: "WARNING"),
+    5: .same(proto: "ERROR"),
+  ]
+}
+
+extension Google_Pubsub_V1_IngestionFailureEvent: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  package static let protoMessageName: String = _protobuf_package + ".IngestionFailureEvent"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "topic"),
+    2: .standard(proto: "error_message"),
+    3: .standard(proto: "cloud_storage_failure"),
+    4: .standard(proto: "aws_msk_failure"),
+    5: .standard(proto: "azure_event_hubs_failure"),
+    6: .standard(proto: "confluent_cloud_failure"),
+  ]
+
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.topic) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.errorMessage) }()
+      case 3: try {
+        var v: Google_Pubsub_V1_IngestionFailureEvent.CloudStorageFailure?
+        var hadOneofValue = false
+        if let current = self.failure {
+          hadOneofValue = true
+          if case .cloudStorageFailure(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.failure = .cloudStorageFailure(v)
+        }
+      }()
+      case 4: try {
+        var v: Google_Pubsub_V1_IngestionFailureEvent.AwsMskFailureReason?
+        var hadOneofValue = false
+        if let current = self.failure {
+          hadOneofValue = true
+          if case .awsMskFailure(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.failure = .awsMskFailure(v)
+        }
+      }()
+      case 5: try {
+        var v: Google_Pubsub_V1_IngestionFailureEvent.AzureEventHubsFailureReason?
+        var hadOneofValue = false
+        if let current = self.failure {
+          hadOneofValue = true
+          if case .azureEventHubsFailure(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.failure = .azureEventHubsFailure(v)
+        }
+      }()
+      case 6: try {
+        var v: Google_Pubsub_V1_IngestionFailureEvent.ConfluentCloudFailureReason?
+        var hadOneofValue = false
+        if let current = self.failure {
+          hadOneofValue = true
+          if case .confluentCloudFailure(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.failure = .confluentCloudFailure(v)
+        }
+      }()
+      default: break
+      }
+    }
+  }
+
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if !self.topic.isEmpty {
+      try visitor.visitSingularStringField(value: self.topic, fieldNumber: 1)
+    }
+    if !self.errorMessage.isEmpty {
+      try visitor.visitSingularStringField(value: self.errorMessage, fieldNumber: 2)
+    }
+    switch self.failure {
+    case .cloudStorageFailure?: try {
+      guard case .cloudStorageFailure(let v)? = self.failure else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    }()
+    case .awsMskFailure?: try {
+      guard case .awsMskFailure(let v)? = self.failure else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    }()
+    case .azureEventHubsFailure?: try {
+      guard case .azureEventHubsFailure(let v)? = self.failure else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
+    }()
+    case .confluentCloudFailure?: try {
+      guard case .confluentCloudFailure(let v)? = self.failure else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
+    }()
+    case nil: break
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  package static func ==(lhs: Google_Pubsub_V1_IngestionFailureEvent, rhs: Google_Pubsub_V1_IngestionFailureEvent) -> Bool {
+    if lhs.topic != rhs.topic {return false}
+    if lhs.errorMessage != rhs.errorMessage {return false}
+    if lhs.failure != rhs.failure {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Google_Pubsub_V1_IngestionFailureEvent.ApiViolationReason: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  package static let protoMessageName: String = Google_Pubsub_V1_IngestionFailureEvent.protoMessageName + ".ApiViolationReason"
+  package static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    // Load everything into unknown fields
+    while try decoder.nextFieldNumber() != nil {}
+  }
+
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  package static func ==(lhs: Google_Pubsub_V1_IngestionFailureEvent.ApiViolationReason, rhs: Google_Pubsub_V1_IngestionFailureEvent.ApiViolationReason) -> Bool {
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Google_Pubsub_V1_IngestionFailureEvent.AvroFailureReason: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  package static let protoMessageName: String = Google_Pubsub_V1_IngestionFailureEvent.protoMessageName + ".AvroFailureReason"
+  package static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    // Load everything into unknown fields
+    while try decoder.nextFieldNumber() != nil {}
+  }
+
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  package static func ==(lhs: Google_Pubsub_V1_IngestionFailureEvent.AvroFailureReason, rhs: Google_Pubsub_V1_IngestionFailureEvent.AvroFailureReason) -> Bool {
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Google_Pubsub_V1_IngestionFailureEvent.CloudStorageFailure: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  package static let protoMessageName: String = Google_Pubsub_V1_IngestionFailureEvent.protoMessageName + ".CloudStorageFailure"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "bucket"),
+    2: .standard(proto: "object_name"),
+    3: .standard(proto: "object_generation"),
+    5: .standard(proto: "avro_failure_reason"),
+    6: .standard(proto: "api_violation_reason"),
+  ]
+
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.bucket) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.objectName) }()
+      case 3: try { try decoder.decodeSingularInt64Field(value: &self.objectGeneration) }()
+      case 5: try {
+        var v: Google_Pubsub_V1_IngestionFailureEvent.AvroFailureReason?
+        var hadOneofValue = false
+        if let current = self.reason {
+          hadOneofValue = true
+          if case .avroFailureReason(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.reason = .avroFailureReason(v)
+        }
+      }()
+      case 6: try {
+        var v: Google_Pubsub_V1_IngestionFailureEvent.ApiViolationReason?
+        var hadOneofValue = false
+        if let current = self.reason {
+          hadOneofValue = true
+          if case .apiViolationReason(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.reason = .apiViolationReason(v)
+        }
+      }()
+      default: break
+      }
+    }
+  }
+
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if !self.bucket.isEmpty {
+      try visitor.visitSingularStringField(value: self.bucket, fieldNumber: 1)
+    }
+    if !self.objectName.isEmpty {
+      try visitor.visitSingularStringField(value: self.objectName, fieldNumber: 2)
+    }
+    if self.objectGeneration != 0 {
+      try visitor.visitSingularInt64Field(value: self.objectGeneration, fieldNumber: 3)
+    }
+    switch self.reason {
+    case .avroFailureReason?: try {
+      guard case .avroFailureReason(let v)? = self.reason else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
+    }()
+    case .apiViolationReason?: try {
+      guard case .apiViolationReason(let v)? = self.reason else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
+    }()
+    case nil: break
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  package static func ==(lhs: Google_Pubsub_V1_IngestionFailureEvent.CloudStorageFailure, rhs: Google_Pubsub_V1_IngestionFailureEvent.CloudStorageFailure) -> Bool {
+    if lhs.bucket != rhs.bucket {return false}
+    if lhs.objectName != rhs.objectName {return false}
+    if lhs.objectGeneration != rhs.objectGeneration {return false}
+    if lhs.reason != rhs.reason {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Google_Pubsub_V1_IngestionFailureEvent.AwsMskFailureReason: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  package static let protoMessageName: String = Google_Pubsub_V1_IngestionFailureEvent.protoMessageName + ".AwsMskFailureReason"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "cluster_arn"),
+    2: .standard(proto: "kafka_topic"),
+    3: .standard(proto: "partition_id"),
+    4: .same(proto: "offset"),
+    5: .standard(proto: "api_violation_reason"),
+  ]
+
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.clusterArn) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.kafkaTopic) }()
+      case 3: try { try decoder.decodeSingularInt64Field(value: &self.partitionID) }()
+      case 4: try { try decoder.decodeSingularInt64Field(value: &self.offset) }()
+      case 5: try {
+        var v: Google_Pubsub_V1_IngestionFailureEvent.ApiViolationReason?
+        var hadOneofValue = false
+        if let current = self.reason {
+          hadOneofValue = true
+          if case .apiViolationReason(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.reason = .apiViolationReason(v)
+        }
+      }()
+      default: break
+      }
+    }
+  }
+
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if !self.clusterArn.isEmpty {
+      try visitor.visitSingularStringField(value: self.clusterArn, fieldNumber: 1)
+    }
+    if !self.kafkaTopic.isEmpty {
+      try visitor.visitSingularStringField(value: self.kafkaTopic, fieldNumber: 2)
+    }
+    if self.partitionID != 0 {
+      try visitor.visitSingularInt64Field(value: self.partitionID, fieldNumber: 3)
+    }
+    if self.offset != 0 {
+      try visitor.visitSingularInt64Field(value: self.offset, fieldNumber: 4)
+    }
+    try { if case .apiViolationReason(let v)? = self.reason {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  package static func ==(lhs: Google_Pubsub_V1_IngestionFailureEvent.AwsMskFailureReason, rhs: Google_Pubsub_V1_IngestionFailureEvent.AwsMskFailureReason) -> Bool {
+    if lhs.clusterArn != rhs.clusterArn {return false}
+    if lhs.kafkaTopic != rhs.kafkaTopic {return false}
+    if lhs.partitionID != rhs.partitionID {return false}
+    if lhs.offset != rhs.offset {return false}
+    if lhs.reason != rhs.reason {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Google_Pubsub_V1_IngestionFailureEvent.AzureEventHubsFailureReason: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  package static let protoMessageName: String = Google_Pubsub_V1_IngestionFailureEvent.protoMessageName + ".AzureEventHubsFailureReason"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "namespace"),
+    2: .standard(proto: "event_hub"),
+    3: .standard(proto: "partition_id"),
+    4: .same(proto: "offset"),
+    5: .standard(proto: "api_violation_reason"),
+  ]
+
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.namespace) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.eventHub) }()
+      case 3: try { try decoder.decodeSingularInt64Field(value: &self.partitionID) }()
+      case 4: try { try decoder.decodeSingularInt64Field(value: &self.offset) }()
+      case 5: try {
+        var v: Google_Pubsub_V1_IngestionFailureEvent.ApiViolationReason?
+        var hadOneofValue = false
+        if let current = self.reason {
+          hadOneofValue = true
+          if case .apiViolationReason(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.reason = .apiViolationReason(v)
+        }
+      }()
+      default: break
+      }
+    }
+  }
+
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if !self.namespace.isEmpty {
+      try visitor.visitSingularStringField(value: self.namespace, fieldNumber: 1)
+    }
+    if !self.eventHub.isEmpty {
+      try visitor.visitSingularStringField(value: self.eventHub, fieldNumber: 2)
+    }
+    if self.partitionID != 0 {
+      try visitor.visitSingularInt64Field(value: self.partitionID, fieldNumber: 3)
+    }
+    if self.offset != 0 {
+      try visitor.visitSingularInt64Field(value: self.offset, fieldNumber: 4)
+    }
+    try { if case .apiViolationReason(let v)? = self.reason {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  package static func ==(lhs: Google_Pubsub_V1_IngestionFailureEvent.AzureEventHubsFailureReason, rhs: Google_Pubsub_V1_IngestionFailureEvent.AzureEventHubsFailureReason) -> Bool {
+    if lhs.namespace != rhs.namespace {return false}
+    if lhs.eventHub != rhs.eventHub {return false}
+    if lhs.partitionID != rhs.partitionID {return false}
+    if lhs.offset != rhs.offset {return false}
+    if lhs.reason != rhs.reason {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Google_Pubsub_V1_IngestionFailureEvent.ConfluentCloudFailureReason: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  package static let protoMessageName: String = Google_Pubsub_V1_IngestionFailureEvent.protoMessageName + ".ConfluentCloudFailureReason"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "cluster_id"),
+    2: .standard(proto: "kafka_topic"),
+    3: .standard(proto: "partition_id"),
+    4: .same(proto: "offset"),
+    5: .standard(proto: "api_violation_reason"),
+  ]
+
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.clusterID) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.kafkaTopic) }()
+      case 3: try { try decoder.decodeSingularInt64Field(value: &self.partitionID) }()
+      case 4: try { try decoder.decodeSingularInt64Field(value: &self.offset) }()
+      case 5: try {
+        var v: Google_Pubsub_V1_IngestionFailureEvent.ApiViolationReason?
+        var hadOneofValue = false
+        if let current = self.reason {
+          hadOneofValue = true
+          if case .apiViolationReason(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.reason = .apiViolationReason(v)
+        }
+      }()
+      default: break
+      }
+    }
+  }
+
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if !self.clusterID.isEmpty {
+      try visitor.visitSingularStringField(value: self.clusterID, fieldNumber: 1)
+    }
+    if !self.kafkaTopic.isEmpty {
+      try visitor.visitSingularStringField(value: self.kafkaTopic, fieldNumber: 2)
+    }
+    if self.partitionID != 0 {
+      try visitor.visitSingularInt64Field(value: self.partitionID, fieldNumber: 3)
+    }
+    if self.offset != 0 {
+      try visitor.visitSingularInt64Field(value: self.offset, fieldNumber: 4)
+    }
+    try { if case .apiViolationReason(let v)? = self.reason {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  package static func ==(lhs: Google_Pubsub_V1_IngestionFailureEvent.ConfluentCloudFailureReason, rhs: Google_Pubsub_V1_IngestionFailureEvent.ConfluentCloudFailureReason) -> Bool {
+    if lhs.clusterID != rhs.clusterID {return false}
+    if lhs.kafkaTopic != rhs.kafkaTopic {return false}
+    if lhs.partitionID != rhs.partitionID {return false}
+    if lhs.offset != rhs.offset {return false}
+    if lhs.reason != rhs.reason {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
 extension Google_Pubsub_V1_Topic: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".Topic"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = _protobuf_package + ".Topic"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "name"),
     2: .same(proto: "labels"),
     3: .standard(proto: "message_storage_policy"),
@@ -2591,7 +4583,7 @@ extension Google_Pubsub_V1_Topic: SwiftProtobuf.Message, SwiftProtobuf._MessageI
     return _storage
   }
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     _ = _uniqueStorage()
     try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
       while let fieldNumber = try decoder.nextFieldNumber() {
@@ -2614,7 +4606,7 @@ extension Google_Pubsub_V1_Topic: SwiftProtobuf.Message, SwiftProtobuf._MessageI
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every if/case branch local when no optimizations
@@ -2651,7 +4643,7 @@ extension Google_Pubsub_V1_Topic: SwiftProtobuf.Message, SwiftProtobuf._MessageI
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_Topic, rhs: Google_Pubsub_V1_Topic) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_Topic, rhs: Google_Pubsub_V1_Topic) -> Bool {
     if lhs._storage !== rhs._storage {
       let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
         let _storage = _args.0
@@ -2675,7 +4667,7 @@ extension Google_Pubsub_V1_Topic: SwiftProtobuf.Message, SwiftProtobuf._MessageI
 }
 
 extension Google_Pubsub_V1_Topic.State: SwiftProtobuf._ProtoNameProviding {
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     0: .same(proto: "STATE_UNSPECIFIED"),
     1: .same(proto: "ACTIVE"),
     2: .same(proto: "INGESTION_RESOURCE_ERROR"),
@@ -2683,8 +4675,8 @@ extension Google_Pubsub_V1_Topic.State: SwiftProtobuf._ProtoNameProviding {
 }
 
 extension Google_Pubsub_V1_PubsubMessage: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".PubsubMessage"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = _protobuf_package + ".PubsubMessage"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "data"),
     2: .same(proto: "attributes"),
     3: .standard(proto: "message_id"),
@@ -2692,7 +4684,7 @@ extension Google_Pubsub_V1_PubsubMessage: SwiftProtobuf.Message, SwiftProtobuf._
     5: .standard(proto: "ordering_key"),
   ]
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -2708,7 +4700,7 @@ extension Google_Pubsub_V1_PubsubMessage: SwiftProtobuf.Message, SwiftProtobuf._
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     // The use of inline closures is to circumvent an issue where the compiler
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
@@ -2731,7 +4723,7 @@ extension Google_Pubsub_V1_PubsubMessage: SwiftProtobuf.Message, SwiftProtobuf._
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_PubsubMessage, rhs: Google_Pubsub_V1_PubsubMessage) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_PubsubMessage, rhs: Google_Pubsub_V1_PubsubMessage) -> Bool {
     if lhs.data != rhs.data {return false}
     if lhs.attributes != rhs.attributes {return false}
     if lhs.messageID != rhs.messageID {return false}
@@ -2743,12 +4735,12 @@ extension Google_Pubsub_V1_PubsubMessage: SwiftProtobuf.Message, SwiftProtobuf._
 }
 
 extension Google_Pubsub_V1_GetTopicRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".GetTopicRequest"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = _protobuf_package + ".GetTopicRequest"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "topic"),
   ]
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -2760,14 +4752,14 @@ extension Google_Pubsub_V1_GetTopicRequest: SwiftProtobuf.Message, SwiftProtobuf
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.topic.isEmpty {
       try visitor.visitSingularStringField(value: self.topic, fieldNumber: 1)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_GetTopicRequest, rhs: Google_Pubsub_V1_GetTopicRequest) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_GetTopicRequest, rhs: Google_Pubsub_V1_GetTopicRequest) -> Bool {
     if lhs.topic != rhs.topic {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -2775,13 +4767,13 @@ extension Google_Pubsub_V1_GetTopicRequest: SwiftProtobuf.Message, SwiftProtobuf
 }
 
 extension Google_Pubsub_V1_UpdateTopicRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".UpdateTopicRequest"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = _protobuf_package + ".UpdateTopicRequest"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "topic"),
     2: .standard(proto: "update_mask"),
   ]
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -2794,7 +4786,7 @@ extension Google_Pubsub_V1_UpdateTopicRequest: SwiftProtobuf.Message, SwiftProto
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     // The use of inline closures is to circumvent an issue where the compiler
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
@@ -2808,7 +4800,7 @@ extension Google_Pubsub_V1_UpdateTopicRequest: SwiftProtobuf.Message, SwiftProto
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_UpdateTopicRequest, rhs: Google_Pubsub_V1_UpdateTopicRequest) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_UpdateTopicRequest, rhs: Google_Pubsub_V1_UpdateTopicRequest) -> Bool {
     if lhs._topic != rhs._topic {return false}
     if lhs._updateMask != rhs._updateMask {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -2817,13 +4809,13 @@ extension Google_Pubsub_V1_UpdateTopicRequest: SwiftProtobuf.Message, SwiftProto
 }
 
 extension Google_Pubsub_V1_PublishRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".PublishRequest"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = _protobuf_package + ".PublishRequest"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "topic"),
     2: .same(proto: "messages"),
   ]
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -2836,7 +4828,7 @@ extension Google_Pubsub_V1_PublishRequest: SwiftProtobuf.Message, SwiftProtobuf.
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.topic.isEmpty {
       try visitor.visitSingularStringField(value: self.topic, fieldNumber: 1)
     }
@@ -2846,7 +4838,7 @@ extension Google_Pubsub_V1_PublishRequest: SwiftProtobuf.Message, SwiftProtobuf.
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_PublishRequest, rhs: Google_Pubsub_V1_PublishRequest) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_PublishRequest, rhs: Google_Pubsub_V1_PublishRequest) -> Bool {
     if lhs.topic != rhs.topic {return false}
     if lhs.messages != rhs.messages {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -2855,12 +4847,12 @@ extension Google_Pubsub_V1_PublishRequest: SwiftProtobuf.Message, SwiftProtobuf.
 }
 
 extension Google_Pubsub_V1_PublishResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".PublishResponse"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = _protobuf_package + ".PublishResponse"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .standard(proto: "message_ids"),
   ]
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -2872,14 +4864,14 @@ extension Google_Pubsub_V1_PublishResponse: SwiftProtobuf.Message, SwiftProtobuf
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.messageIds.isEmpty {
       try visitor.visitRepeatedStringField(value: self.messageIds, fieldNumber: 1)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_PublishResponse, rhs: Google_Pubsub_V1_PublishResponse) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_PublishResponse, rhs: Google_Pubsub_V1_PublishResponse) -> Bool {
     if lhs.messageIds != rhs.messageIds {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -2887,14 +4879,14 @@ extension Google_Pubsub_V1_PublishResponse: SwiftProtobuf.Message, SwiftProtobuf
 }
 
 extension Google_Pubsub_V1_ListTopicsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".ListTopicsRequest"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = _protobuf_package + ".ListTopicsRequest"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "project"),
     2: .standard(proto: "page_size"),
     3: .standard(proto: "page_token"),
   ]
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -2908,7 +4900,7 @@ extension Google_Pubsub_V1_ListTopicsRequest: SwiftProtobuf.Message, SwiftProtob
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.project.isEmpty {
       try visitor.visitSingularStringField(value: self.project, fieldNumber: 1)
     }
@@ -2921,7 +4913,7 @@ extension Google_Pubsub_V1_ListTopicsRequest: SwiftProtobuf.Message, SwiftProtob
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_ListTopicsRequest, rhs: Google_Pubsub_V1_ListTopicsRequest) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_ListTopicsRequest, rhs: Google_Pubsub_V1_ListTopicsRequest) -> Bool {
     if lhs.project != rhs.project {return false}
     if lhs.pageSize != rhs.pageSize {return false}
     if lhs.pageToken != rhs.pageToken {return false}
@@ -2931,13 +4923,13 @@ extension Google_Pubsub_V1_ListTopicsRequest: SwiftProtobuf.Message, SwiftProtob
 }
 
 extension Google_Pubsub_V1_ListTopicsResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".ListTopicsResponse"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = _protobuf_package + ".ListTopicsResponse"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "topics"),
     2: .standard(proto: "next_page_token"),
   ]
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -2950,7 +4942,7 @@ extension Google_Pubsub_V1_ListTopicsResponse: SwiftProtobuf.Message, SwiftProto
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.topics.isEmpty {
       try visitor.visitRepeatedMessageField(value: self.topics, fieldNumber: 1)
     }
@@ -2960,7 +4952,7 @@ extension Google_Pubsub_V1_ListTopicsResponse: SwiftProtobuf.Message, SwiftProto
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_ListTopicsResponse, rhs: Google_Pubsub_V1_ListTopicsResponse) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_ListTopicsResponse, rhs: Google_Pubsub_V1_ListTopicsResponse) -> Bool {
     if lhs.topics != rhs.topics {return false}
     if lhs.nextPageToken != rhs.nextPageToken {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -2969,14 +4961,14 @@ extension Google_Pubsub_V1_ListTopicsResponse: SwiftProtobuf.Message, SwiftProto
 }
 
 extension Google_Pubsub_V1_ListTopicSubscriptionsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".ListTopicSubscriptionsRequest"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = _protobuf_package + ".ListTopicSubscriptionsRequest"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "topic"),
     2: .standard(proto: "page_size"),
     3: .standard(proto: "page_token"),
   ]
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -2990,7 +4982,7 @@ extension Google_Pubsub_V1_ListTopicSubscriptionsRequest: SwiftProtobuf.Message,
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.topic.isEmpty {
       try visitor.visitSingularStringField(value: self.topic, fieldNumber: 1)
     }
@@ -3003,7 +4995,7 @@ extension Google_Pubsub_V1_ListTopicSubscriptionsRequest: SwiftProtobuf.Message,
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_ListTopicSubscriptionsRequest, rhs: Google_Pubsub_V1_ListTopicSubscriptionsRequest) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_ListTopicSubscriptionsRequest, rhs: Google_Pubsub_V1_ListTopicSubscriptionsRequest) -> Bool {
     if lhs.topic != rhs.topic {return false}
     if lhs.pageSize != rhs.pageSize {return false}
     if lhs.pageToken != rhs.pageToken {return false}
@@ -3013,13 +5005,13 @@ extension Google_Pubsub_V1_ListTopicSubscriptionsRequest: SwiftProtobuf.Message,
 }
 
 extension Google_Pubsub_V1_ListTopicSubscriptionsResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".ListTopicSubscriptionsResponse"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = _protobuf_package + ".ListTopicSubscriptionsResponse"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "subscriptions"),
     2: .standard(proto: "next_page_token"),
   ]
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -3032,7 +5024,7 @@ extension Google_Pubsub_V1_ListTopicSubscriptionsResponse: SwiftProtobuf.Message
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.subscriptions.isEmpty {
       try visitor.visitRepeatedStringField(value: self.subscriptions, fieldNumber: 1)
     }
@@ -3042,7 +5034,7 @@ extension Google_Pubsub_V1_ListTopicSubscriptionsResponse: SwiftProtobuf.Message
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_ListTopicSubscriptionsResponse, rhs: Google_Pubsub_V1_ListTopicSubscriptionsResponse) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_ListTopicSubscriptionsResponse, rhs: Google_Pubsub_V1_ListTopicSubscriptionsResponse) -> Bool {
     if lhs.subscriptions != rhs.subscriptions {return false}
     if lhs.nextPageToken != rhs.nextPageToken {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -3051,14 +5043,14 @@ extension Google_Pubsub_V1_ListTopicSubscriptionsResponse: SwiftProtobuf.Message
 }
 
 extension Google_Pubsub_V1_ListTopicSnapshotsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".ListTopicSnapshotsRequest"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = _protobuf_package + ".ListTopicSnapshotsRequest"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "topic"),
     2: .standard(proto: "page_size"),
     3: .standard(proto: "page_token"),
   ]
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -3072,7 +5064,7 @@ extension Google_Pubsub_V1_ListTopicSnapshotsRequest: SwiftProtobuf.Message, Swi
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.topic.isEmpty {
       try visitor.visitSingularStringField(value: self.topic, fieldNumber: 1)
     }
@@ -3085,7 +5077,7 @@ extension Google_Pubsub_V1_ListTopicSnapshotsRequest: SwiftProtobuf.Message, Swi
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_ListTopicSnapshotsRequest, rhs: Google_Pubsub_V1_ListTopicSnapshotsRequest) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_ListTopicSnapshotsRequest, rhs: Google_Pubsub_V1_ListTopicSnapshotsRequest) -> Bool {
     if lhs.topic != rhs.topic {return false}
     if lhs.pageSize != rhs.pageSize {return false}
     if lhs.pageToken != rhs.pageToken {return false}
@@ -3095,13 +5087,13 @@ extension Google_Pubsub_V1_ListTopicSnapshotsRequest: SwiftProtobuf.Message, Swi
 }
 
 extension Google_Pubsub_V1_ListTopicSnapshotsResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".ListTopicSnapshotsResponse"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = _protobuf_package + ".ListTopicSnapshotsResponse"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "snapshots"),
     2: .standard(proto: "next_page_token"),
   ]
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -3114,7 +5106,7 @@ extension Google_Pubsub_V1_ListTopicSnapshotsResponse: SwiftProtobuf.Message, Sw
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.snapshots.isEmpty {
       try visitor.visitRepeatedStringField(value: self.snapshots, fieldNumber: 1)
     }
@@ -3124,7 +5116,7 @@ extension Google_Pubsub_V1_ListTopicSnapshotsResponse: SwiftProtobuf.Message, Sw
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_ListTopicSnapshotsResponse, rhs: Google_Pubsub_V1_ListTopicSnapshotsResponse) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_ListTopicSnapshotsResponse, rhs: Google_Pubsub_V1_ListTopicSnapshotsResponse) -> Bool {
     if lhs.snapshots != rhs.snapshots {return false}
     if lhs.nextPageToken != rhs.nextPageToken {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -3133,12 +5125,12 @@ extension Google_Pubsub_V1_ListTopicSnapshotsResponse: SwiftProtobuf.Message, Sw
 }
 
 extension Google_Pubsub_V1_DeleteTopicRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".DeleteTopicRequest"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = _protobuf_package + ".DeleteTopicRequest"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "topic"),
   ]
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -3150,14 +5142,14 @@ extension Google_Pubsub_V1_DeleteTopicRequest: SwiftProtobuf.Message, SwiftProto
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.topic.isEmpty {
       try visitor.visitSingularStringField(value: self.topic, fieldNumber: 1)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_DeleteTopicRequest, rhs: Google_Pubsub_V1_DeleteTopicRequest) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_DeleteTopicRequest, rhs: Google_Pubsub_V1_DeleteTopicRequest) -> Bool {
     if lhs.topic != rhs.topic {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -3165,12 +5157,12 @@ extension Google_Pubsub_V1_DeleteTopicRequest: SwiftProtobuf.Message, SwiftProto
 }
 
 extension Google_Pubsub_V1_DetachSubscriptionRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".DetachSubscriptionRequest"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = _protobuf_package + ".DetachSubscriptionRequest"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "subscription"),
   ]
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -3182,14 +5174,14 @@ extension Google_Pubsub_V1_DetachSubscriptionRequest: SwiftProtobuf.Message, Swi
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.subscription.isEmpty {
       try visitor.visitSingularStringField(value: self.subscription, fieldNumber: 1)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_DetachSubscriptionRequest, rhs: Google_Pubsub_V1_DetachSubscriptionRequest) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_DetachSubscriptionRequest, rhs: Google_Pubsub_V1_DetachSubscriptionRequest) -> Bool {
     if lhs.subscription != rhs.subscription {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -3197,27 +5189,27 @@ extension Google_Pubsub_V1_DetachSubscriptionRequest: SwiftProtobuf.Message, Swi
 }
 
 extension Google_Pubsub_V1_DetachSubscriptionResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".DetachSubscriptionResponse"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+  package static let protoMessageName: String = _protobuf_package + ".DetachSubscriptionResponse"
+  package static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     // Load everything into unknown fields
     while try decoder.nextFieldNumber() != nil {}
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_DetachSubscriptionResponse, rhs: Google_Pubsub_V1_DetachSubscriptionResponse) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_DetachSubscriptionResponse, rhs: Google_Pubsub_V1_DetachSubscriptionResponse) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
 extension Google_Pubsub_V1_Subscription: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".Subscription"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = _protobuf_package + ".Subscription"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "name"),
     2: .same(proto: "topic"),
     4: .standard(proto: "push_config"),
@@ -3236,6 +5228,7 @@ extension Google_Pubsub_V1_Subscription: SwiftProtobuf.Message, SwiftProtobuf._M
     16: .standard(proto: "enable_exactly_once_delivery"),
     17: .standard(proto: "topic_message_retention_duration"),
     19: .same(proto: "state"),
+    23: .standard(proto: "analytics_hub_subscription_info"),
   ]
 
   fileprivate class _StorageClass {
@@ -3257,6 +5250,7 @@ extension Google_Pubsub_V1_Subscription: SwiftProtobuf.Message, SwiftProtobuf._M
     var _enableExactlyOnceDelivery: Bool = false
     var _topicMessageRetentionDuration: SwiftProtobuf.Google_Protobuf_Duration? = nil
     var _state: Google_Pubsub_V1_Subscription.State = .unspecified
+    var _analyticsHubSubscriptionInfo: Google_Pubsub_V1_Subscription.AnalyticsHubSubscriptionInfo? = nil
 
     #if swift(>=5.10)
       // This property is used as the initial default value for new instances of the type.
@@ -3289,6 +5283,7 @@ extension Google_Pubsub_V1_Subscription: SwiftProtobuf.Message, SwiftProtobuf._M
       _enableExactlyOnceDelivery = source._enableExactlyOnceDelivery
       _topicMessageRetentionDuration = source._topicMessageRetentionDuration
       _state = source._state
+      _analyticsHubSubscriptionInfo = source._analyticsHubSubscriptionInfo
     }
   }
 
@@ -3299,7 +5294,7 @@ extension Google_Pubsub_V1_Subscription: SwiftProtobuf.Message, SwiftProtobuf._M
     return _storage
   }
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     _ = _uniqueStorage()
     try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
       while let fieldNumber = try decoder.nextFieldNumber() {
@@ -3325,13 +5320,14 @@ extension Google_Pubsub_V1_Subscription: SwiftProtobuf.Message, SwiftProtobuf._M
         case 18: try { try decoder.decodeSingularMessageField(value: &_storage._bigqueryConfig) }()
         case 19: try { try decoder.decodeSingularEnumField(value: &_storage._state) }()
         case 22: try { try decoder.decodeSingularMessageField(value: &_storage._cloudStorageConfig) }()
+        case 23: try { try decoder.decodeSingularMessageField(value: &_storage._analyticsHubSubscriptionInfo) }()
         default: break
         }
       }
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every if/case branch local when no optimizations
@@ -3391,11 +5387,14 @@ extension Google_Pubsub_V1_Subscription: SwiftProtobuf.Message, SwiftProtobuf._M
       try { if let v = _storage._cloudStorageConfig {
         try visitor.visitSingularMessageField(value: v, fieldNumber: 22)
       } }()
+      try { if let v = _storage._analyticsHubSubscriptionInfo {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 23)
+      } }()
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_Subscription, rhs: Google_Pubsub_V1_Subscription) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_Subscription, rhs: Google_Pubsub_V1_Subscription) -> Bool {
     if lhs._storage !== rhs._storage {
       let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
         let _storage = _args.0
@@ -3418,6 +5417,7 @@ extension Google_Pubsub_V1_Subscription: SwiftProtobuf.Message, SwiftProtobuf._M
         if _storage._enableExactlyOnceDelivery != rhs_storage._enableExactlyOnceDelivery {return false}
         if _storage._topicMessageRetentionDuration != rhs_storage._topicMessageRetentionDuration {return false}
         if _storage._state != rhs_storage._state {return false}
+        if _storage._analyticsHubSubscriptionInfo != rhs_storage._analyticsHubSubscriptionInfo {return false}
         return true
       }
       if !storagesAreEqual {return false}
@@ -3428,21 +5428,59 @@ extension Google_Pubsub_V1_Subscription: SwiftProtobuf.Message, SwiftProtobuf._M
 }
 
 extension Google_Pubsub_V1_Subscription.State: SwiftProtobuf._ProtoNameProviding {
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     0: .same(proto: "STATE_UNSPECIFIED"),
     1: .same(proto: "ACTIVE"),
     2: .same(proto: "RESOURCE_ERROR"),
   ]
 }
 
+extension Google_Pubsub_V1_Subscription.AnalyticsHubSubscriptionInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  package static let protoMessageName: String = Google_Pubsub_V1_Subscription.protoMessageName + ".AnalyticsHubSubscriptionInfo"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "listing"),
+    2: .same(proto: "subscription"),
+  ]
+
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.listing) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.subscription) }()
+      default: break
+      }
+    }
+  }
+
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.listing.isEmpty {
+      try visitor.visitSingularStringField(value: self.listing, fieldNumber: 1)
+    }
+    if !self.subscription.isEmpty {
+      try visitor.visitSingularStringField(value: self.subscription, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  package static func ==(lhs: Google_Pubsub_V1_Subscription.AnalyticsHubSubscriptionInfo, rhs: Google_Pubsub_V1_Subscription.AnalyticsHubSubscriptionInfo) -> Bool {
+    if lhs.listing != rhs.listing {return false}
+    if lhs.subscription != rhs.subscription {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
 extension Google_Pubsub_V1_RetryPolicy: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".RetryPolicy"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = _protobuf_package + ".RetryPolicy"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .standard(proto: "minimum_backoff"),
     2: .standard(proto: "maximum_backoff"),
   ]
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -3455,7 +5493,7 @@ extension Google_Pubsub_V1_RetryPolicy: SwiftProtobuf.Message, SwiftProtobuf._Me
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     // The use of inline closures is to circumvent an issue where the compiler
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
@@ -3469,7 +5507,7 @@ extension Google_Pubsub_V1_RetryPolicy: SwiftProtobuf.Message, SwiftProtobuf._Me
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_RetryPolicy, rhs: Google_Pubsub_V1_RetryPolicy) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_RetryPolicy, rhs: Google_Pubsub_V1_RetryPolicy) -> Bool {
     if lhs._minimumBackoff != rhs._minimumBackoff {return false}
     if lhs._maximumBackoff != rhs._maximumBackoff {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -3478,13 +5516,13 @@ extension Google_Pubsub_V1_RetryPolicy: SwiftProtobuf.Message, SwiftProtobuf._Me
 }
 
 extension Google_Pubsub_V1_DeadLetterPolicy: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".DeadLetterPolicy"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = _protobuf_package + ".DeadLetterPolicy"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .standard(proto: "dead_letter_topic"),
     2: .standard(proto: "max_delivery_attempts"),
   ]
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -3497,7 +5535,7 @@ extension Google_Pubsub_V1_DeadLetterPolicy: SwiftProtobuf.Message, SwiftProtobu
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.deadLetterTopic.isEmpty {
       try visitor.visitSingularStringField(value: self.deadLetterTopic, fieldNumber: 1)
     }
@@ -3507,7 +5545,7 @@ extension Google_Pubsub_V1_DeadLetterPolicy: SwiftProtobuf.Message, SwiftProtobu
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_DeadLetterPolicy, rhs: Google_Pubsub_V1_DeadLetterPolicy) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_DeadLetterPolicy, rhs: Google_Pubsub_V1_DeadLetterPolicy) -> Bool {
     if lhs.deadLetterTopic != rhs.deadLetterTopic {return false}
     if lhs.maxDeliveryAttempts != rhs.maxDeliveryAttempts {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -3516,12 +5554,12 @@ extension Google_Pubsub_V1_DeadLetterPolicy: SwiftProtobuf.Message, SwiftProtobu
 }
 
 extension Google_Pubsub_V1_ExpirationPolicy: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".ExpirationPolicy"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = _protobuf_package + ".ExpirationPolicy"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "ttl"),
   ]
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -3533,7 +5571,7 @@ extension Google_Pubsub_V1_ExpirationPolicy: SwiftProtobuf.Message, SwiftProtobu
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     // The use of inline closures is to circumvent an issue where the compiler
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
@@ -3544,7 +5582,7 @@ extension Google_Pubsub_V1_ExpirationPolicy: SwiftProtobuf.Message, SwiftProtobu
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_ExpirationPolicy, rhs: Google_Pubsub_V1_ExpirationPolicy) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_ExpirationPolicy, rhs: Google_Pubsub_V1_ExpirationPolicy) -> Bool {
     if lhs._ttl != rhs._ttl {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -3552,8 +5590,8 @@ extension Google_Pubsub_V1_ExpirationPolicy: SwiftProtobuf.Message, SwiftProtobu
 }
 
 extension Google_Pubsub_V1_PushConfig: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".PushConfig"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = _protobuf_package + ".PushConfig"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .standard(proto: "push_endpoint"),
     2: .same(proto: "attributes"),
     3: .standard(proto: "oidc_token"),
@@ -3561,7 +5599,7 @@ extension Google_Pubsub_V1_PushConfig: SwiftProtobuf.Message, SwiftProtobuf._Mes
     5: .standard(proto: "no_wrapper"),
   ]
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -3613,7 +5651,7 @@ extension Google_Pubsub_V1_PushConfig: SwiftProtobuf.Message, SwiftProtobuf._Mes
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     // The use of inline closures is to circumvent an issue where the compiler
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
@@ -3641,7 +5679,7 @@ extension Google_Pubsub_V1_PushConfig: SwiftProtobuf.Message, SwiftProtobuf._Mes
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_PushConfig, rhs: Google_Pubsub_V1_PushConfig) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_PushConfig, rhs: Google_Pubsub_V1_PushConfig) -> Bool {
     if lhs.pushEndpoint != rhs.pushEndpoint {return false}
     if lhs.attributes != rhs.attributes {return false}
     if lhs.authenticationMethod != rhs.authenticationMethod {return false}
@@ -3652,13 +5690,13 @@ extension Google_Pubsub_V1_PushConfig: SwiftProtobuf.Message, SwiftProtobuf._Mes
 }
 
 extension Google_Pubsub_V1_PushConfig.OidcToken: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = Google_Pubsub_V1_PushConfig.protoMessageName + ".OidcToken"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = Google_Pubsub_V1_PushConfig.protoMessageName + ".OidcToken"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .standard(proto: "service_account_email"),
     2: .same(proto: "audience"),
   ]
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -3671,7 +5709,7 @@ extension Google_Pubsub_V1_PushConfig.OidcToken: SwiftProtobuf.Message, SwiftPro
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.serviceAccountEmail.isEmpty {
       try visitor.visitSingularStringField(value: self.serviceAccountEmail, fieldNumber: 1)
     }
@@ -3681,7 +5719,7 @@ extension Google_Pubsub_V1_PushConfig.OidcToken: SwiftProtobuf.Message, SwiftPro
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_PushConfig.OidcToken, rhs: Google_Pubsub_V1_PushConfig.OidcToken) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_PushConfig.OidcToken, rhs: Google_Pubsub_V1_PushConfig.OidcToken) -> Bool {
     if lhs.serviceAccountEmail != rhs.serviceAccountEmail {return false}
     if lhs.audience != rhs.audience {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -3690,31 +5728,31 @@ extension Google_Pubsub_V1_PushConfig.OidcToken: SwiftProtobuf.Message, SwiftPro
 }
 
 extension Google_Pubsub_V1_PushConfig.PubsubWrapper: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = Google_Pubsub_V1_PushConfig.protoMessageName + ".PubsubWrapper"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+  package static let protoMessageName: String = Google_Pubsub_V1_PushConfig.protoMessageName + ".PubsubWrapper"
+  package static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     // Load everything into unknown fields
     while try decoder.nextFieldNumber() != nil {}
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_PushConfig.PubsubWrapper, rhs: Google_Pubsub_V1_PushConfig.PubsubWrapper) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_PushConfig.PubsubWrapper, rhs: Google_Pubsub_V1_PushConfig.PubsubWrapper) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
 extension Google_Pubsub_V1_PushConfig.NoWrapper: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = Google_Pubsub_V1_PushConfig.protoMessageName + ".NoWrapper"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = Google_Pubsub_V1_PushConfig.protoMessageName + ".NoWrapper"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .standard(proto: "write_metadata"),
   ]
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -3726,14 +5764,14 @@ extension Google_Pubsub_V1_PushConfig.NoWrapper: SwiftProtobuf.Message, SwiftPro
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if self.writeMetadata != false {
       try visitor.visitSingularBoolField(value: self.writeMetadata, fieldNumber: 1)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_PushConfig.NoWrapper, rhs: Google_Pubsub_V1_PushConfig.NoWrapper) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_PushConfig.NoWrapper, rhs: Google_Pubsub_V1_PushConfig.NoWrapper) -> Bool {
     if lhs.writeMetadata != rhs.writeMetadata {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -3741,8 +5779,8 @@ extension Google_Pubsub_V1_PushConfig.NoWrapper: SwiftProtobuf.Message, SwiftPro
 }
 
 extension Google_Pubsub_V1_BigQueryConfig: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".BigQueryConfig"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = _protobuf_package + ".BigQueryConfig"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "table"),
     2: .standard(proto: "use_topic_schema"),
     3: .standard(proto: "write_metadata"),
@@ -3752,7 +5790,7 @@ extension Google_Pubsub_V1_BigQueryConfig: SwiftProtobuf.Message, SwiftProtobuf.
     7: .standard(proto: "service_account_email"),
   ]
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -3770,7 +5808,7 @@ extension Google_Pubsub_V1_BigQueryConfig: SwiftProtobuf.Message, SwiftProtobuf.
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.table.isEmpty {
       try visitor.visitSingularStringField(value: self.table, fieldNumber: 1)
     }
@@ -3795,7 +5833,7 @@ extension Google_Pubsub_V1_BigQueryConfig: SwiftProtobuf.Message, SwiftProtobuf.
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_BigQueryConfig, rhs: Google_Pubsub_V1_BigQueryConfig) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_BigQueryConfig, rhs: Google_Pubsub_V1_BigQueryConfig) -> Bool {
     if lhs.table != rhs.table {return false}
     if lhs.useTopicSchema != rhs.useTopicSchema {return false}
     if lhs.writeMetadata != rhs.writeMetadata {return false}
@@ -3809,7 +5847,7 @@ extension Google_Pubsub_V1_BigQueryConfig: SwiftProtobuf.Message, SwiftProtobuf.
 }
 
 extension Google_Pubsub_V1_BigQueryConfig.State: SwiftProtobuf._ProtoNameProviding {
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     0: .same(proto: "STATE_UNSPECIFIED"),
     1: .same(proto: "ACTIVE"),
     2: .same(proto: "PERMISSION_DENIED"),
@@ -3820,8 +5858,8 @@ extension Google_Pubsub_V1_BigQueryConfig.State: SwiftProtobuf._ProtoNameProvidi
 }
 
 extension Google_Pubsub_V1_CloudStorageConfig: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".CloudStorageConfig"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = _protobuf_package + ".CloudStorageConfig"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "bucket"),
     2: .standard(proto: "filename_prefix"),
     3: .standard(proto: "filename_suffix"),
@@ -3835,7 +5873,7 @@ extension Google_Pubsub_V1_CloudStorageConfig: SwiftProtobuf.Message, SwiftProto
     11: .standard(proto: "service_account_email"),
   ]
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -3881,7 +5919,7 @@ extension Google_Pubsub_V1_CloudStorageConfig: SwiftProtobuf.Message, SwiftProto
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     // The use of inline closures is to circumvent an issue where the compiler
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
@@ -3927,7 +5965,7 @@ extension Google_Pubsub_V1_CloudStorageConfig: SwiftProtobuf.Message, SwiftProto
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_CloudStorageConfig, rhs: Google_Pubsub_V1_CloudStorageConfig) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_CloudStorageConfig, rhs: Google_Pubsub_V1_CloudStorageConfig) -> Bool {
     if lhs.bucket != rhs.bucket {return false}
     if lhs.filenamePrefix != rhs.filenamePrefix {return false}
     if lhs.filenameSuffix != rhs.filenameSuffix {return false}
@@ -3944,7 +5982,7 @@ extension Google_Pubsub_V1_CloudStorageConfig: SwiftProtobuf.Message, SwiftProto
 }
 
 extension Google_Pubsub_V1_CloudStorageConfig.State: SwiftProtobuf._ProtoNameProviding {
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     0: .same(proto: "STATE_UNSPECIFIED"),
     1: .same(proto: "ACTIVE"),
     2: .same(proto: "PERMISSION_DENIED"),
@@ -3955,32 +5993,32 @@ extension Google_Pubsub_V1_CloudStorageConfig.State: SwiftProtobuf._ProtoNamePro
 }
 
 extension Google_Pubsub_V1_CloudStorageConfig.TextConfig: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = Google_Pubsub_V1_CloudStorageConfig.protoMessageName + ".TextConfig"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+  package static let protoMessageName: String = Google_Pubsub_V1_CloudStorageConfig.protoMessageName + ".TextConfig"
+  package static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     // Load everything into unknown fields
     while try decoder.nextFieldNumber() != nil {}
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_CloudStorageConfig.TextConfig, rhs: Google_Pubsub_V1_CloudStorageConfig.TextConfig) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_CloudStorageConfig.TextConfig, rhs: Google_Pubsub_V1_CloudStorageConfig.TextConfig) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
 extension Google_Pubsub_V1_CloudStorageConfig.AvroConfig: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = Google_Pubsub_V1_CloudStorageConfig.protoMessageName + ".AvroConfig"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = Google_Pubsub_V1_CloudStorageConfig.protoMessageName + ".AvroConfig"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .standard(proto: "write_metadata"),
     2: .standard(proto: "use_topic_schema"),
   ]
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -3993,7 +6031,7 @@ extension Google_Pubsub_V1_CloudStorageConfig.AvroConfig: SwiftProtobuf.Message,
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if self.writeMetadata != false {
       try visitor.visitSingularBoolField(value: self.writeMetadata, fieldNumber: 1)
     }
@@ -4003,7 +6041,7 @@ extension Google_Pubsub_V1_CloudStorageConfig.AvroConfig: SwiftProtobuf.Message,
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_CloudStorageConfig.AvroConfig, rhs: Google_Pubsub_V1_CloudStorageConfig.AvroConfig) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_CloudStorageConfig.AvroConfig, rhs: Google_Pubsub_V1_CloudStorageConfig.AvroConfig) -> Bool {
     if lhs.writeMetadata != rhs.writeMetadata {return false}
     if lhs.useTopicSchema != rhs.useTopicSchema {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -4012,14 +6050,14 @@ extension Google_Pubsub_V1_CloudStorageConfig.AvroConfig: SwiftProtobuf.Message,
 }
 
 extension Google_Pubsub_V1_ReceivedMessage: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".ReceivedMessage"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = _protobuf_package + ".ReceivedMessage"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .standard(proto: "ack_id"),
     2: .same(proto: "message"),
     3: .standard(proto: "delivery_attempt"),
   ]
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -4033,7 +6071,7 @@ extension Google_Pubsub_V1_ReceivedMessage: SwiftProtobuf.Message, SwiftProtobuf
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     // The use of inline closures is to circumvent an issue where the compiler
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
@@ -4050,7 +6088,7 @@ extension Google_Pubsub_V1_ReceivedMessage: SwiftProtobuf.Message, SwiftProtobuf
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_ReceivedMessage, rhs: Google_Pubsub_V1_ReceivedMessage) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_ReceivedMessage, rhs: Google_Pubsub_V1_ReceivedMessage) -> Bool {
     if lhs.ackID != rhs.ackID {return false}
     if lhs._message != rhs._message {return false}
     if lhs.deliveryAttempt != rhs.deliveryAttempt {return false}
@@ -4060,12 +6098,12 @@ extension Google_Pubsub_V1_ReceivedMessage: SwiftProtobuf.Message, SwiftProtobuf
 }
 
 extension Google_Pubsub_V1_GetSubscriptionRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".GetSubscriptionRequest"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = _protobuf_package + ".GetSubscriptionRequest"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "subscription"),
   ]
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -4077,14 +6115,14 @@ extension Google_Pubsub_V1_GetSubscriptionRequest: SwiftProtobuf.Message, SwiftP
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.subscription.isEmpty {
       try visitor.visitSingularStringField(value: self.subscription, fieldNumber: 1)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_GetSubscriptionRequest, rhs: Google_Pubsub_V1_GetSubscriptionRequest) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_GetSubscriptionRequest, rhs: Google_Pubsub_V1_GetSubscriptionRequest) -> Bool {
     if lhs.subscription != rhs.subscription {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -4092,13 +6130,13 @@ extension Google_Pubsub_V1_GetSubscriptionRequest: SwiftProtobuf.Message, SwiftP
 }
 
 extension Google_Pubsub_V1_UpdateSubscriptionRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".UpdateSubscriptionRequest"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = _protobuf_package + ".UpdateSubscriptionRequest"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "subscription"),
     2: .standard(proto: "update_mask"),
   ]
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -4111,7 +6149,7 @@ extension Google_Pubsub_V1_UpdateSubscriptionRequest: SwiftProtobuf.Message, Swi
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     // The use of inline closures is to circumvent an issue where the compiler
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
@@ -4125,7 +6163,7 @@ extension Google_Pubsub_V1_UpdateSubscriptionRequest: SwiftProtobuf.Message, Swi
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_UpdateSubscriptionRequest, rhs: Google_Pubsub_V1_UpdateSubscriptionRequest) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_UpdateSubscriptionRequest, rhs: Google_Pubsub_V1_UpdateSubscriptionRequest) -> Bool {
     if lhs._subscription != rhs._subscription {return false}
     if lhs._updateMask != rhs._updateMask {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -4134,14 +6172,14 @@ extension Google_Pubsub_V1_UpdateSubscriptionRequest: SwiftProtobuf.Message, Swi
 }
 
 extension Google_Pubsub_V1_ListSubscriptionsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".ListSubscriptionsRequest"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = _protobuf_package + ".ListSubscriptionsRequest"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "project"),
     2: .standard(proto: "page_size"),
     3: .standard(proto: "page_token"),
   ]
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -4155,7 +6193,7 @@ extension Google_Pubsub_V1_ListSubscriptionsRequest: SwiftProtobuf.Message, Swif
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.project.isEmpty {
       try visitor.visitSingularStringField(value: self.project, fieldNumber: 1)
     }
@@ -4168,7 +6206,7 @@ extension Google_Pubsub_V1_ListSubscriptionsRequest: SwiftProtobuf.Message, Swif
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_ListSubscriptionsRequest, rhs: Google_Pubsub_V1_ListSubscriptionsRequest) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_ListSubscriptionsRequest, rhs: Google_Pubsub_V1_ListSubscriptionsRequest) -> Bool {
     if lhs.project != rhs.project {return false}
     if lhs.pageSize != rhs.pageSize {return false}
     if lhs.pageToken != rhs.pageToken {return false}
@@ -4178,13 +6216,13 @@ extension Google_Pubsub_V1_ListSubscriptionsRequest: SwiftProtobuf.Message, Swif
 }
 
 extension Google_Pubsub_V1_ListSubscriptionsResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".ListSubscriptionsResponse"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = _protobuf_package + ".ListSubscriptionsResponse"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "subscriptions"),
     2: .standard(proto: "next_page_token"),
   ]
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -4197,7 +6235,7 @@ extension Google_Pubsub_V1_ListSubscriptionsResponse: SwiftProtobuf.Message, Swi
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.subscriptions.isEmpty {
       try visitor.visitRepeatedMessageField(value: self.subscriptions, fieldNumber: 1)
     }
@@ -4207,7 +6245,7 @@ extension Google_Pubsub_V1_ListSubscriptionsResponse: SwiftProtobuf.Message, Swi
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_ListSubscriptionsResponse, rhs: Google_Pubsub_V1_ListSubscriptionsResponse) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_ListSubscriptionsResponse, rhs: Google_Pubsub_V1_ListSubscriptionsResponse) -> Bool {
     if lhs.subscriptions != rhs.subscriptions {return false}
     if lhs.nextPageToken != rhs.nextPageToken {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -4216,12 +6254,12 @@ extension Google_Pubsub_V1_ListSubscriptionsResponse: SwiftProtobuf.Message, Swi
 }
 
 extension Google_Pubsub_V1_DeleteSubscriptionRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".DeleteSubscriptionRequest"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = _protobuf_package + ".DeleteSubscriptionRequest"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "subscription"),
   ]
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -4233,14 +6271,14 @@ extension Google_Pubsub_V1_DeleteSubscriptionRequest: SwiftProtobuf.Message, Swi
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.subscription.isEmpty {
       try visitor.visitSingularStringField(value: self.subscription, fieldNumber: 1)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_DeleteSubscriptionRequest, rhs: Google_Pubsub_V1_DeleteSubscriptionRequest) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_DeleteSubscriptionRequest, rhs: Google_Pubsub_V1_DeleteSubscriptionRequest) -> Bool {
     if lhs.subscription != rhs.subscription {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -4248,13 +6286,13 @@ extension Google_Pubsub_V1_DeleteSubscriptionRequest: SwiftProtobuf.Message, Swi
 }
 
 extension Google_Pubsub_V1_ModifyPushConfigRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".ModifyPushConfigRequest"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = _protobuf_package + ".ModifyPushConfigRequest"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "subscription"),
     2: .standard(proto: "push_config"),
   ]
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -4267,7 +6305,7 @@ extension Google_Pubsub_V1_ModifyPushConfigRequest: SwiftProtobuf.Message, Swift
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     // The use of inline closures is to circumvent an issue where the compiler
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
@@ -4281,7 +6319,7 @@ extension Google_Pubsub_V1_ModifyPushConfigRequest: SwiftProtobuf.Message, Swift
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_ModifyPushConfigRequest, rhs: Google_Pubsub_V1_ModifyPushConfigRequest) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_ModifyPushConfigRequest, rhs: Google_Pubsub_V1_ModifyPushConfigRequest) -> Bool {
     if lhs.subscription != rhs.subscription {return false}
     if lhs._pushConfig != rhs._pushConfig {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -4290,14 +6328,14 @@ extension Google_Pubsub_V1_ModifyPushConfigRequest: SwiftProtobuf.Message, Swift
 }
 
 extension Google_Pubsub_V1_PullRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".PullRequest"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = _protobuf_package + ".PullRequest"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "subscription"),
     2: .standard(proto: "return_immediately"),
     3: .standard(proto: "max_messages"),
   ]
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -4311,7 +6349,7 @@ extension Google_Pubsub_V1_PullRequest: SwiftProtobuf.Message, SwiftProtobuf._Me
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.subscription.isEmpty {
       try visitor.visitSingularStringField(value: self.subscription, fieldNumber: 1)
     }
@@ -4324,7 +6362,7 @@ extension Google_Pubsub_V1_PullRequest: SwiftProtobuf.Message, SwiftProtobuf._Me
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_PullRequest, rhs: Google_Pubsub_V1_PullRequest) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_PullRequest, rhs: Google_Pubsub_V1_PullRequest) -> Bool {
     if lhs.subscription != rhs.subscription {return false}
     if lhs.returnImmediately != rhs.returnImmediately {return false}
     if lhs.maxMessages != rhs.maxMessages {return false}
@@ -4334,12 +6372,12 @@ extension Google_Pubsub_V1_PullRequest: SwiftProtobuf.Message, SwiftProtobuf._Me
 }
 
 extension Google_Pubsub_V1_PullResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".PullResponse"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = _protobuf_package + ".PullResponse"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .standard(proto: "received_messages"),
   ]
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -4351,14 +6389,14 @@ extension Google_Pubsub_V1_PullResponse: SwiftProtobuf.Message, SwiftProtobuf._M
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.receivedMessages.isEmpty {
       try visitor.visitRepeatedMessageField(value: self.receivedMessages, fieldNumber: 1)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_PullResponse, rhs: Google_Pubsub_V1_PullResponse) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_PullResponse, rhs: Google_Pubsub_V1_PullResponse) -> Bool {
     if lhs.receivedMessages != rhs.receivedMessages {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -4366,14 +6404,14 @@ extension Google_Pubsub_V1_PullResponse: SwiftProtobuf.Message, SwiftProtobuf._M
 }
 
 extension Google_Pubsub_V1_ModifyAckDeadlineRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".ModifyAckDeadlineRequest"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = _protobuf_package + ".ModifyAckDeadlineRequest"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "subscription"),
     4: .standard(proto: "ack_ids"),
     3: .standard(proto: "ack_deadline_seconds"),
   ]
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -4387,7 +6425,7 @@ extension Google_Pubsub_V1_ModifyAckDeadlineRequest: SwiftProtobuf.Message, Swif
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.subscription.isEmpty {
       try visitor.visitSingularStringField(value: self.subscription, fieldNumber: 1)
     }
@@ -4400,7 +6438,7 @@ extension Google_Pubsub_V1_ModifyAckDeadlineRequest: SwiftProtobuf.Message, Swif
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_ModifyAckDeadlineRequest, rhs: Google_Pubsub_V1_ModifyAckDeadlineRequest) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_ModifyAckDeadlineRequest, rhs: Google_Pubsub_V1_ModifyAckDeadlineRequest) -> Bool {
     if lhs.subscription != rhs.subscription {return false}
     if lhs.ackIds != rhs.ackIds {return false}
     if lhs.ackDeadlineSeconds != rhs.ackDeadlineSeconds {return false}
@@ -4410,13 +6448,13 @@ extension Google_Pubsub_V1_ModifyAckDeadlineRequest: SwiftProtobuf.Message, Swif
 }
 
 extension Google_Pubsub_V1_AcknowledgeRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".AcknowledgeRequest"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = _protobuf_package + ".AcknowledgeRequest"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "subscription"),
     2: .standard(proto: "ack_ids"),
   ]
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -4429,7 +6467,7 @@ extension Google_Pubsub_V1_AcknowledgeRequest: SwiftProtobuf.Message, SwiftProto
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.subscription.isEmpty {
       try visitor.visitSingularStringField(value: self.subscription, fieldNumber: 1)
     }
@@ -4439,7 +6477,7 @@ extension Google_Pubsub_V1_AcknowledgeRequest: SwiftProtobuf.Message, SwiftProto
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_AcknowledgeRequest, rhs: Google_Pubsub_V1_AcknowledgeRequest) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_AcknowledgeRequest, rhs: Google_Pubsub_V1_AcknowledgeRequest) -> Bool {
     if lhs.subscription != rhs.subscription {return false}
     if lhs.ackIds != rhs.ackIds {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -4448,8 +6486,8 @@ extension Google_Pubsub_V1_AcknowledgeRequest: SwiftProtobuf.Message, SwiftProto
 }
 
 extension Google_Pubsub_V1_StreamingPullRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".StreamingPullRequest"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = _protobuf_package + ".StreamingPullRequest"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "subscription"),
     2: .standard(proto: "ack_ids"),
     3: .standard(proto: "modify_deadline_seconds"),
@@ -4460,7 +6498,7 @@ extension Google_Pubsub_V1_StreamingPullRequest: SwiftProtobuf.Message, SwiftPro
     8: .standard(proto: "max_outstanding_bytes"),
   ]
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -4479,7 +6517,7 @@ extension Google_Pubsub_V1_StreamingPullRequest: SwiftProtobuf.Message, SwiftPro
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.subscription.isEmpty {
       try visitor.visitSingularStringField(value: self.subscription, fieldNumber: 1)
     }
@@ -4507,7 +6545,7 @@ extension Google_Pubsub_V1_StreamingPullRequest: SwiftProtobuf.Message, SwiftPro
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_StreamingPullRequest, rhs: Google_Pubsub_V1_StreamingPullRequest) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_StreamingPullRequest, rhs: Google_Pubsub_V1_StreamingPullRequest) -> Bool {
     if lhs.subscription != rhs.subscription {return false}
     if lhs.ackIds != rhs.ackIds {return false}
     if lhs.modifyDeadlineSeconds != rhs.modifyDeadlineSeconds {return false}
@@ -4522,15 +6560,15 @@ extension Google_Pubsub_V1_StreamingPullRequest: SwiftProtobuf.Message, SwiftPro
 }
 
 extension Google_Pubsub_V1_StreamingPullResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".StreamingPullResponse"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = _protobuf_package + ".StreamingPullResponse"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .standard(proto: "received_messages"),
     5: .standard(proto: "acknowledge_confirmation"),
     3: .standard(proto: "modify_ack_deadline_confirmation"),
     4: .standard(proto: "subscription_properties"),
   ]
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -4545,7 +6583,7 @@ extension Google_Pubsub_V1_StreamingPullResponse: SwiftProtobuf.Message, SwiftPr
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     // The use of inline closures is to circumvent an issue where the compiler
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
@@ -4565,7 +6603,7 @@ extension Google_Pubsub_V1_StreamingPullResponse: SwiftProtobuf.Message, SwiftPr
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_StreamingPullResponse, rhs: Google_Pubsub_V1_StreamingPullResponse) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_StreamingPullResponse, rhs: Google_Pubsub_V1_StreamingPullResponse) -> Bool {
     if lhs.receivedMessages != rhs.receivedMessages {return false}
     if lhs._acknowledgeConfirmation != rhs._acknowledgeConfirmation {return false}
     if lhs._modifyAckDeadlineConfirmation != rhs._modifyAckDeadlineConfirmation {return false}
@@ -4576,15 +6614,15 @@ extension Google_Pubsub_V1_StreamingPullResponse: SwiftProtobuf.Message, SwiftPr
 }
 
 extension Google_Pubsub_V1_StreamingPullResponse.AcknowledgeConfirmation: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = Google_Pubsub_V1_StreamingPullResponse.protoMessageName + ".AcknowledgeConfirmation"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = Google_Pubsub_V1_StreamingPullResponse.protoMessageName + ".AcknowledgeConfirmation"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .standard(proto: "ack_ids"),
     2: .standard(proto: "invalid_ack_ids"),
     3: .standard(proto: "unordered_ack_ids"),
     4: .standard(proto: "temporary_failed_ack_ids"),
   ]
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -4599,7 +6637,7 @@ extension Google_Pubsub_V1_StreamingPullResponse.AcknowledgeConfirmation: SwiftP
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.ackIds.isEmpty {
       try visitor.visitRepeatedStringField(value: self.ackIds, fieldNumber: 1)
     }
@@ -4615,7 +6653,7 @@ extension Google_Pubsub_V1_StreamingPullResponse.AcknowledgeConfirmation: SwiftP
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_StreamingPullResponse.AcknowledgeConfirmation, rhs: Google_Pubsub_V1_StreamingPullResponse.AcknowledgeConfirmation) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_StreamingPullResponse.AcknowledgeConfirmation, rhs: Google_Pubsub_V1_StreamingPullResponse.AcknowledgeConfirmation) -> Bool {
     if lhs.ackIds != rhs.ackIds {return false}
     if lhs.invalidAckIds != rhs.invalidAckIds {return false}
     if lhs.unorderedAckIds != rhs.unorderedAckIds {return false}
@@ -4626,14 +6664,14 @@ extension Google_Pubsub_V1_StreamingPullResponse.AcknowledgeConfirmation: SwiftP
 }
 
 extension Google_Pubsub_V1_StreamingPullResponse.ModifyAckDeadlineConfirmation: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = Google_Pubsub_V1_StreamingPullResponse.protoMessageName + ".ModifyAckDeadlineConfirmation"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = Google_Pubsub_V1_StreamingPullResponse.protoMessageName + ".ModifyAckDeadlineConfirmation"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .standard(proto: "ack_ids"),
     2: .standard(proto: "invalid_ack_ids"),
     3: .standard(proto: "temporary_failed_ack_ids"),
   ]
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -4647,7 +6685,7 @@ extension Google_Pubsub_V1_StreamingPullResponse.ModifyAckDeadlineConfirmation: 
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.ackIds.isEmpty {
       try visitor.visitRepeatedStringField(value: self.ackIds, fieldNumber: 1)
     }
@@ -4660,7 +6698,7 @@ extension Google_Pubsub_V1_StreamingPullResponse.ModifyAckDeadlineConfirmation: 
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_StreamingPullResponse.ModifyAckDeadlineConfirmation, rhs: Google_Pubsub_V1_StreamingPullResponse.ModifyAckDeadlineConfirmation) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_StreamingPullResponse.ModifyAckDeadlineConfirmation, rhs: Google_Pubsub_V1_StreamingPullResponse.ModifyAckDeadlineConfirmation) -> Bool {
     if lhs.ackIds != rhs.ackIds {return false}
     if lhs.invalidAckIds != rhs.invalidAckIds {return false}
     if lhs.temporaryFailedAckIds != rhs.temporaryFailedAckIds {return false}
@@ -4670,13 +6708,13 @@ extension Google_Pubsub_V1_StreamingPullResponse.ModifyAckDeadlineConfirmation: 
 }
 
 extension Google_Pubsub_V1_StreamingPullResponse.SubscriptionProperties: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = Google_Pubsub_V1_StreamingPullResponse.protoMessageName + ".SubscriptionProperties"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = Google_Pubsub_V1_StreamingPullResponse.protoMessageName + ".SubscriptionProperties"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .standard(proto: "exactly_once_delivery_enabled"),
     2: .standard(proto: "message_ordering_enabled"),
   ]
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -4689,7 +6727,7 @@ extension Google_Pubsub_V1_StreamingPullResponse.SubscriptionProperties: SwiftPr
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if self.exactlyOnceDeliveryEnabled != false {
       try visitor.visitSingularBoolField(value: self.exactlyOnceDeliveryEnabled, fieldNumber: 1)
     }
@@ -4699,7 +6737,7 @@ extension Google_Pubsub_V1_StreamingPullResponse.SubscriptionProperties: SwiftPr
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_StreamingPullResponse.SubscriptionProperties, rhs: Google_Pubsub_V1_StreamingPullResponse.SubscriptionProperties) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_StreamingPullResponse.SubscriptionProperties, rhs: Google_Pubsub_V1_StreamingPullResponse.SubscriptionProperties) -> Bool {
     if lhs.exactlyOnceDeliveryEnabled != rhs.exactlyOnceDeliveryEnabled {return false}
     if lhs.messageOrderingEnabled != rhs.messageOrderingEnabled {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -4708,14 +6746,14 @@ extension Google_Pubsub_V1_StreamingPullResponse.SubscriptionProperties: SwiftPr
 }
 
 extension Google_Pubsub_V1_CreateSnapshotRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".CreateSnapshotRequest"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = _protobuf_package + ".CreateSnapshotRequest"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "name"),
     2: .same(proto: "subscription"),
     3: .same(proto: "labels"),
   ]
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -4729,7 +6767,7 @@ extension Google_Pubsub_V1_CreateSnapshotRequest: SwiftProtobuf.Message, SwiftPr
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.name.isEmpty {
       try visitor.visitSingularStringField(value: self.name, fieldNumber: 1)
     }
@@ -4742,7 +6780,7 @@ extension Google_Pubsub_V1_CreateSnapshotRequest: SwiftProtobuf.Message, SwiftPr
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_CreateSnapshotRequest, rhs: Google_Pubsub_V1_CreateSnapshotRequest) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_CreateSnapshotRequest, rhs: Google_Pubsub_V1_CreateSnapshotRequest) -> Bool {
     if lhs.name != rhs.name {return false}
     if lhs.subscription != rhs.subscription {return false}
     if lhs.labels != rhs.labels {return false}
@@ -4752,13 +6790,13 @@ extension Google_Pubsub_V1_CreateSnapshotRequest: SwiftProtobuf.Message, SwiftPr
 }
 
 extension Google_Pubsub_V1_UpdateSnapshotRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".UpdateSnapshotRequest"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = _protobuf_package + ".UpdateSnapshotRequest"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "snapshot"),
     2: .standard(proto: "update_mask"),
   ]
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -4771,7 +6809,7 @@ extension Google_Pubsub_V1_UpdateSnapshotRequest: SwiftProtobuf.Message, SwiftPr
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     // The use of inline closures is to circumvent an issue where the compiler
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
@@ -4785,7 +6823,7 @@ extension Google_Pubsub_V1_UpdateSnapshotRequest: SwiftProtobuf.Message, SwiftPr
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_UpdateSnapshotRequest, rhs: Google_Pubsub_V1_UpdateSnapshotRequest) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_UpdateSnapshotRequest, rhs: Google_Pubsub_V1_UpdateSnapshotRequest) -> Bool {
     if lhs._snapshot != rhs._snapshot {return false}
     if lhs._updateMask != rhs._updateMask {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -4794,15 +6832,15 @@ extension Google_Pubsub_V1_UpdateSnapshotRequest: SwiftProtobuf.Message, SwiftPr
 }
 
 extension Google_Pubsub_V1_Snapshot: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".Snapshot"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = _protobuf_package + ".Snapshot"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "name"),
     2: .same(proto: "topic"),
     3: .standard(proto: "expire_time"),
     4: .same(proto: "labels"),
   ]
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -4817,7 +6855,7 @@ extension Google_Pubsub_V1_Snapshot: SwiftProtobuf.Message, SwiftProtobuf._Messa
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     // The use of inline closures is to circumvent an issue where the compiler
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
@@ -4837,7 +6875,7 @@ extension Google_Pubsub_V1_Snapshot: SwiftProtobuf.Message, SwiftProtobuf._Messa
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_Snapshot, rhs: Google_Pubsub_V1_Snapshot) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_Snapshot, rhs: Google_Pubsub_V1_Snapshot) -> Bool {
     if lhs.name != rhs.name {return false}
     if lhs.topic != rhs.topic {return false}
     if lhs._expireTime != rhs._expireTime {return false}
@@ -4848,12 +6886,12 @@ extension Google_Pubsub_V1_Snapshot: SwiftProtobuf.Message, SwiftProtobuf._Messa
 }
 
 extension Google_Pubsub_V1_GetSnapshotRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".GetSnapshotRequest"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = _protobuf_package + ".GetSnapshotRequest"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "snapshot"),
   ]
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -4865,14 +6903,14 @@ extension Google_Pubsub_V1_GetSnapshotRequest: SwiftProtobuf.Message, SwiftProto
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.snapshot.isEmpty {
       try visitor.visitSingularStringField(value: self.snapshot, fieldNumber: 1)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_GetSnapshotRequest, rhs: Google_Pubsub_V1_GetSnapshotRequest) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_GetSnapshotRequest, rhs: Google_Pubsub_V1_GetSnapshotRequest) -> Bool {
     if lhs.snapshot != rhs.snapshot {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -4880,14 +6918,14 @@ extension Google_Pubsub_V1_GetSnapshotRequest: SwiftProtobuf.Message, SwiftProto
 }
 
 extension Google_Pubsub_V1_ListSnapshotsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".ListSnapshotsRequest"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = _protobuf_package + ".ListSnapshotsRequest"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "project"),
     2: .standard(proto: "page_size"),
     3: .standard(proto: "page_token"),
   ]
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -4901,7 +6939,7 @@ extension Google_Pubsub_V1_ListSnapshotsRequest: SwiftProtobuf.Message, SwiftPro
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.project.isEmpty {
       try visitor.visitSingularStringField(value: self.project, fieldNumber: 1)
     }
@@ -4914,7 +6952,7 @@ extension Google_Pubsub_V1_ListSnapshotsRequest: SwiftProtobuf.Message, SwiftPro
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_ListSnapshotsRequest, rhs: Google_Pubsub_V1_ListSnapshotsRequest) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_ListSnapshotsRequest, rhs: Google_Pubsub_V1_ListSnapshotsRequest) -> Bool {
     if lhs.project != rhs.project {return false}
     if lhs.pageSize != rhs.pageSize {return false}
     if lhs.pageToken != rhs.pageToken {return false}
@@ -4924,13 +6962,13 @@ extension Google_Pubsub_V1_ListSnapshotsRequest: SwiftProtobuf.Message, SwiftPro
 }
 
 extension Google_Pubsub_V1_ListSnapshotsResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".ListSnapshotsResponse"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = _protobuf_package + ".ListSnapshotsResponse"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "snapshots"),
     2: .standard(proto: "next_page_token"),
   ]
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -4943,7 +6981,7 @@ extension Google_Pubsub_V1_ListSnapshotsResponse: SwiftProtobuf.Message, SwiftPr
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.snapshots.isEmpty {
       try visitor.visitRepeatedMessageField(value: self.snapshots, fieldNumber: 1)
     }
@@ -4953,7 +6991,7 @@ extension Google_Pubsub_V1_ListSnapshotsResponse: SwiftProtobuf.Message, SwiftPr
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_ListSnapshotsResponse, rhs: Google_Pubsub_V1_ListSnapshotsResponse) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_ListSnapshotsResponse, rhs: Google_Pubsub_V1_ListSnapshotsResponse) -> Bool {
     if lhs.snapshots != rhs.snapshots {return false}
     if lhs.nextPageToken != rhs.nextPageToken {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -4962,12 +7000,12 @@ extension Google_Pubsub_V1_ListSnapshotsResponse: SwiftProtobuf.Message, SwiftPr
 }
 
 extension Google_Pubsub_V1_DeleteSnapshotRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".DeleteSnapshotRequest"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = _protobuf_package + ".DeleteSnapshotRequest"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "snapshot"),
   ]
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -4979,14 +7017,14 @@ extension Google_Pubsub_V1_DeleteSnapshotRequest: SwiftProtobuf.Message, SwiftPr
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.snapshot.isEmpty {
       try visitor.visitSingularStringField(value: self.snapshot, fieldNumber: 1)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_DeleteSnapshotRequest, rhs: Google_Pubsub_V1_DeleteSnapshotRequest) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_DeleteSnapshotRequest, rhs: Google_Pubsub_V1_DeleteSnapshotRequest) -> Bool {
     if lhs.snapshot != rhs.snapshot {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -4994,14 +7032,14 @@ extension Google_Pubsub_V1_DeleteSnapshotRequest: SwiftProtobuf.Message, SwiftPr
 }
 
 extension Google_Pubsub_V1_SeekRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".SeekRequest"
-  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+  package static let protoMessageName: String = _protobuf_package + ".SeekRequest"
+  package static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "subscription"),
     2: .same(proto: "time"),
     3: .same(proto: "snapshot"),
   ]
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -5034,7 +7072,7 @@ extension Google_Pubsub_V1_SeekRequest: SwiftProtobuf.Message, SwiftProtobuf._Me
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     // The use of inline closures is to circumvent an issue where the compiler
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
@@ -5056,7 +7094,7 @@ extension Google_Pubsub_V1_SeekRequest: SwiftProtobuf.Message, SwiftProtobuf._Me
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_SeekRequest, rhs: Google_Pubsub_V1_SeekRequest) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_SeekRequest, rhs: Google_Pubsub_V1_SeekRequest) -> Bool {
     if lhs.subscription != rhs.subscription {return false}
     if lhs.target != rhs.target {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -5065,19 +7103,19 @@ extension Google_Pubsub_V1_SeekRequest: SwiftProtobuf.Message, SwiftProtobuf._Me
 }
 
 extension Google_Pubsub_V1_SeekResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".SeekResponse"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+  package static let protoMessageName: String = _protobuf_package + ".SeekResponse"
+  package static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  package mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     // Load everything into unknown fields
     while try decoder.nextFieldNumber() != nil {}
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  package func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Google_Pubsub_V1_SeekResponse, rhs: Google_Pubsub_V1_SeekResponse) -> Bool {
+  package static func ==(lhs: Google_Pubsub_V1_SeekResponse, rhs: Google_Pubsub_V1_SeekResponse) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
