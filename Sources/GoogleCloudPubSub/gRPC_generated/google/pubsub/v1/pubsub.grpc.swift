@@ -406,14 +406,14 @@ extension Google_Pubsub_V1_Publisher {
     /// >
     /// > The service that an application uses to manipulate topics, and to send
     /// > messages to a topic.
-    package struct Client: ClientProtocol {
-        private let client: GRPCCore.GRPCClient
+    package struct Client<Transport>: ClientProtocol where Transport: GRPCCore.ClientTransport {
+        private let client: GRPCCore.GRPCClient<Transport>
 
         /// Creates a new client wrapping the provided `GRPCCore.GRPCClient`.
         ///
         /// - Parameters:
         ///   - client: A `GRPCCore.GRPCClient` providing a communication channel to the service.
-        package init(wrapping client: GRPCCore.GRPCClient) {
+        package init(wrapping client: GRPCCore.GRPCClient<Transport>) {
             self.client = client
         }
 
@@ -2031,14 +2031,14 @@ extension Google_Pubsub_V1_Subscriber {
     /// > The service that an application uses to manipulate subscriptions and to
     /// > consume messages from a subscription via the `Pull` method or by
     /// > establishing a bi-directional stream using the `StreamingPull` method.
-    package struct Client: ClientProtocol {
-        private let client: GRPCCore.GRPCClient
+    package struct Client<Transport>: ClientProtocol where Transport: GRPCCore.ClientTransport {
+        private let client: GRPCCore.GRPCClient<Transport>
 
         /// Creates a new client wrapping the provided `GRPCCore.GRPCClient`.
         ///
         /// - Parameters:
         ///   - client: A `GRPCCore.GRPCClient` providing a communication channel to the service.
-        package init(wrapping client: GRPCCore.GRPCClient) {
+        package init(wrapping client: GRPCCore.GRPCClient<Transport>) {
             self.client = client
         }
 

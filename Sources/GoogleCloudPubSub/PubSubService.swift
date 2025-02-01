@@ -1,6 +1,8 @@
 import Foundation
 import GRPCCore
+import GRPCNIOTransportHTTP2Posix
 import GoogleCloudAuth
+import GoogleCloudAuthGRPC
 import ServiceLifecycle
 import Synchronization
 
@@ -22,7 +24,7 @@ actor PubSubService {
   }
 
   private nonisolated let authorization: Authorization?
-  nonisolated let grpcClient: GRPCClient
+  nonisolated let grpcClient: GRPCClient<HTTP2ClientTransport.Posix>
   nonisolated let isUsingEmulator: Bool
 
   init() throws {
@@ -68,7 +70,7 @@ actor PubSubService {
     }
     let task = Task {
       try await withGracefulShutdownHandler {
-        try await grpcClient.run()
+        try await grpcClient.runConnections()
       } onGracefulShutdown: {
         Task {
           await self.waitForBlockingTasks()
