@@ -27,27 +27,3 @@ public struct Topic<Message: _Message>: Sendable, Equatable, Hashable {
     name
   }
 }
-
-#if DEBUG
-  extension Topic {
-
-    func createIfNeeded(client: Google_Pubsub_V1_Publisher.ClientProtocol, projectID: String)
-      async throws
-    {
-      do {
-        _ = try await client.createTopic(
-          .with {
-            $0.name = id(projectID: projectID)
-            $0.labels = labels
-          })
-      } catch {
-        switch (error as? RPCError)?.code {
-        case .alreadyExists:
-          break
-        default:
-          throw error
-        }
-      }
-    }
-  }
-#endif

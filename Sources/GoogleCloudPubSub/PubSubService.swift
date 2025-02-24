@@ -5,6 +5,7 @@ import GoogleCloudAuth
 import GoogleCloudAuthGRPC
 import ServiceLifecycle
 import Synchronization
+import Tracing
 
 actor PubSubService {
 
@@ -92,6 +93,91 @@ actor PubSubService {
   func waitForBlockingTasks() async {
     for task in grpcBlockerTasks {
       await task.value
+    }
+  }
+
+  func create(
+    topic: Topic<some _Message>,
+    publisherClient: Google_Pubsub_V1_Publisher.ClientProtocol,
+    projectID: String
+  ) async throws {
+    do {
+      try await withSpan(
+        "pubsub-create-topic",
+        ofKind: .producer
+      ) { span in
+        span.attributes["pubsub/topic"] = topic.name
+        _ = try await publisherClient.createTopic(
+          .with {
+            $0.name = topic.id(projectID: projectID)
+            $0.labels = topic.labels
+          })
+      }
+    } catch let error as RPCError where error.code == .alreadyExists {
+      // pass
+    }
+  }
+
+  func create<Message: _Message>(
+    subscription: Subscription<Message>,
+    createTopicIfNeeded: Bool = true,
+    subscriberClient: Google_Pubsub_V1_Subscriber.ClientProtocol,
+    publisherClient: Google_Pubsub_V1_Publisher.ClientProtocol,
+    projectID: String
+  ) async throws {
+    do {
+      try await withSpan(
+        "pubsub-create-subscription",
+        ofKind: .producer
+      ) { span in
+        span.attributes["pubsub/subscription"] = subscription.name
+        _ = try await subscriberClient.createSubscription(
+          .with {
+            $0.name = subscription.id(projectID: projectID)
+            $0.labels = subscription.labels
+            $0.topic = subscription.topic.id(projectID: projectID)
+            $0.ackDeadlineSeconds = Int32(subscription.acknowledgeDeadline)
+            $0.retainAckedMessages = subscription.retainAcknowledgedMessages
+            $0.messageRetentionDuration = .with {
+              $0.seconds = Int64(subscription.messageRetentionDuration)
+            }
+            $0.expirationPolicy = .with {
+              $0.ttl = .with {
+                $0.seconds = Int64(subscription.expirationPolicyDuration)
+              }
+            }
+            if let deadLetterPolicy = subscription.deadLetterPolicy {
+              $0.deadLetterPolicy = .with {
+                $0.deadLetterTopic = deadLetterPolicy.topic.id(projectID: projectID)
+                $0.maxDeliveryAttempts = deadLetterPolicy.maxDeliveryAttempts
+              }
+            }
+
+          })
+      }
+    } catch let error as RPCError {
+      switch error.code {
+      case .alreadyExists:
+        break  // pass
+      case .notFound:
+        if !createTopicIfNeeded {
+          throw error
+        }
+        try await create(
+          topic: subscription.topic,
+          publisherClient: publisherClient,
+          projectID: projectID
+        )
+        try await create(
+          subscription: subscription,
+          createTopicIfNeeded: false,
+          subscriberClient: subscriberClient,
+          publisherClient: publisherClient,
+          projectID: projectID
+        )
+      default:
+        throw error
+      }
     }
   }
 }

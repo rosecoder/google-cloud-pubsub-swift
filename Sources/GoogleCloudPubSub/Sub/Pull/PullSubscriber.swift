@@ -38,14 +38,6 @@ public final class PullSubscriber<Handler: _Handler>: Service {
   }
 
   public func run() async throws {
-    #if DEBUG
-      try await handler.subscription.createIfNeeded(
-        subscriberClient: client,
-        publisherClient: Publisher().client,
-        projectID: projectID
-      )
-    #endif
-
     logger.debug("Subscribed to \(handler.subscription.name)")
 
     let blockerTask: Task<Void, Never> = Task {
@@ -71,6 +63,19 @@ public final class PullSubscriber<Handler: _Handler>: Service {
       } catch {
         if Task.isCancelled {
           break
+        }
+
+        if let error = error as? RPCError, error.code == .notFound {
+          do {
+            try await pubSubService.create(
+              subscription: handler.subscription,
+              subscriberClient: client,
+              publisherClient: Publisher().client,
+              projectID: projectID
+            )
+          } catch {
+            logger.error("Failed to create subscription: \(error)")
+          }
         }
 
         var delay: UInt64
