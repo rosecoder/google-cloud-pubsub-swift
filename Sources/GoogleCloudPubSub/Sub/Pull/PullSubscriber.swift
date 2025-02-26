@@ -21,24 +21,36 @@ public final class PullSubscriber<Handler: _Handler>: Service {
 
   public let projectID: String
 
-  public convenience init(handler: Handler) async throws {
+  public let deleteSubscriptionOnShutdown: Bool
+
+  public convenience init(handler: Handler, deleteSubscriptionOnShutdown: Bool = false) async throws
+  {
     guard let projectID = await (ServiceContext.current ?? .topLevel).projectID else {
       throw ConfigurationError.missingProjectID
     }
-    try self.init(handler: handler, projectID: projectID)
+    try self.init(
+      handler: handler, projectID: projectID,
+      deleteSubscriptionOnShutdown: deleteSubscriptionOnShutdown)
   }
 
-  public init(handler: Handler, projectID: String) throws {
+  public init(handler: Handler, projectID: String, deleteSubscriptionOnShutdown: Bool = false)
+    throws
+  {
     let pubSubService = try PubSubService.shared
     self.projectID = projectID
     self.logger = Logger(label: "pubsub.subscriber." + handler.subscription.name)
     self.handler = handler
     self.client = Google_Pubsub_V1_Subscriber.Client(wrapping: pubSubService.grpcClient)
     self.pubSubService = pubSubService
+    self.deleteSubscriptionOnShutdown = deleteSubscriptionOnShutdown
   }
 
   public func run() async throws {
     logger.debug("Subscribed to \(handler.subscription.name)")
+
+    let pubSubServiceRun = Task {
+      try await pubSubService.run()
+    }
 
     let blockerTask: Task<Void, Never> = Task {
       while !Task.isCancelled {
@@ -51,7 +63,20 @@ public final class PullSubscriber<Handler: _Handler>: Service {
       await self.continuesPull()
     }
 
+    if deleteSubscriptionOnShutdown {
+      logger.debug("Deleting subscription...")
+      try await Task.detached {
+        try await self.pubSubService.delete(
+          subscription: self.handler.subscription,
+          subscriberClient: self.client,
+          projectID: self.projectID
+        )
+      }.value
+      logger.debug("Deleted subscription.")
+    }
+
     blockerTask.cancel()
+    try await pubSubServiceRun.value
   }
 
   private func continuesPull() async {

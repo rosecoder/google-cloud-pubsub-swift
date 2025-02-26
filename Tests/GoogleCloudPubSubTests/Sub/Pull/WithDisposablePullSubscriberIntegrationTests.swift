@@ -16,10 +16,10 @@ struct WithDisposablePullSubscriberIntegrationTests {
 
   @Test(.timeLimit(.minutes(1)))
   func shouldReceiveMessage() async throws {
-    LoggingSystem.bootstrap { a in
-      var b = StreamLogHandler.standardOutput(label: a)
-      b.logLevel = .debug
-      return b
+    LoggingSystem.bootstrap { label in
+      var handler = StreamLogHandler.standardOutput(label: label)
+      handler.logLevel = .debug
+      return handler
     }
 
     try await testGracefulShutdown { shutdownTrigger in
@@ -70,7 +70,7 @@ struct WithDisposablePullSubscriberIntegrationTests {
           }
         }
       } catch {
-        if Task.isCancelled {
+        if error is CancellationError {
           return
         }
         throw error

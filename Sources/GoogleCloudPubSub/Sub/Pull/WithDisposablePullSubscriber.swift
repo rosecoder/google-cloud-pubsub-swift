@@ -8,14 +8,12 @@ public func withDisposablePullSubscriber<Message: _Message>(
     let logger = Logger(label: "pubsub.disposable-subscriber." + subscription.name)
 
     let handler = await CallbackHandler(subscription: subscription, handler: body)
-    let subscriber = try await PullSubscriber(handler: handler)
-
-    let pubSubServiceRunTask = Task {
-        try await subscriber.pubSubService.run()
-    }
+    let subscriber = try await PullSubscriber(
+        handler: handler,
+        deleteSubscriptionOnShutdown: true
+    )
 
     logger.debug("Creating subscription...")
-
     try await subscriber.pubSubService.create(
         subscription: subscription,
         subscriberClient: subscriber.client,
@@ -23,33 +21,8 @@ public func withDisposablePullSubscriber<Message: _Message>(
         projectID: subscriber.projectID
     )
 
-    do {
-        logger.debug("Running subscriber...")
-        try await withThrowingDiscardingTaskGroup { group in
-            group.addTask {
-                try await subscriber.run()
-            }
-            group.addTask {
-                try await pubSubServiceRunTask.value
-            }
-        }
-    } catch {
-        let wasCancelled = error is CancellationError
-        logger.debug("Running is done, deleting subscription...")
-        do {
-            try await subscriber.pubSubService.delete(
-                subscription: subscription,
-                subscriberClient: subscriber.client,
-                projectID: subscriber.projectID
-            )
-        } catch {
-            if wasCancelled {
-                throw error
-            }
-            // throw parent error instead
-        }
-        throw error
-    }
+    logger.debug("Running subscriber...")
+    try await subscriber.run()
 }
 
 private final class CallbackHandler<Message: _Message>: Handler {
