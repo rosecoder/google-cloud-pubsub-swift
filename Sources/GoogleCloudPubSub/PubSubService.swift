@@ -3,6 +3,7 @@ import GRPCCore
 import GRPCNIOTransportHTTP2Posix
 import GoogleCloudAuth
 import GoogleCloudAuthGRPC
+import RetryableTask
 import ServiceLifecycle
 import Synchronization
 import Tracing
@@ -177,6 +178,35 @@ actor PubSubService {
         )
       default:
         throw error
+      }
+    }
+  }
+
+  func delete<Message: _Message>(
+    subscription: Subscription<Message>,
+    subscriberClient: Google_Pubsub_V1_Subscriber.ClientProtocol,
+    projectID: String
+  ) async throws {
+    try await withRetryableTask {
+      do {
+        try await withSpan(
+          "pubsub-delete-subscription",
+          ofKind: .producer
+        ) { span in
+          span.attributes["pubsub/subscription"] = subscription.name
+          _ = try await subscriberClient.deleteSubscription(
+            .with {
+              $0.subscription = subscription.id(projectID: projectID)
+            }
+          )
+        }
+      } catch let error as RPCError {
+        switch error.code {
+        case .notFound:
+          break  // pass
+        default:
+          throw error
+        }
       }
     }
   }

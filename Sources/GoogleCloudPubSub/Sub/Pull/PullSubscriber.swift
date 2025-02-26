@@ -12,8 +12,8 @@ public final class PullSubscriber<Handler: _Handler>: Service {
   private let logger: Logger
 
   private let handler: Handler
-  private let client: Google_Pubsub_V1_Subscriber.ClientProtocol
-  private let pubSubService: PubSubService
+  let client: Google_Pubsub_V1_Subscriber.ClientProtocol
+  let pubSubService: PubSubService
 
   public enum ConfigurationError: Error {
     case missingProjectID
