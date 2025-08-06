@@ -55,7 +55,11 @@ public final class Publisher: PublisherProtocol, Service {
     function: String = #function,
     line: UInt = #line
   ) async throws -> [PublishedMessage] {
-    try await withRetryableTask(
+    guard !messages.isEmpty else {
+      return []
+    }
+
+    return try await withRetryableTask(
       logger: logger,
       operation: {
         logger.debug("Publishing \(messages.count) message(s)...")
