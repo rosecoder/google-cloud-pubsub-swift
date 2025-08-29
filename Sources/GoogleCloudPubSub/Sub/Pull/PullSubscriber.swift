@@ -95,7 +95,7 @@ public final class PullSubscriber<Handler: _Handler>: Service {
             try await pubSubService.create(
               subscription: handler.subscription,
               subscriberClient: client,
-              publisherClient: Publisher().client,
+              publisherClient: Publisher(projectID: projectID).client,
               projectID: projectID
             )
           } catch {
