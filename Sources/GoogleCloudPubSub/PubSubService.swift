@@ -121,9 +121,9 @@ actor PubSubService {
       return
     }
     let task = Task {
-      try await withGracefulShutdownHandler {
+      try await withTaskCancellationOrGracefulShutdownHandler {
         try await grpcClient.runConnections()
-      } onGracefulShutdown: {
+      } onCancelOrGracefulShutdown: {
         Task {
           await self.waitForBlockingTasks()
           self.grpcClient.beginGracefulShutdown()
@@ -132,7 +132,11 @@ actor PubSubService {
       try await authorization?.shutdown()
     }
     runTask = task
-    try await task.value
+    try await withTaskCancellationHandler {
+      try await task.value
+    } onCancel: {
+      task.cancel()
+    }
   }
 
   private var grpcBlockerTasks = [Task<Void, Never>]()

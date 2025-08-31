@@ -76,6 +76,7 @@ public final class PullSubscriber<Handler: _Handler>: Service {
     }
 
     blockerTask.cancel()
+    pubSubServiceRun.cancel()
     try await pubSubServiceRun.value
   }
 
