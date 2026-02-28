@@ -117,7 +117,13 @@ public final class PullSubscriber<Handler: _Handler>: Service {
         default:
           switch (error as? RPCError)?.code ?? .unknown {
           case .unavailable:
-            log = logger.debug
+            #if DEBUG
+              // Common issue with emulator that connections are closed with unavailable.
+              // Log as trace to avoid flooding the logs.
+              log = logger.trace
+            #else
+              log = logger.debug
+            #endif
             delay = 200_000_000  // 200 ms
           case .deadlineExceeded:
             log = logger.debug
