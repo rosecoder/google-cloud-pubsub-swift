@@ -1,8 +1,9 @@
-import GoogleCloudPubSub
 import Logging
 import ServiceLifecycleTestKit
 import Synchronization
 import Testing
+
+@testable import GoogleCloudPubSub
 
 extension Topics {
 
@@ -16,15 +17,14 @@ struct WithDisposablePullSubscriberIntegrationTests {
 
   @Test(.timeLimit(.minutes(1)))
   func shouldReceiveMessage() async throws {
-    LoggingSystem.bootstrap { label in
-      var handler = StreamLogHandler.standardOutput(label: label)
-      handler.logLevel = .debug
-      return handler
-    }
+    let pubSubService = try PubSubService()
 
     try await testGracefulShutdown { shutdownTrigger in
       // Setup publisher
-      let publisher = try await Publisher()
+      let publisher = Publisher(
+        projectID: "disposable-pull-subscriber-integration-tests",
+        pubSubService: pubSubService
+      )
       let publisherRunTask = Task {
         try await publisher.run()
       }
@@ -39,13 +39,17 @@ struct WithDisposablePullSubscriberIntegrationTests {
         topic: Topics.test
       )
       let subscriberRunTask = Task {
-        try await withDisposablePullSubscriber(subscription: subscription) { message in
+        try await withDisposablePullSubscriber(
+          subscription: subscription,
+          pubSubService: pubSubService,
+          projectID: "disposable-pull-subscriber-integration-tests"
+        ) { message in
           messageContinuation.yield(message)
         }
       }
 
       // Publish message
-      try await Task.sleep(for: .milliseconds(200))  // wait a bit for the subscription to be created
+      try await Task.sleep(for: .milliseconds(200))
       let publishedMessage = try await publisher.publish(to: Topics.test, body: "Hello")
 
       // Wait for message
@@ -69,11 +73,8 @@ struct WithDisposablePullSubscriberIntegrationTests {
             try await subscriberRunTask.value
           }
         }
-      } catch {
-        if error is CancellationError {
-          return
-        }
-        throw error
+      } catch is CancellationError {
+        return
       }
     }
   }

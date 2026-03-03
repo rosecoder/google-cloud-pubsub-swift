@@ -31,6 +31,8 @@ struct PushSubscriberIntegrationTests {
 
   @Test(.timeLimit(.minutes(1)))
   func shouldReceiveMessage() async throws {
+    let pubSubService = try PubSubService()
+
     try await testGracefulShutdown { shutdownTrigger in
       // Setup callback handler
       let callbackContinuation = Mutex<CheckedContinuation<PlainTextMessage.Incoming, Never>?>(nil)
@@ -54,7 +56,8 @@ struct PushSubscriberIntegrationTests {
       let subscriber = PushSubscriber(
         projectID: "push-subscriber-integration-tests",
         port: port,
-        shouldFallbackToPull: false
+        shouldFallbackToPull: false,
+        pubSubService: pubSubService
       )
       subscriber.register(handler: handler)
       let subscriberRunTask = Task {

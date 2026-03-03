@@ -1,7 +1,8 @@
-import GoogleCloudPubSub
 import ServiceLifecycleTestKit
 import Synchronization
 import Testing
+
+@testable import GoogleCloudPubSub
 
 extension Topics {
 
@@ -13,9 +14,14 @@ struct PullSubscriberIntegrationTests {
 
   @Test(.timeLimit(.minutes(1)))
   func shouldReceiveMessage() async throws {
+    let pubSubService = try PubSubService()
+
     try await testGracefulShutdown { shutdownTrigger in
       // Setup publisher
-      let publisher = try await Publisher()
+      let publisher = Publisher(
+        projectID: "pull-subscriber-integration-tests",
+        pubSubService: pubSubService
+      )
       let publisherRunTask = Task {
         try await publisher.run()
       }
@@ -31,7 +37,7 @@ struct PullSubscriberIntegrationTests {
       }
 
       // Setup subscriber
-      let subscriber = try await PullSubscriber(
+      let subscriber = PullSubscriber(
         handler: CallbackHandler(
           topic: Topics.test,
           callback: { message in
@@ -39,7 +45,10 @@ struct PullSubscriberIntegrationTests {
               $0?.resume(returning: message)
             }
           }
-        ))
+        ),
+        projectID: "pull-subscriber-integration-tests",
+        pubSubService: pubSubService
+      )
       let subscriberRunTask = Task {
         try await subscriber.run()
       }

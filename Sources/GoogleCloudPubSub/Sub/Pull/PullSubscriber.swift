@@ -33,10 +33,25 @@ public final class PullSubscriber<Handler: _Handler>: Service {
       deleteSubscriptionOnShutdown: deleteSubscriptionOnShutdown)
   }
 
-  public init(handler: Handler, projectID: String, deleteSubscriptionOnShutdown: Bool = false)
-    throws
-  {
-    let pubSubService = try PubSubService.shared
+  public convenience init(
+    handler: Handler,
+    projectID: String,
+    deleteSubscriptionOnShutdown: Bool = false
+  ) throws {
+    self.init(
+      handler: handler,
+      projectID: projectID,
+      deleteSubscriptionOnShutdown: deleteSubscriptionOnShutdown,
+      pubSubService: try PubSubService.shared
+    )
+  }
+
+  init(
+    handler: Handler,
+    projectID: String,
+    deleteSubscriptionOnShutdown: Bool = false,
+    pubSubService: PubSubService
+  ) {
     self.projectID = projectID
     self.logger = Logger(label: "pubsub.subscriber." + handler.subscription.name)
     self.handler = handler

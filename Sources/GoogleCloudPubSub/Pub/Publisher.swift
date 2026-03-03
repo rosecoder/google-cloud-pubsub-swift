@@ -33,8 +33,15 @@ public final class Publisher: PublisherProtocol, Service {
     try self.init(projectID: projectID, createTopicsIfNeeded: createTopicsIfNeeded)
   }
 
-  public init(projectID: String, createTopicsIfNeeded: Bool = true) throws {
-    let pubSubService = try PubSubService.shared
+  public convenience init(projectID: String, createTopicsIfNeeded: Bool = true) throws {
+    self.init(
+      projectID: projectID,
+      createTopicsIfNeeded: createTopicsIfNeeded,
+      pubSubService: try PubSubService.shared
+    )
+  }
+
+  init(projectID: String, createTopicsIfNeeded: Bool = true, pubSubService: PubSubService) {
     self.projectID = projectID
     self.createTopicsIfNeeded = createTopicsIfNeeded
     self.client = Google_Pubsub_V1_Publisher.Client(wrapping: pubSubService.grpcClient)

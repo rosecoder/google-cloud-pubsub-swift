@@ -42,6 +42,7 @@ let package = Package(
       name: "GoogleCloudPubSubTests",
       dependencies: [
         "GoogleCloudPubSub",
+        .product(name: "ServiceLifecycle", package: "swift-service-lifecycle"),
         .product(
           name: "ServiceLifecycleTestKit", package: "swift-service-lifecycle"),
       ]

@@ -41,21 +41,39 @@ public final class PushSubscriber: Service {
     guard let projectID = await (ServiceContext.current ?? .topLevel).projectID else {
       throw ConfigurationError.missingProjectID
     }
-    self.init(projectID: projectID, port: port, shouldFallbackToPull: shouldFallbackToPull)
+    try self.init(projectID: projectID, port: port, shouldFallbackToPull: shouldFallbackToPull)
   }
 
-  public init(projectID: String, port: Int = defaultPort, shouldFallbackToPull: Bool = true) {
+  let pubSubService: PubSubService
+
+  public convenience init(
+    projectID: String, port: Int = defaultPort, shouldFallbackToPull: Bool = true
+  ) throws {
+    self.init(
+      projectID: projectID,
+      port: port,
+      shouldFallbackToPull: shouldFallbackToPull,
+      pubSubService: try PubSubService.shared
+    )
+  }
+
+  init(
+    projectID: String,
+    port: Int = defaultPort,
+    shouldFallbackToPull: Bool = true,
+    pubSubService: PubSubService
+  ) {
     self.projectID = projectID
     self.port = port
     self.shouldFallbackToPull = shouldFallbackToPull
+    self.pubSubService = pubSubService
   }
 
   // MARK: - Bootstrap
 
   public func run() async throws {
-    let pubSubService = try PubSubService.shared
     if shouldFallbackToPull && pubSubService.isUsingEmulator {
-      try await runUsingPull(pubSubService: pubSubService)
+      try await runUsingPull()
       return
     }
 
@@ -93,7 +111,7 @@ public final class PushSubscriber: Service {
 
   private let pullRunTasks = Mutex<[Task<Void, Error>]>([])
 
-  private func runUsingPull(pubSubService: PubSubService) async throws {
+  private func runUsingPull() async throws {
     logger.info(
       "Using pull subscriber instead of push. Push is not supported during local development.")
 
@@ -116,11 +134,14 @@ public final class PushSubscriber: Service {
 
   public func register<Handler: _Handler>(handler: Handler) {
     if shouldFallbackToPull,
-      let pubSubService = try? PubSubService.shared,
       pubSubService.isUsingEmulator
     {
       let pullTask = Task {
-        let subscriber = try await PullSubscriber(handler: handler)
+        let subscriber = PullSubscriber(
+          handler: handler,
+          projectID: self.projectID,
+          pubSubService: pubSubService
+        )
         try await subscriber.run()
       }
       pullRunTasks.withLock {
