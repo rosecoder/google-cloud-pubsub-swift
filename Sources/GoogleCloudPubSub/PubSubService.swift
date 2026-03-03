@@ -116,26 +116,29 @@ actor PubSubService {
   var runTask: Task<Void, Error>?
 
   func run() async throws {
-    if let runTask {
-      try await runTask.value
-      return
-    }
-    let task = Task {
-      try await withTaskCancellationOrGracefulShutdownHandler {
-        try await grpcClient.runConnections()
-      } onCancelOrGracefulShutdown: {
-        Task {
-          await self.waitForBlockingTasks()
-          self.grpcClient.beginGracefulShutdown()
+    if runTask == nil {
+      let task = Task {
+        try await withTaskCancellationOrGracefulShutdownHandler {
+          try await grpcClient.runConnections()
+        } onCancelOrGracefulShutdown: {
+          Task {
+            await self.waitForBlockingTasks()
+            self.grpcClient.beginGracefulShutdown()
+          }
         }
+        try await authorization?.shutdown()
       }
-      try await authorization?.shutdown()
+      runTask = task
     }
-    runTask = task
-    try await withTaskCancellationHandler {
+    let task = runTask!
+
+    try await withTaskCancellationOrGracefulShutdownHandler {
       try await task.value
-    } onCancel: {
-      task.cancel()
+    } onCancelOrGracefulShutdown: {
+      Task {
+        await self.waitForBlockingTasks()
+        self.grpcClient.beginGracefulShutdown()
+      }
     }
   }
 

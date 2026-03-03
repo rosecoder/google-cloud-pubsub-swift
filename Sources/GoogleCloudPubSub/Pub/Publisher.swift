@@ -49,7 +49,20 @@ public final class Publisher: PublisherProtocol, Service {
   }
 
   public func run() async throws {
-    try await pubSubService.run()
+    let pubSubServiceRun = Task {
+      try await pubSubService.run()
+    }
+
+    await cancelWhenGracefulShutdown {
+      while !Task.isCancelled {
+        try? await Task.sleep(nanoseconds: .max / 2)
+      }
+    }
+
+    pubSubServiceRun.cancel()
+    do {
+      try await pubSubServiceRun.value
+    } catch is CancellationError {}
   }
 
   // MARK: - Publish
