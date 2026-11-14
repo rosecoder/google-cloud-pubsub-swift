@@ -55,15 +55,17 @@ public struct PullSubscriberOptions: Sendable, Hashable {
 
   /// How the ack deadline of received messages is extended while they are being processed.
   ///
-  /// Each extension uses the 99th percentile of observed time-to-ack, bounded by
-  /// ``minAckDeadline`` and ``maxAckDeadline``.
+  /// Each extension uses the 99th percentile of observed time from receiving a message until its
+  /// handler succeeded, or the subscription's `acknowledgeDeadline` until that has been observed,
+  /// bounded by ``minAckDeadline`` and ``maxAckDeadline``.
   public struct Lease: Sendable, Hashable {
 
     /// Minimum ack deadline used for subscriptions with exactly-once delivery when no
     /// ``minAckDeadline`` is set.
     public static let exactlyOnceDeliveryMinAckDeadline = AckDeadline.seconds(60)
 
-    /// Total time a message is kept leased before it is left to expire and be redelivered.
+    /// Total time a message is kept leased after its handler started before it is left to expire
+    /// and be redelivered. Messages waiting for flow control capacity are leased without limit.
     public let maxLeaseDuration: Duration
 
     /// Lower bound of each lease extension. When `nil`, no bound is applied except for
@@ -93,10 +95,11 @@ public struct PullSubscriberOptions: Sendable, Hashable {
       self.maxAckDeadline = maxAckDeadline
     }
 
-    func ackDeadline(basedOn histogram: AckLatencyHistogram, exactlyOnceDelivery: Bool)
-      -> AckDeadline
-    {
-      var deadline = histogram.percentile(99)
+    /// - Parameter initial: Used instead of the percentile until a latency has been recorded.
+    func ackDeadline(
+      basedOn histogram: AckLatencyHistogram, initial: AckDeadline, exactlyOnceDelivery: Bool
+    ) -> AckDeadline {
+      var deadline = histogram.isEmpty ? initial : histogram.percentile(99)
       if let minimum = minAckDeadline
         ?? (exactlyOnceDelivery ? Self.exactlyOnceDeliveryMinAckDeadline : nil)
       {
