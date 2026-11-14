@@ -15,10 +15,22 @@ The goal of this project is to provide a high-level and super-type safe way to i
 
 ### Publishing
 
+The publisher is a [swift-service-lifecycle](https://github.com/swift-server/swift-service-lifecycle) `Service` that must be running while publishing. List it before the services that publish, so it's shut down after them:
+
 ```swift
 let publisher = try await Publisher()
-Task { publisher.run() }
 
+let serviceGroup = ServiceGroup(
+  configuration: .init(
+    services: [publisher, myServer],
+    gracefulShutdownSignals: [.sigterm],
+    logger: logger))
+try await serviceGroup.run()
+```
+
+While it's running, for example in `myServer`:
+
+```swift
 extension Topics {
 
   static let myTopic = Topic<PlainTextMessage>(name: "my-topic")
@@ -96,6 +108,36 @@ try await subscriber.run()
 ```
 
 Note: The push subscriber will fallback to pull during local development against the Pub/Sub emulator due to the emulator is not supporting push.
+
+### Running many subscribers
+
+A `ServiceGroup` shuts its services down one at a time, waiting for each to return before signalling the next. Each pull subscriber waits up to its shutdown timeout for running handlers, and the ones not yet signalled keep receiving messages meanwhile, so 100 subscribers listed individually can take 100 × 30 seconds to shut down. Run them in a `PullSubscriberGroup` instead, which shuts them all down at once and takes as long as the slowest:
+
+```swift
+let options = PullSubscriberOptions(
+  flowControl: .init(maxOutstandingMessages: 150, maxOutstandingBytes: 16 * 1024 * 1024),
+  shutdownBehavior: .waitForProcessing(timeout: .seconds(30)))
+
+let publisher = try await Publisher()
+let subscribers: [any Service] = [
+  try await PullSubscriber(handler: OrderHandler(), options: options),
+  try await PullSubscriber(handler: InvoiceHandler(), options: options),
+  // ...
+]
+
+var configuration = ServiceGroupConfiguration(
+  services: [publisher, PullSubscriberGroup(subscribers)],
+  gracefulShutdownSignals: [.sigterm],
+  logger: logger)
+configuration.maximumGracefulShutdownDuration = .seconds(32)
+try await ServiceGroup(configuration: configuration).run()
+```
+
+The publisher is listed first so handlers can still publish while the subscribers shut down. If a subscriber fails, the group shuts the others down gracefully and then throws its error, which shuts down the service group.
+
+**Flow control.** Every subscription keeps up to `maxOutstandingMessages` messages in memory, at about 10 KB each in load tests. The default of 1,000 messages and 100 MiB per subscription adds up to about 1 GB for 100 subscriptions, so for 50–135 subscriptions in one process use 100–200 messages and 10–20 MiB per subscription. Since each outstanding message runs in its own handler task, this also bounds how many handlers run concurrently.
+
+**Shutdown timeout.** Set `maximumGracefulShutdownDuration` to at least the `waitForProcessing` timeout plus about 2 seconds for the final acks and closing the connections, and keep it below the time the platform kills the process at. On Kubernetes that's `terminationGracePeriodSeconds`, 30 seconds by default, which is too short for the default 30-second timeout: raise it, for example to 45 seconds, or with `terminationGracePeriodSeconds: 180` use a timeout of up to about 170 seconds. Messages still being handled when the timeout passes are nacked and redelivered.
 
 ## Testing
 
