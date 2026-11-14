@@ -11,6 +11,48 @@ enum AckBatcherError: Error {
   case flushDeadlineExceeded
 }
 
+/// Why an ack or deadline modification RPC failed, deciding whether it is retried.
+enum AckFailure: Equatable {
+
+  /// The server or connection failed in a way that may not recur.
+  case transient
+
+  /// The RPC's own timeout cancelled it, which grpc-swift reports as a cancellation rather than
+  /// as `deadlineExceeded`.
+  case timedOut
+
+  /// The task sending the RPC was cancelled.
+  case cancelled
+
+  case permanent
+
+  /// - Parameter isSenderCancelled: Whether the task sending the RPC was cancelled, since its RPC
+  ///   then fails with the same errors as one that timed out.
+  init(_ error: any Error, isSenderCancelled: Bool) {
+    if isSenderCancelled {
+      self = .cancelled
+    } else if error is CancellationError {
+      self = .timedOut
+    } else if let error = error as? RPCError {
+      self =
+        switch error.code {
+        case .unknown where error.cause is CancellationError:
+          .timedOut
+        case .unavailable, .deadlineExceeded, .resourceExhausted, .aborted, .internalError:
+          .transient
+        default:
+          .permanent
+        }
+    } else {
+      self = .permanent
+    }
+  }
+
+  var isRetryable: Bool {
+    self == .transient || self == .timedOut
+  }
+}
+
 /// Coalesces acknowledgements and ack deadline modifications of one subscription into batched RPCs.
 ///
 /// A batch is sent when ``Configuration/maxDelay`` has passed since its first request was queued,
@@ -36,7 +78,10 @@ final class AckBatcher<C: Clock>: Sendable where C.Duration == Duration {
     var retryBackoff = ExponentialBackoff(initial: .milliseconds(100), maximum: .seconds(5))
 
     /// Time after the first attempt of an RPC after which it is no longer retried.
-    var maxRetryDuration: Duration = .seconds(60)
+    ///
+    /// Must exceed the 60 second call timeout for timed out RPCs to be retried at all. Google's
+    /// clients allow 600 seconds as well.
+    var maxRetryDuration: Duration = .seconds(600)
   }
 
   let configuration: Configuration
@@ -484,7 +529,7 @@ final class AckBatcher<C: Clock>: Sendable where C.Duration == Duration {
       do {
         return try await body()
       } catch {
-        guard Self.isTransient(error) else {
+        guard AckFailure(error, isSenderCancelled: Task.isCancelled).isRetryable else {
           throw error
         }
         let delay = backoff.next()
@@ -498,15 +543,6 @@ final class AckBatcher<C: Clock>: Sendable where C.Duration == Duration {
           throw error
         }
       }
-    }
-  }
-
-  static func isTransient(_ error: any Error) -> Bool {
-    switch (error as? RPCError)?.code {
-    case .unavailable, .deadlineExceeded, .resourceExhausted, .aborted, .internalError:
-      true
-    default:
-      false
     }
   }
 
