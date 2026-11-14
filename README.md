@@ -150,6 +150,12 @@ let fakePublisher = FakePublisher()
 // Use in your tests
 ```
 
+### Running the package's tests
+
+Integration tests run against the [Pub/Sub emulator](https://cloud.google.com/pubsub/docs/emulator) with `PUBSUB_EMULATOR_HOST=localhost:8085 swift test`; skip them with `swift test --skip IntegrationTests`.
+
+In CI, pass `--event-stream-output-path events.jsonl` as well. The event stream is written as tests run, so if a run is killed, the tests with a `testStarted` but no `testEnded` event are the ones that hung. `--xunit-output results.xml` is only written once the run finishes.
+
 ## License
 
 MIT License. See [LICENSE](./LICENSE) for details.

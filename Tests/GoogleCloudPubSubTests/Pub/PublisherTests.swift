@@ -12,6 +12,7 @@ import Testing
 
     try await testGracefulShutdown { shutdownTrigger in
       let run = Task { try await publisher.run() }
+      defer { run.cancel() }
       try await waitUntil { service.clientUsage.users == 1 }
 
       // Stands in for a subscriber sharing the service that stops before the publisher.
@@ -20,7 +21,7 @@ import Testing
 
       let start = ContinuousClock.now
       shutdownTrigger.triggerGracefulShutdown()
-      try await run.value
+      try await run.cancellableValue
       #expect(start.duration(to: .now) < .seconds(2))
       #expect(service.clientUsage.hasBegunShutdown)
     }
@@ -32,9 +33,10 @@ import Testing
     let publisher = Publisher(projectID: "publisher-tests", pubSubService: service)
 
     let run = Task { try await publisher.run() }
+    defer { run.cancel() }
     try await waitUntil { service.clientUsage.users == 1 }
     run.cancel()
-    try await run.value
+    try await run.cancellableValue
     #expect(service.clientUsage.hasBegunShutdown)
   }
 }

@@ -8,6 +8,8 @@ import Testing
 @Suite(.tags(.integration))
 struct WithDisposablePullSubscriberIntegrationTests {
 
+  let projectID = "disposable-pull-subscriber-integration-tests"
+
   @Test(.timeLimit(.minutes(1)))
   func shouldReceiveMessage() async throws {
     let pubSubService = try PubSubService()
@@ -17,12 +19,13 @@ struct WithDisposablePullSubscriberIntegrationTests {
     try await testGracefulShutdown { shutdownTrigger in
       // Setup publisher
       let publisher = Publisher(
-        projectID: "disposable-pull-subscriber-integration-tests",
+        projectID: projectID,
         pubSubService: pubSubService
       )
       let publisherRunTask = Task {
         try await publisher.run()
       }
+      defer { publisherRunTask.cancel() }
 
       // Setup message channel
       let (messageStream, messageContinuation) = AsyncStream.makeStream(
@@ -37,14 +40,18 @@ struct WithDisposablePullSubscriberIntegrationTests {
         try await withDisposablePullSubscriber(
           subscription: subscription,
           pubSubService: pubSubService,
-          projectID: "disposable-pull-subscriber-integration-tests"
+          projectID: projectID
         ) { message in
           messageContinuation.yield(message)
         }
       }
+      defer { subscriberRunTask.cancel() }
 
-      // Publish message
-      try await Task.sleep(for: .milliseconds(200))
+      // Publish message once the subscription exists, as it wouldn't receive it otherwise
+      try await waitUntilSubscriptionExists(
+        id: subscription.id(projectID: projectID),
+        client: Google_Pubsub_V1_Subscriber.Client(wrapping: pubSubService.grpcClient)
+      )
       let publishedMessage = try await publisher.publish(to: topic, body: "Hello")
 
       // Wait for message
@@ -61,11 +68,11 @@ struct WithDisposablePullSubscriberIntegrationTests {
         try await withThrowingDiscardingTaskGroup { group in
           group.addTask {
             publisherRunTask.cancel()
-            try await publisherRunTask.value
+            try await publisherRunTask.cancellableValue
           }
           group.addTask {
             subscriberRunTask.cancel()
-            try await subscriberRunTask.value
+            try await subscriberRunTask.cancellableValue
           }
         }
       } catch is CancellationError {
