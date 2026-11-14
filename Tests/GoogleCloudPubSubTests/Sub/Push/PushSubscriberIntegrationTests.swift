@@ -112,9 +112,10 @@ struct PushSubscriberIntegrationTests {
       subscriber.register(handler: handler)
 
       let publisher = Publisher(projectID: projectID, pubSubService: pubSubService)
-      try await waitUntilSubscriptionExists(
-        id: handler.subscription.id(projectID: projectID),
-        client: Google_Pubsub_V1_Subscriber.Client(wrapping: pubSubService.grpcClient))
+      try await pubSubService.withClientInUse { clients in
+        try await waitUntilSubscriptionExists(
+          id: handler.subscription.id(projectID: projectID), client: clients.subscriber)
+      }
       _ = try await publisher.publish(to: topic, body: "Hello")
 
       #expect(await messages.first { _ in true } == "Hello")

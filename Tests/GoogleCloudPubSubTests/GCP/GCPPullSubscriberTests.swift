@@ -54,7 +54,7 @@ struct GCPPullSubscriberTests {
       let service = try PubSubService()
       let deliveries = Deliveries()
       let connection = RecordingStreamingPullConnection(
-        base: Google_Pubsub_V1_Subscriber.Client(wrapping: service.grpcClient))
+        base: ServiceStreamingPullConnection(pubSubService: service))
       let subscriber = PullSubscriber(
         handler: CallbackHandler(subscription: subscription) { deliveries.record($0.id) },
         projectID: resources.projectID, pubSubService: service,

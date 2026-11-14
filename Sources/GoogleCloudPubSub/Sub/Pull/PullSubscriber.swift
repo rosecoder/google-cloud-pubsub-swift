@@ -10,8 +10,6 @@ public final class PullSubscriber<Handler: _Handler>: Service {
   private let logger: Logger
 
   private let handler: Handler
-  let client: Google_Pubsub_V1_Subscriber.ClientProtocol
-  let publisherClient: Google_Pubsub_V1_Publisher.ClientProtocol
   let pubSubService: PubSubService
   let receiver: StreamingPullReceiver
   let ackBatcher: AckBatcher<ContinuousClock>
@@ -118,22 +116,20 @@ public final class PullSubscriber<Handler: _Handler>: Service {
     }
     var logger = logger ?? Logger(label: "pubsub.subscriber." + handler.subscription.name)
     logger[metadataKey: "subscription"] = .string(handler.subscription.name)
-    let client = Google_Pubsub_V1_Subscriber.Client(wrapping: pubSubService.grpcClient)
     let subscriptionID = handler.subscription.id(projectID: projectID)
     self.projectID = projectID
     self.logger = logger
     self.handler = handler
-    let publisherClient = Google_Pubsub_V1_Publisher.Client(wrapping: pubSubService.grpcClient)
-    self.client = client
-    self.publisherClient = publisherClient
     self.pubSubService = pubSubService
     let withConnection: StreamingPullReceiver.WithConnection
     if let streamingPullConnection {
       withConnection = { body in try await body(streamingPullConnection) }
     } else {
       withConnection = { body in
-        try await pubSubService.pool.withStreamSlot { client in
-          try await body(Google_Pubsub_V1_Subscriber.Client(wrapping: client))
+        try await pubSubService.withClientInUse { clients in
+          try await clients.pool.withStreamSlot { client in
+            try await body(Google_Pubsub_V1_Subscriber.Client(wrapping: client))
+          }
         }
       }
     }
@@ -146,14 +142,11 @@ public final class PullSubscriber<Handler: _Handler>: Service {
       now: now,
       sleep: sleep,
       createSubscription: { [subscription = handler.subscription] in
-        try await pubSubService.create(
-          subscription: subscription,
-          subscriberClient: client,
-          publisherClient: publisherClient,
-          projectID: projectID)
+        try await pubSubService.create(subscription: subscription, projectID: projectID)
       })
     self.ackBatcher = AckBatcher(
-      transport: ackTransport ?? GRPCAckTransport(client: client, subscriptionID: subscriptionID),
+      transport: ackTransport
+        ?? GRPCAckTransport(pubSubService: pubSubService, subscriptionID: subscriptionID),
       logger: logger)
     self.deleteSubscriptionOnShutdown = deleteSubscriptionOnShutdown
     self.options = options
@@ -171,7 +164,8 @@ public final class PullSubscriber<Handler: _Handler>: Service {
   public func run() async throws {
     logger.debug("Subscribed to \(handler.subscription.name)")
 
-    try await pubSubService.withClientInUse {
+    // Keeps one generation of clients running for the RPCs below, which each use it too.
+    try await pubSubService.withClientInUse { _ in
       await self.receiveAndProcess()
       try await self.deleteSubscriptionIfNeeded()
     }
@@ -185,7 +179,6 @@ public final class PullSubscriber<Handler: _Handler>: Service {
     try await Task.detached {
       try await self.pubSubService.delete(
         subscription: self.handler.subscription,
-        subscriberClient: self.client,
         projectID: self.projectID
       )
     }.value

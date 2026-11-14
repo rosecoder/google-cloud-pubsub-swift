@@ -127,10 +127,10 @@ struct StreamingPullIntegrationTests {
     let topic = Topic<PlainTextMessage>(name: uniqueName("StreamingPullIntegrationTests"))
     let (handled, handledContinuation) = AsyncStream.makeStream(of: String.self)
     let handler = CallbackHandler(topic: topic) { handledContinuation.yield($0.id) }
-    let subscriberClient = Google_Pubsub_V1_Subscriber.Client(wrapping: pubSubService.grpcClient)
     let ackTransport = AcknowledgingTransport(
       wrapped: GRPCAckTransport(
-        client: subscriberClient, subscriptionID: handler.subscription.id(projectID: projectID)))
+        pubSubService: pubSubService,
+        subscriptionID: handler.subscription.id(projectID: projectID)))
     let subscriber = PullSubscriber(
       handler: handler,
       projectID: projectID,
@@ -142,12 +142,7 @@ struct StreamingPullIntegrationTests {
     try await testGracefulShutdown { shutdownTrigger in
       let publisherRun = Task { try await publisher.run() }
       defer { publisherRun.cancel() }
-      try await pubSubService.create(
-        subscription: handler.subscription,
-        subscriberClient: subscriberClient,
-        publisherClient: subscriber.publisherClient,
-        projectID: projectID
-      )
+      try await pubSubService.create(subscription: handler.subscription, projectID: projectID)
       // Published before subscribing, so that the messages arrive in one StreamingPull response.
       let published = try await publisher.publish(
         to: topic, bodies: Array(repeating: body, count: messageCount))
@@ -211,8 +206,7 @@ struct StreamingPullIntegrationTests {
       projectID: projectID,
       pubSubService: pubSubService,
       streamingPullConnection: CountingConnection(
-        wrapped: Google_Pubsub_V1_Subscriber.Client(wrapping: pubSubService.grpcClient),
-        count: streamCount, timeout: streamTimeout),
+        pubSubService: pubSubService, count: streamCount, timeout: streamTimeout),
       clock: ContinuousClock(),
       leaseGenerator: SystemRandomNumberGenerator(),
       logger: logs.logger(label: "test.streaming-pull-integration")
@@ -222,12 +216,7 @@ struct StreamingPullIntegrationTests {
     try await testGracefulShutdown { shutdownTrigger in
       let publisherRun = Task { try await publisher.run() }
       defer { publisherRun.cancel() }
-      try await pubSubService.create(
-        subscription: handler.subscription,
-        subscriberClient: subscriber.client,
-        publisherClient: subscriber.publisherClient,
-        projectID: projectID
-      )
+      try await pubSubService.create(subscription: handler.subscription, projectID: projectID)
       let subscriberRun = Task { try await subscriber.run() }
       defer { subscriberRun.cancel() }
 
@@ -248,7 +237,7 @@ struct StreamingPullIntegrationTests {
 
 private struct CountingConnection: StreamingPullConnection {
 
-  let wrapped: any StreamingPullConnection
+  let pubSubService: PubSubService
   let count: Counter
   var timeout: Duration?
 
@@ -264,9 +253,11 @@ private struct CountingConnection: StreamingPullConnection {
     count.increment()
     var options = options
     options.timeout = timeout ?? options.timeout
-    return try await wrapped.streamingPull(
-      metadata: metadata, options: options, requestProducer: requestProducer,
-      onResponse: onResponse)
+    return try await pubSubService.withClientInUse { [options] clients in
+      try await clients.subscriber.streamingPull(
+        metadata: metadata, options: options, requestProducer: requestProducer,
+        onResponse: onResponse)
+    }
   }
 }
 

@@ -35,25 +35,29 @@ enum AckDeadlineModification: Hashable, Sendable, CustomStringConvertible {
 
 struct GRPCAckTransport: AckTransport {
 
-  let client: Google_Pubsub_V1_Subscriber.ClientProtocol
+  let pubSubService: PubSubService
 
   /// Fully qualified subscription name, `projects/{project}/subscriptions/{subscription}`.
   let subscriptionID: String
 
   func acknowledge(_ ids: [AckID]) async throws {
-    _ = try await client.acknowledge(
-      .with {
-        $0.subscription = subscriptionID
-        $0.ackIds = ids.map(\.rawValue)
-      })
+    try await pubSubService.withClientInUse { clients in
+      _ = try await clients.subscriber.acknowledge(
+        .with {
+          $0.subscription = subscriptionID
+          $0.ackIds = ids.map(\.rawValue)
+        })
+    }
   }
 
   func modifyAckDeadline(_ ids: [AckID], to modification: AckDeadlineModification) async throws {
-    _ = try await client.modifyAckDeadline(
-      .with {
-        $0.subscription = subscriptionID
-        $0.ackIds = ids.map(\.rawValue)
-        $0.ackDeadlineSeconds = modification.seconds
-      })
+    try await pubSubService.withClientInUse { clients in
+      _ = try await clients.subscriber.modifyAckDeadline(
+        .with {
+          $0.subscription = subscriptionID
+          $0.ackIds = ids.map(\.rawValue)
+          $0.ackDeadlineSeconds = modification.seconds
+        })
+    }
   }
 }

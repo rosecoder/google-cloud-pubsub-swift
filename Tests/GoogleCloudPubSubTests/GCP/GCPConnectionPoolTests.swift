@@ -53,9 +53,9 @@ struct GCPConnectionPoolTests {
 
       try await withRunningSubscribers(subscribers, publishingWith: publisher) {
         try await poll(timeout: .seconds(60), "Opening every stream") {
-          service.pool.activeStreamCounts.reduce(0, +) == subscribers.count
+          service.activeStreamCounts.reduce(0, +) == subscribers.count
         }
-        let activeStreamCounts = service.pool.activeStreamCounts
+        let activeStreamCounts = service.activeStreamCounts
         let connectionCount = openConnections.withLock { $0.count }
 
         let start = ContinuousClock.now

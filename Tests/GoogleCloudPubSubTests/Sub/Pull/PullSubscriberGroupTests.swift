@@ -135,8 +135,8 @@ import Testing
 
   /// Runs `services` in a service group until every handler has started, then shuts it down.
   ///
-  /// - Returns: How long it took until every message was acked. Closing the shared client
-  ///   afterwards is left out, since it sometimes hangs until ``PubSubService/shutdownTimeout``.
+  /// - Returns: How long it took until every message was acked, leaving out closing the shared
+  ///   client afterwards.
   private func shutDown(_ services: [any Service]) async throws -> Duration {
     let serviceGroup = ServiceGroup(
       services: services, gracefulShutdownSignals: [],
@@ -151,7 +151,7 @@ import Testing
       ackTransport.ids(of: .acknowledge).count == Self.subscriberCount
     }
     let duration = start.duration(to: .now)
-    #expect(try await finishes(run, within: PubSubService.shutdownTimeout + .seconds(5)))
+    #expect(try await finishes(run, within: .seconds(10)))
     return duration
   }
 

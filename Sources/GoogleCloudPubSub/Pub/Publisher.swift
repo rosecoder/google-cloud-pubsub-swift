@@ -12,7 +12,6 @@ public final class Publisher: PublisherProtocol, Service {
 
   private let logger = Logger(label: "pubsub.publisher")
 
-  let client: Google_Pubsub_V1_Publisher.ClientProtocol
   private let pubSubService: PubSubService
 
   public enum ConfigurationError: Error {
@@ -44,15 +43,17 @@ public final class Publisher: PublisherProtocol, Service {
   init(projectID: String, createTopicsIfNeeded: Bool = true, pubSubService: PubSubService) {
     self.projectID = projectID
     self.createTopicsIfNeeded = createTopicsIfNeeded
-    self.client = Google_Pubsub_V1_Publisher.Client(wrapping: pubSubService.grpcClient)
     self.pubSubService = pubSubService
   }
 
   /// Keeps the client running until graceful shutdown or cancellation. Subscribers sharing the
   /// client keep it running for publishing from their handlers after this has returned.
+  ///
+  /// Publishing while neither this nor anything else sharing the client runs starts the client
+  /// for each call.
   public func run() async throws {
     do {
-      try await pubSubService.withClientInUse {
+      try await pubSubService.withClientInUse { _ in
         try? await gracefulShutdown()
       }
     } catch is CancellationError {}
@@ -72,36 +73,40 @@ public final class Publisher: PublisherProtocol, Service {
       return []
     }
 
-    return try await withRetryableTask(
-      logger: logger,
-      operation: {
-        logger.debug("Publishing \(messages.count) message(s)...")
+    return try await pubSubService.withClientInUse { clients in
+      try await withRetryableTask(
+        logger: logger,
+        operation: {
+          logger.debug("Publishing \(messages.count) message(s)...")
 
-        let response: Google_Pubsub_V1_PublishResponse
-        do {
-          response = try await publish(to: topic, messages: messages)
-        } catch let error as RPCError
-          where error.code == .notFound && error.message == "Topic not found"
-          && createTopicsIfNeeded
-        {
-          logger.info("Topic not found, creating it...")
-          try await pubSubService.create(
-            topic: topic,
-            publisherClient: client,
-            projectID: projectID
-          )
-          response = try await publish(to: topic, messages: messages, createTopicIfNeeded: false)
-        }
+          let response: Google_Pubsub_V1_PublishResponse
+          do {
+            response = try await publish(to: topic, messages: messages, client: clients.publisher)
+          } catch let error as RPCError
+            where error.code == .notFound && error.message == "Topic not found"
+            && createTopicsIfNeeded
+          {
+            logger.info("Topic not found, creating it...")
+            try await pubSubService.create(
+              topic: topic,
+              publisherClient: clients.publisher,
+              projectID: projectID
+            )
+            response = try await publish(
+              to: topic, messages: messages, client: clients.publisher, createTopicIfNeeded: false)
+          }
 
-        return response
-          .messageIds
-          .map { PublishedMessage(id: $0) }
-      }, file: file, function: function, line: line)
+          return response
+            .messageIds
+            .map { PublishedMessage(id: $0) }
+        }, file: file, function: function, line: line)
+    }
   }
 
   private func publish<Message>(
     to topic: Topic<Message>,
     messages: [Message.Outgoing],
+    client: some Google_Pubsub_V1_Publisher.ClientProtocol,
     createTopicIfNeeded: Bool = true
   ) async throws -> Google_Pubsub_V1_PublishResponse {
     try await withSpan(
@@ -122,7 +127,7 @@ public final class Publisher: PublisherProtocol, Service {
           }
         }
       }
-      return try await pubSubService.withRPC { [client] in try await client.publish(request) }
+      return try await client.publish(request)
     }
   }
 }

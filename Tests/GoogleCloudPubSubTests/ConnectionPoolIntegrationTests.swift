@@ -80,17 +80,13 @@ struct ConnectionPoolIntegrationTests {
         Task { try await subscriber.run() }
       }
       defer { for run in subscriberRuns { run.cancel() } }
-      for (handler, subscriber) in zip(handlers, subscribers) {
-        try await pubSubService.create(
-          subscription: handler.subscription,
-          subscriberClient: subscriber.client,
-          publisherClient: subscriber.publisherClient,
-          projectID: projectID)
+      for handler in handlers {
+        try await pubSubService.create(subscription: handler.subscription, projectID: projectID)
       }
       try await waitUntil {
-        pubSubService.pool.activeStreamCounts.reduce(0, +) == subscriberCount
+        pubSubService.activeStreamCounts.reduce(0, +) == subscriberCount
       }
-      let activeStreamCounts = pubSubService.pool.activeStreamCounts
+      let activeStreamCounts = pubSubService.activeStreamCounts
       let openConnectionCount = openConnections.withLock { $0.count }
 
       for topic in topics {
