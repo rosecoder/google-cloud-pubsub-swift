@@ -25,6 +25,26 @@ struct GRPCClientPoolTests {
     #expect(pool.activeStreamCounts == [80, 0])
   }
 
+  @Test func shouldNeverAssignStreamsToUnaryClient() async throws {
+    let factory = FakeClientFactory()
+    let pool = try GRPCClientPool(maxStreamsPerClient: 3, makeClient: factory.make)
+    let ids = Mutex<[Int]>([])
+
+    let held = (0..<7).map { _ in
+      Task {
+        try await pool.withStreamSlot { client in
+          ids.withLock { $0.append(client.id) }
+          try await Task.sleep(for: .seconds(3600))
+        }
+      }
+    }
+    defer { for task in held { task.cancel() } }
+    try await waitUntil { pool.activeStreamCounts == [3, 3, 1] }
+
+    #expect(!ids.withLock { $0 }.contains(pool.unary.id))
+    #expect(ids.withLock { $0 }.sorted() == [1, 1, 1, 2, 2, 2, 3])
+  }
+
   @Test func shouldReuseReleasedSlotsAtLowestIndex() async throws {
     let factory = FakeClientFactory()
     let pool = try GRPCClientPool(maxStreamsPerClient: 2, makeClient: factory.make)
