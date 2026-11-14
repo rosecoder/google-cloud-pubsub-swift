@@ -144,6 +144,63 @@ struct PullSubscriberIntegrationTests {
     }
   }
 
+  @Test(.timeLimit(.minutes(1)))
+  func shouldLimitConcurrentHandlersToMaxOutstandingMessages() async throws {
+    let pubSubService = try PubSubService()
+    let topic = Topic<PlainTextMessage>(name: uniqueName("PullSubscriberIntegrationTests"))
+    let messageCount = 50
+    let recorder = HandlerRecorder()
+    let (handledStream, handledContinuation) = AsyncStream.makeStream(of: String.self)
+
+    try await testGracefulShutdown { shutdownTrigger in
+      let handler = CallbackHandler(topic: topic) { message in
+        await recorder.record(message.id) {
+          try? await Task.sleep(for: .milliseconds(10))
+        }
+        handledContinuation.yield(message.id)
+      }
+      let subscriber = PullSubscriber(
+        handler: handler,
+        projectID: projectID,
+        options: PullSubscriberOptions(flowControl: .init(maxOutstandingMessages: 5)),
+        pubSubService: pubSubService
+      )
+      let publisher = Publisher(projectID: projectID, pubSubService: pubSubService)
+      let publisherRunTask = Task {
+        try await publisher.run()
+      }
+      try await pubSubService.create(
+        subscription: handler.subscription,
+        subscriberClient: subscriber.client,
+        publisherClient: subscriber.publisherClient,
+        projectID: projectID
+      )
+      let subscriberRunTask = Task {
+        try await subscriber.run()
+      }
+
+      let published = try await publisher.publish(
+        to: topic, bodies: (0..<messageCount).map { "Message \($0)" })
+
+      var handled = Set<String>()
+      for await id in handledStream {
+        handled.insert(id)
+        if handled.count == messageCount {
+          break
+        }
+      }
+
+      #expect(handled == Set(published.map(\.id)))
+      #expect(recorder.peakConcurrency <= 5)
+      #expect(recorder.peakConcurrency > 1)
+
+      shutdownTrigger.triggerGracefulShutdown()
+      try await subscriberRunTask.value
+      publisherRunTask.cancel()
+      try await publisherRunTask.value
+    }
+  }
+
   private func waitUntilSubscriptionExists(
     id: String,
     client: Google_Pubsub_V1_Subscriber.ClientProtocol
