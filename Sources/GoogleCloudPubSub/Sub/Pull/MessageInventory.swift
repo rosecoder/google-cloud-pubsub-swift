@@ -74,6 +74,10 @@ final class MessageInventory: Sendable {
     storage.withLock { $0.state.ackDeadline }
   }
 
+  var hasLeaseWaiter: Bool {
+    storage.withLock { $0.leaseWaiter != nil }
+  }
+
   /// Dispatched messages in the order they were received. Ends once ``stopReceiving()`` has been
   /// called and every dispatched message has been returned. Ending it is not tied to the
   /// consuming task's cancellation, so no dispatched message is dropped.
@@ -140,8 +144,11 @@ final class MessageInventory: Sendable {
   ///
   /// Must only be called by one task at a time.
   ///
+  /// - Returns: Whether it had to wait, that is whether nothing was leased when called.
   /// - Throws: `CancellationError` if the task is cancelled.
-  func waitUntilNonEmpty() async throws {
+  @discardableResult
+  func waitUntilNonEmpty() async throws -> Bool {
+    var waited = false
     try await withTaskCancellationHandler {
       try await withCheckedThrowingContinuation { continuation in
         let result: Result<Void, any Error>? = storage.withLock { storage in
@@ -153,6 +160,7 @@ final class MessageInventory: Sendable {
             return .success(())
           }
           storage.leaseWaiter = continuation
+          waited = true
           return nil
         }
         if let result {
@@ -163,6 +171,41 @@ final class MessageInventory: Sendable {
       storage.withLock { storage in
         defer { storage.leaseWaiter = nil }
         return storage.leaseWaiter
+      }?.resume(throwing: CancellationError())
+    }
+    return waited
+  }
+
+  /// Waits until messages have been accepted with an ack deadline shorter than `deadline` since
+  /// leases were last renewed.
+  ///
+  /// Must only be called by one task at a time.
+  ///
+  /// - Returns: The shortest ack deadline messages were accepted with since leases were last
+  ///   renewed.
+  /// - Throws: `CancellationError` if the task is cancelled.
+  func waitUntilAccepted(shorterThan deadline: AckDeadline) async throws -> AckDeadline {
+    try await withTaskCancellationHandler {
+      try await withCheckedThrowingContinuation { continuation in
+        let result: Result<AckDeadline, any Error>? = storage.withLock { storage in
+          precondition(storage.acceptWaiter == nil, "Only one task may wait for accepted messages")
+          if Task.isCancelled {
+            return .failure(CancellationError())
+          }
+          if let accepted = storage.state.shortestAcceptedAckDeadline, accepted < deadline {
+            return .success(accepted)
+          }
+          storage.acceptWaiter = (deadline, continuation)
+          return nil
+        }
+        if let result {
+          continuation.resume(with: result)
+        }
+      }
+    } onCancel: {
+      storage.withLock { storage in
+        defer { storage.acceptWaiter = nil }
+        return storage.acceptWaiter?.continuation
       }?.resume(throwing: CancellationError())
     }
   }
@@ -246,6 +289,9 @@ extension MessageInventory {
     let initialAckDeadline: AckDeadline
     var exactlyOnceDelivery = false
     private(set) var histogram = AckLatencyHistogram()
+
+    /// Shortest ack deadline messages were accepted with since leases were last renewed.
+    private(set) var shortestAcceptedAckDeadline: AckDeadline?
     private(set) var entries: [AckID: Entry] = [:]
     private(set) var held: Deque<Item> = []
 
@@ -305,6 +351,10 @@ extension MessageInventory {
         accepted.append(item.ackID)
       }
       dispatchHeld(now: now)
+      let ackDeadline = ackDeadline
+      if !accepted.isEmpty {
+        shortestAcceptedAckDeadline = min(shortestAcceptedAckDeadline ?? ackDeadline, ackDeadline)
+      }
       return Received(accepted: accepted, rejected: [], ackDeadline: ackDeadline)
     }
 
@@ -334,6 +384,7 @@ extension MessageInventory {
         remove(id)
       }
       dispatchHeld(now: now)
+      shortestAcceptedAckDeadline = nil
       return LeaseRenewal(ackDeadline: ackDeadline, ids: ids, expired: expired)
     }
 
@@ -395,12 +446,20 @@ extension MessageInventory {
     var receiveWaiter: CheckedContinuation<Int, any Error>?
     var dispatchWaiter: CheckedContinuation<Item?, Never>?
     var leaseWaiter: CheckedContinuation<Void, any Error>?
+    var acceptWaiter:
+      (deadline: AckDeadline, continuation: CheckedContinuation<AckDeadline, any Error>)?
 
     mutating func takeResumptions() -> Resumptions {
       var resumptions = Resumptions()
       if let waiter = leaseWaiter, !state.isEmpty {
         resumptions.lease = waiter
         leaseWaiter = nil
+      }
+      if let waiter = acceptWaiter, let accepted = state.shortestAcceptedAckDeadline,
+        accepted < waiter.deadline
+      {
+        resumptions.accept = (waiter.continuation, accepted)
+        acceptWaiter = nil
       }
       if let waiter = dispatchWaiter {
         if let item = state.nextReady() {
@@ -428,9 +487,13 @@ extension MessageInventory {
     var dispatch: (CheckedContinuation<Item?, Never>, Item?)?
     var receive: (CheckedContinuation<Int, any Error>, Result<Int, any Error>)?
     var lease: CheckedContinuation<Void, any Error>?
+    var accept: (CheckedContinuation<AckDeadline, any Error>, AckDeadline)?
 
     func resume() {
       lease?.resume()
+      if let (continuation, deadline) = accept {
+        continuation.resume(returning: deadline)
+      }
       if let (continuation, item) = dispatch {
         continuation.resume(returning: item)
       }

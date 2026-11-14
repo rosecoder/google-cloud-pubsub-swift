@@ -321,14 +321,42 @@ import Testing
   @Test func shouldWaitUntilNonEmptyUntilMessagesAreAdded() async throws {
     let inventory = MessageInventory(flowControl: flowControl(messages: 1))
     let wait = Task { try await inventory.waitUntilNonEmpty() }
-    for _ in 0..<100 {
-      await Task.yield()
-    }
+    try await waitUntil { inventory.hasLeaseWaiter }
 
     _ = inventory.add([message("a")], now: .now)
 
-    try await wait.value
-    try await inventory.waitUntilNonEmpty()
+    #expect(try await wait.value)
+    #expect(try await !inventory.waitUntilNonEmpty())
+  }
+
+  @Test func shouldWaitUntilMessagesAreAcceptedWithShorterDeadline() async throws {
+    let inventory = MessageInventory(
+      flowControl: flowControl(messages: 10), initialAckDeadline: .seconds(30))
+    let wait = Task { try await inventory.waitUntilAccepted(shorterThan: .seconds(30)) }
+    _ = inventory.add([message("a")], now: .now)
+    for _ in 0..<100 {
+      await Task.yield()
+    }
+    inventory.recordAckLatency(.seconds(12))
+
+    _ = inventory.add([message("b")], now: .now)
+
+    #expect(try await wait.value == .seconds(12))
+  }
+
+  @Test func shouldReturnRightAwayWhenMessagesWereAcceptedWithShorterDeadlineSinceRenewal()
+    async throws
+  {
+    let inventory = MessageInventory(
+      flowControl: flowControl(messages: 10), initialAckDeadline: .seconds(20))
+    _ = inventory.add([message("a")], now: .now)
+
+    #expect(try await inventory.waitUntilAccepted(shorterThan: .seconds(30)) == .seconds(20))
+
+    _ = inventory.renewLeases(now: .now)
+    let wait = Task { try await inventory.waitUntilAccepted(shorterThan: .seconds(30)) }
+    wait.cancel()
+    await #expect(throws: CancellationError.self) { try await wait.value }
   }
 
   @Test func shouldThrowWhenWaitingUntilNonEmptyIsCancelled() async throws {

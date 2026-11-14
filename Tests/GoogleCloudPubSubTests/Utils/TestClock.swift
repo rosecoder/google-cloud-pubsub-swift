@@ -33,6 +33,13 @@ final class TestClock: Clock, Sendable {
     state.withLock { $0.sleepers.count }
   }
 
+  /// Time until the earliest sleeper wakes, or `nil` if nothing is sleeping.
+  var nextWakeUp: Duration? {
+    state.withLock { state in
+      state.sleepers.values.map(\.deadline).min().map { state.now.duration(to: $0) }
+    }
+  }
+
   func sleep(until deadline: Instant, tolerance: Duration?) async throws {
     let id = state.withLock { state in
       defer { state.nextSleeperID += 1 }
