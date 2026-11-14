@@ -70,6 +70,18 @@ final class AckBatcher<C: Clock>: Sendable where C.Duration == Duration {
     try await submit(id, .modifyAckDeadline(.extend(deadline)))
   }
 
+  /// Queues nacks without waiting for their outcome. Failures are only logged, and IDs submitted
+  /// after ``run()`` returned are dropped.
+  func enqueueNacks(_ ids: some Sequence<AckID>) {
+    for id in ids {
+      do {
+        _ = try enqueue(id, .modifyAckDeadline(.nack), awaitsResult: false)
+      } catch {
+        logger.debug("Dropped nack of \(id): \(error)")
+      }
+    }
+  }
+
   /// Number of submitted IDs that have not yet been handed to an RPC.
   var queuedCount: Int {
     state.withLock { state in
@@ -85,7 +97,7 @@ final class AckBatcher<C: Clock>: Sendable where C.Duration == Duration {
   // MARK: - Submitting
 
   private func submit(_ id: AckID, _ operation: Operation) async throws {
-    let token = try enqueue(id, operation)
+    let token = try enqueue(id, operation, awaitsResult: true)
     try await withTaskCancellationHandler {
       try await withCheckedThrowingContinuation { continuation in
         let result: Result<Void, any Error>? = state.withLock { state in
@@ -122,7 +134,9 @@ final class AckBatcher<C: Clock>: Sendable where C.Duration == Duration {
     }
   }
 
-  private func enqueue(_ id: AckID, _ operation: Operation) throws(AckBatcherError) -> Token {
+  private func enqueue(
+    _ id: AckID, _ operation: Operation, awaitsResult: Bool
+  ) throws(AckBatcherError) -> Token {
     let size = id.encodedSize
     let (token, wakeup) = try state.withLock {
       state throws(AckBatcherError) -> (Token, CheckedContinuation<Void, Never>?) in
@@ -142,7 +156,9 @@ final class AckBatcher<C: Clock>: Sendable where C.Duration == Duration {
 
       let token = state.nextToken
       state.nextToken &+= 1
-      state.waiters[token] = .queued
+      if awaitsResult {
+        state.waiters[token] = .queued
+      }
       state.open.append(Entry(id: id, token: token), for: operation, size: size)
 
       if state.open.count >= configuration.maxBatchSize {
@@ -288,6 +304,7 @@ final class AckBatcher<C: Clock>: Sendable where C.Duration == Duration {
       }
       result = .success(())
     } catch {
+      logger.debug("Failed to send \(operation) of \(ids.count) messages: \(error)")
       result = .failure(error)
     }
     complete(entries, with: result)

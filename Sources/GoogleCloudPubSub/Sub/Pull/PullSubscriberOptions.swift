@@ -28,10 +28,17 @@ public struct PullSubscriberOptions: Sendable, Hashable {
   }
 
   /// Limits on messages that have been received but not yet acknowledged or nacked by this
-  /// subscriber. Receiving pauses while either limit is reached.
+  /// subscriber. Receiving pauses while either limit is reached and resumes once usage of both
+  /// drops below 80%. Messages are never nacked because of these limits.
   public struct FlowControl: Sendable, Hashable {
 
+    /// Also the maximum number of handlers running concurrently, since each outstanding message
+    /// is handled in its own task. Lower it if handlers share a limited resource, such as a
+    /// connection pool.
     public let maxOutstandingMessages: Int
+
+    /// Total size of outstanding message data. A single message larger than this is still
+    /// handled once no other message is outstanding.
     public let maxOutstandingBytes: Int
 
     /// - Precondition: Both limits are greater than zero.

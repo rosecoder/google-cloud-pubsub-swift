@@ -14,6 +14,7 @@ public final class PullSubscriber<Handler: _Handler>: Service {
   let client: Google_Pubsub_V1_Subscriber.ClientProtocol
   let publisherClient: Google_Pubsub_V1_Publisher.ClientProtocol
   let pubSubService: PubSubService
+  let pullTransport: any PullTransport
   let ackBatcher: AckBatcher<ContinuousClock>
 
   public enum ConfigurationError: Error {
@@ -59,19 +60,23 @@ public final class PullSubscriber<Handler: _Handler>: Service {
     projectID: String,
     deleteSubscriptionOnShutdown: Bool = false,
     options: PullSubscriberOptions = PullSubscriberOptions(),
-    pubSubService: PubSubService
+    pubSubService: PubSubService,
+    pullTransport: (any PullTransport)? = nil,
+    ackTransport: (any AckTransport)? = nil
   ) {
     let logger = Logger(label: "pubsub.subscriber." + handler.subscription.name)
     let client = Google_Pubsub_V1_Subscriber.Client(wrapping: pubSubService.grpcClient)
+    let subscriptionID = handler.subscription.id(projectID: projectID)
     self.projectID = projectID
     self.logger = logger
     self.handler = handler
     self.client = client
     self.publisherClient = Google_Pubsub_V1_Publisher.Client(wrapping: pubSubService.grpcClient)
     self.pubSubService = pubSubService
+    self.pullTransport =
+      pullTransport ?? GRPCPullTransport(client: client, subscriptionID: subscriptionID)
     self.ackBatcher = AckBatcher(
-      transport: GRPCAckTransport(
-        client: client, subscriptionID: handler.subscription.id(projectID: projectID)),
+      transport: ackTransport ?? GRPCAckTransport(client: client, subscriptionID: subscriptionID),
       logger: logger)
     self.deleteSubscriptionOnShutdown = deleteSubscriptionOnShutdown
     self.options = options
@@ -91,17 +96,7 @@ public final class PullSubscriber<Handler: _Handler>: Service {
     }
     await pubSubService.registerBlockerForGRPCShutdown(task: blockerTask)
 
-    await withDiscardingTaskGroup { group in
-      group.addTask {
-        await self.ackBatcher.run()
-      }
-      await cancelWhenGracefulShutdown {
-        await self.continuesPull()
-      }
-      // Pulling only returns once all received messages are handled, so every ack has been
-      // submitted by now and is sent before the gRPC client is allowed to shut down.
-      ackBatcher.finish()
-    }
+    await receiveAndProcess()
 
     if deleteSubscriptionOnShutdown {
       logger.debug("Deleting subscription...")
@@ -120,11 +115,47 @@ public final class PullSubscriber<Handler: _Handler>: Service {
     try await pubSubServiceRun.value
   }
 
-  private func continuesPull() async {
+  /// Receives messages until graceful shutdown and handles each in its own child task.
+  ///
+  /// Returns once every received message has been handled and its ack or nack has been sent, so
+  /// the gRPC client is not shut down before.
+  func receiveAndProcess() async {
+    let inventory = MessageInventory(flowControl: options.flowControl)
+
+    await withDiscardingTaskGroup { ackGroup in
+      ackGroup.addTask {
+        await self.ackBatcher.run()
+      }
+      await withDiscardingTaskGroup { handlerGroup in
+        handlerGroup.addTask {
+          await cancelWhenGracefulShutdown {
+            await self.receive(into: inventory)
+          }
+          self.ackBatcher.enqueueNacks(inventory.stopReceiving())
+        }
+        for await item in inventory.dispatched {
+          handlerGroup.addTask {
+            await self.process(item, inventory: inventory)
+          }
+        }
+      }
+      ackBatcher.finish()
+    }
+  }
+
+  private func receive(into inventory: MessageInventory) async {
     var backoff = ExponentialBackoff()
-    while !Task.isCancelled {
+    while true {
+      let maxMessages: Int
       do {
-        try await singlePull()
+        maxMessages = try await inventory.waitUntilReceivable()
+      } catch {
+        return
+      }
+
+      do {
+        let messages = try await pullTransport.pull(maxMessages: maxMessages)
+        ackBatcher.enqueueNacks(inventory.add(messages, now: .now))
         backoff.reset()
       } catch {
         if Task.isCancelled {
@@ -181,31 +212,11 @@ public final class PullSubscriber<Handler: _Handler>: Service {
     }
   }
 
-  // MARK: - Pull
+  // MARK: - Handling
 
-  private func singlePull() async throws {
-    var options = GRPCCore.CallOptions.defaults
-    options.timeout = .seconds(3600)
-
-    let response = try await client.pull(
-      .with {
-        $0.subscription = handler.subscription.id(projectID: projectID)
-        $0.maxMessages = 1_000
-      }, options: options)
-
-    guard !response.receivedMessages.isEmpty else {
-      return
-    }
-
-    await Task.detached {  // Run detached so we don't forward the cancellation. Let handling of messages continue.
-      await withDiscardingTaskGroup { group in
-        for message in response.receivedMessages {
-          group.addTask {
-            await self.handle(message: message)
-          }
-        }
-      }
-    }.value
+  private func process(_ item: MessageInventory.Item, inventory: MessageInventory) async {
+    await handle(message: item.message)
+    inventory.release(item.ackID)
   }
 
   private func handle(message: Google_Pubsub_V1_ReceivedMessage) async {
@@ -252,6 +263,8 @@ public final class PullSubscriber<Handler: _Handler>: Service {
 
       do {
         try await ackBatcher.ack(AckID(message.ackID))
+      } catch is CancellationError {
+        logger.debug("Cancelled while waiting for acknowledgement, which is still sent.")
       } catch {
         logger.critical("Failed to acknowledge message: \(error)")
       }
@@ -268,6 +281,8 @@ public final class PullSubscriber<Handler: _Handler>: Service {
 
     do {
       try await ackBatcher.nack(AckID(message.ackID))
+    } catch is CancellationError {
+      logger.debug("Cancelled while waiting for unacknowledgement, which is still sent.")
     } catch {
       logger.error("Failed to unacknowledge message: \(error)")
     }
