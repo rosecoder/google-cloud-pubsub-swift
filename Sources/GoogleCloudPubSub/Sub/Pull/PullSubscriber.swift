@@ -199,7 +199,8 @@ public final class PullSubscriber<Handler: _Handler>: Service {
       lease: options.lease,
       initialAckDeadline: AckDeadline(.seconds(handler.subscription.acknowledgeDeadline)))
 
-    // Handlers finish before leasing stops, and both before the remaining acks are flushed.
+    // Handlers finish, queueing their acks and nacks, before leasing stops, and both before the
+    // remaining acks are flushed.
     await withDiscardingTaskGroup { ackGroup in
       ackGroup.addTask {
         await self.ackBatcher.run()
@@ -314,12 +315,18 @@ public final class PullSubscriber<Handler: _Handler>: Service {
   // MARK: - Handling
 
   private func process(_ item: MessageInventory.Item, inventory: MessageInventory) async {
-    await handle(item, inventory: inventory)
+    let (outcome, logger) = await handle(item.message)
+    if let outcome {
+      await respond(to: item, with: outcome, inventory: inventory, logger: logger)
+    }
     inventory.release(item.ackID, now: now())
   }
 
-  private func handle(_ item: MessageInventory.Item, inventory: MessageInventory) async {
-    let message = item.message
+  /// - Returns: How the message should be settled, or `nil` if its handler was cancelled by
+  ///   shutdown, and the logger the handler left.
+  private func handle(
+    _ message: Google_Pubsub_V1_ReceivedMessage
+  ) async -> (MessageInventory.Outcome?, Logger) {
     await withSpan(handler.subscription.name, ofKind: .consumer) { span in
       span.attributes["message"] = message.message.messageID
 
@@ -341,9 +348,7 @@ public final class PullSubscriber<Handler: _Handler>: Service {
         )
         try Task.checkCancellation()
       } catch {
-        await handleHandler(
-          error: error, item: item, inventory: inventory, logger: logger, span: span)
-        return
+        return (outcome(of: error, logger: logger, span: span), logger)
       }
 
       span.addEvent("message-decoded")
@@ -352,53 +357,73 @@ public final class PullSubscriber<Handler: _Handler>: Service {
       let context = HandlerContext(logger: logger, span: span)
       do {
         try await handler.handle(message: decodedMessage, context: context)
-        logger = context.logger
       } catch {
-        logger = context.logger
-        await handleHandler(
-          error: error, item: item, inventory: inventory, logger: logger, span: span)
-        return
+        return (outcome(of: error, logger: context.logger, span: span), context.logger)
       }
+      logger = context.logger
 
       logger.debug("Handling successful.")
       span.setStatus(SpanStatus(code: .ok))
-      guard inventory.claim(item.ackID) else {
-        logger.debug("Dropped acknowledgement of message already nacked at shutdown.")
-        return
-      }
-      inventory.recordAckLatency(item.receivedAt.duration(to: now()))
-
-      do {
-        try await ackBatcher.ack(item.ackID)
-      } catch is CancellationError {
-        logger.debug("Cancelled while waiting for acknowledgement, which is still sent.")
-      } catch AckBatcherError.flushDeadlineExceeded {
-        logger.warning("Acknowledgement not sent before the shutdown deadline.")
-      } catch {
-        logger.critical("Failed to acknowledge message: \(error)")
-      }
+      return (.ack, logger)
     }
   }
 
-  func handleHandler(
-    error: Error, item: MessageInventory.Item, inventory: MessageInventory, logger: Logger,
-    span: any Span
-  ) async {
+  func outcome(of error: Error, logger: Logger, span: any Span) -> MessageInventory.Outcome? {
     span.recordError(error)
     if error is CancellationError, Task.isCancelled {
       logger.debug("Handler cancelled by shutdown.")
-      return
+      return nil
     }
     if !(error is CancellationError) {
       logger.error("\(error)")
     }
-    guard inventory.claim(item.ackID) else {
-      logger.debug("Dropped unacknowledgement of message already nacked at shutdown.")
+    return .nack
+  }
+
+  /// Queues the ack or nack of a message without waiting for it to be sent, so its capacity can
+  /// be released right away. The ``AckBatcher`` logs failures.
+  ///
+  /// With exactly-once delivery an ack can fail, so this waits until it has been sent, and the
+  /// message stays leased until then.
+  private func respond(
+    to item: MessageInventory.Item, with outcome: MessageInventory.Outcome,
+    inventory: MessageInventory, logger: Logger
+  ) async {
+    guard inventory.claim(item.ackID, for: outcome) else {
+      logger.debug("Dropped \(outcome) of message already nacked at shutdown.")
       return
     }
+    if outcome == .ack {
+      inventory.recordAckLatency(item.receivedAt.duration(to: now()))
+    }
+    let exactlyOnceDelivery = inventory.exactlyOnceDelivery
+    switch outcome {
+    case .ack where !exactlyOnceDelivery:
+      ackBatcher.enqueueAcks(CollectionOfOne(item.ackID))
+    case .nack where !exactlyOnceDelivery:
+      ackBatcher.enqueueNacks(CollectionOfOne(item.ackID))
+    case .ack:
+      await waitForAck(of: item.ackID, logger: logger)
+    case .nack:
+      await waitForNack(of: item.ackID, logger: logger)
+    }
+  }
 
+  private func waitForAck(of id: AckID, logger: Logger) async {
     do {
-      try await ackBatcher.nack(item.ackID)
+      try await ackBatcher.ack(id)
+    } catch is CancellationError {
+      logger.debug("Cancelled while waiting for acknowledgement, which is still sent.")
+    } catch AckBatcherError.flushDeadlineExceeded {
+      logger.warning("Acknowledgement not sent before the shutdown deadline.")
+    } catch {
+      logger.critical("Failed to acknowledge message: \(error)")
+    }
+  }
+
+  private func waitForNack(of id: AckID, logger: Logger) async {
+    do {
+      try await ackBatcher.nack(id)
     } catch is CancellationError {
       logger.debug("Cancelled while waiting for unacknowledgement, which is still sent.")
     } catch AckBatcherError.flushDeadlineExceeded {

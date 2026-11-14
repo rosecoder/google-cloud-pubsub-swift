@@ -122,6 +122,12 @@ final class AckBatcher<C: Clock>: Sendable where C.Duration == Duration {
     }
   }
 
+  /// Queues acks without waiting for their outcome. Failures are only logged, and IDs submitted
+  /// after ``run()`` returned are dropped.
+  func enqueueAcks(_ ids: some Sequence<AckID>) {
+    enqueueWithoutWaiting(ids, .acknowledge)
+  }
+
   /// Queues nacks without waiting for their outcome. Failures are only logged, and IDs submitted
   /// after ``run()`` returned are dropped.
   func enqueueNacks(_ ids: some Sequence<AckID>) {
@@ -300,10 +306,17 @@ final class AckBatcher<C: Clock>: Sendable where C.Duration == Duration {
           case .stop:
             return
           case .abandon(let unsent):
-            logger.debug("Dropped \(unsent.count) requests not sent by the flush deadline")
-            complete(
-              unsent, with: .failure(AckBatcherError.flushDeadlineExceeded),
-              finishesRequest: false)
+            for batch in unsent {
+              for (operation, entries) in batch.requests {
+                logger.debug(
+                  "Dropped \(operation) of \(entries.count) messages not sent by the flush deadline")
+                let unobserved = complete(
+                  entries, with: .failure(AckBatcherError.flushDeadlineExceeded),
+                  finishesRequest: false)
+                logUnobservedFailure(
+                  of: operation, count: unobserved, AckBatcherError.flushDeadlineExceeded)
+              }
+            }
             group.cancelAll()
             return
           }
@@ -348,7 +361,7 @@ final class AckBatcher<C: Clock>: Sendable where C.Duration == Duration {
           state.sealOpen()
           defer { state.sealed = [] }
           state.lifecycle = .finished
-          return .next(.abandon(state.sealed.flatMap(\.entries)))
+          return .next(.abandon(state.sealed))
         }
         if let openedAt = state.openedAt,
           state.lifecycle != .running || openedAt.advanced(by: configuration.maxDelay) <= clock.now
@@ -433,7 +446,33 @@ final class AckBatcher<C: Clock>: Sendable where C.Duration == Duration {
       // Sends are only cancelled at the flush deadline.
       result = .failure(Task.isCancelled ? AckBatcherError.flushDeadlineExceeded : error)
     }
-    complete(entries, with: result, finishesRequest: true)
+    let unobserved = complete(entries, with: result, finishesRequest: true)
+    if case .failure(let error) = result {
+      logUnobservedFailure(of: operation, count: unobserved, error)
+    }
+  }
+
+  /// Callers waiting for a result log their own failures, so this only logs those of requests
+  /// nobody waits for.
+  private func logUnobservedFailure(of operation: Operation, count: Int, _ error: any Error) {
+    guard count > 0 else {
+      return
+    }
+    let isPastDeadline = (error as? AckBatcherError) == .flushDeadlineExceeded
+    switch operation {
+    case .acknowledge:
+      if isPastDeadline {
+        logger.warning("\(count) acknowledgements not sent before the shutdown deadline.")
+      } else {
+        logger.critical("Failed to acknowledge \(count) messages: \(error)")
+      }
+    case .modifyAckDeadline(.nack):
+      if !isPastDeadline {
+        logger.error("Failed to unacknowledge \(count) messages: \(error)")
+      }
+    case .modifyAckDeadline(.extend):
+      break
+    }
   }
 
   private func withRetries(
@@ -473,13 +512,15 @@ final class AckBatcher<C: Clock>: Sendable where C.Duration == Duration {
 
   /// - Parameter finishesRequest: Whether `entries` were sent in an RPC counted as in flight,
   ///   rather than superseded by other requests for the same IDs.
+  /// - Returns: The number of entries no caller waits for.
+  @discardableResult
   private func complete(
     _ entries: [Entry], with result: Result<Void, any Error>, finishesRequest: Bool
-  ) {
+  ) -> Int {
     guard !entries.isEmpty || finishesRequest else {
-      return
+      return 0
     }
-    let (continuations, groupContinuations, wakeup) = state.withLock { state in
+    let (continuations, groupContinuations, unobserved, wakeup) = state.withLock { state in
       var wakeup: CheckedContinuation<Void, Never>?
       if finishesRequest {
         state.inFlightCount -= 1
@@ -490,6 +531,7 @@ final class AckBatcher<C: Clock>: Sendable where C.Duration == Duration {
 
       var continuations: [CheckedContinuation<Void, any Error>] = []
       var groupContinuations: [CheckedContinuation<Void, Never>] = []
+      var unobserved = 0
       for entry in entries {
         switch state.waiters[entry.token] {
         case .waiting(let continuation):
@@ -499,16 +541,19 @@ final class AckBatcher<C: Clock>: Sendable where C.Duration == Duration {
           state.waiters[entry.token] = .completed(result)
         case .cancelled:
           state.waiters[entry.token] = nil
+          unobserved += 1
         case .member(let group):
           state.waiters[entry.token] = nil
           if let continuation = state.completeMember(of: group) {
             groupContinuations.append(continuation)
           }
-        case .completed, nil:
+        case nil:
+          unobserved += 1
+        case .completed:
           break
         }
       }
-      return (continuations, groupContinuations, wakeup)
+      return (continuations, groupContinuations, unobserved, wakeup)
     }
     for continuation in continuations {
       continuation.resume(with: result)
@@ -517,6 +562,7 @@ final class AckBatcher<C: Clock>: Sendable where C.Duration == Duration {
       continuation.resume()
     }
     wakeup?.resume()
+    return unobserved
   }
 }
 
@@ -576,10 +622,6 @@ extension AckBatcher {
 
     var isEmpty: Bool {
       count == 0
-    }
-
-    var entries: [Entry] {
-      requests.values.flatMap { $0 }
     }
 
     mutating func append(_ entry: Entry, for operation: Operation, size: Int) {
@@ -657,8 +699,8 @@ extension AckBatcher {
     case flush([Batch])
     case stop
 
-    /// The flush deadline has passed with these entries still unsent.
-    case abandon([Entry])
+    /// The flush deadline has passed with these batches still unsent.
+    case abandon([Batch])
   }
 
   fileprivate enum Action {
