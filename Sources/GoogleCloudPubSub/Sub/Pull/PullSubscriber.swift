@@ -85,6 +85,7 @@ public final class PullSubscriber<Handler: _Handler>: Service {
   /// - Parameter clock: Times lease renewals, keepalives, reconnects and shutdown, and is the time
   ///   messages are received and released at. Acks and nacks are batched with a `ContinuousClock`
   ///   regardless.
+  /// - Parameter logger: Logs everything about the subscription, labelled after it by default.
   init<SubscriberClock: Clock>(
     handler: Handler,
     projectID: String,
@@ -94,7 +95,8 @@ public final class PullSubscriber<Handler: _Handler>: Service {
     streamingPullConnection: (any StreamingPullConnection)? = nil,
     ackTransport: (any AckTransport)? = nil,
     clock: SubscriberClock,
-    leaseGenerator: some RandomNumberGenerator & Sendable
+    leaseGenerator: some RandomNumberGenerator & Sendable,
+    logger: Logger? = nil
   )
   where
     SubscriberClock.Duration == Duration, SubscriberClock.Instant == ContinuousClock.Instant
@@ -114,7 +116,8 @@ public final class PullSubscriber<Handler: _Handler>: Service {
         extendDeadlines: extendDeadlines
       ).run()
     }
-    let logger = Logger(label: "pubsub.subscriber." + handler.subscription.name)
+    var logger = logger ?? Logger(label: "pubsub.subscriber." + handler.subscription.name)
+    logger[metadataKey: "subscription"] = .string(handler.subscription.name)
     let client = Google_Pubsub_V1_Subscriber.Client(wrapping: pubSubService.grpcClient)
     let subscriptionID = handler.subscription.id(projectID: projectID)
     self.projectID = projectID
@@ -331,7 +334,6 @@ public final class PullSubscriber<Handler: _Handler>: Service {
       span.attributes["message"] = message.message.messageID
 
       var logger = self.logger
-      logger[metadataKey: "subscription"] = .string(handler.subscription.name)
       span.attributes["message"] = message.message.messageID
       logger.debug("Handling incoming message. Decoding...")
 
@@ -417,7 +419,7 @@ public final class PullSubscriber<Handler: _Handler>: Service {
     } catch AckBatcherError.flushDeadlineExceeded {
       logger.warning("Acknowledgement not sent before the shutdown deadline.")
     } catch {
-      logger.critical("Failed to acknowledge message: \(error)")
+      logger.error("Failed to acknowledge message: \(error)")
     }
   }
 
