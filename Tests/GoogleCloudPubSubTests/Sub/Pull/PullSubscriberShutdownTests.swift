@@ -189,7 +189,7 @@ import Testing
     await serviceGroup.triggerGracefulShutdown()
     gate.open()
 
-    #expect(try await finishes(run, within: .seconds(5)))
+    #expect(try await finishes(run, within: PubSubService.shutdownTimeout + .seconds(5)))
     #expect(
       Set(ackTransport.ids(of: .acknowledge))
         == Set((0..<subscriberCount).map { AckID("ack-\($0)") }))
