@@ -124,8 +124,18 @@ public final class PullSubscriber<Handler: _Handler>: Service {
     self.client = client
     self.publisherClient = publisherClient
     self.pubSubService = pubSubService
+    let withConnection: StreamingPullReceiver.WithConnection
+    if let streamingPullConnection {
+      withConnection = { body in try await body(streamingPullConnection) }
+    } else {
+      withConnection = { body in
+        try await pubSubService.pool.withStreamSlot { client in
+          try await body(Google_Pubsub_V1_Subscriber.Client(wrapping: client))
+        }
+      }
+    }
     self.receiver = StreamingPullReceiver(
-      connection: streamingPullConnection ?? client,
+      withConnection: withConnection,
       subscriptionID: subscriptionID,
       clientID: UUID().uuidString,
       flowControl: options.flowControl,
