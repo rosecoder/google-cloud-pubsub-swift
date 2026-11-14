@@ -90,8 +90,54 @@ struct RestartableSharedClientIntegrationTests {
       let published = try await publisher.publish(to: topic, body: "After stopping \(index)")
       #expect(!published.id.isEmpty)
     }
-    #expect(pubSubService.clientUsage.startedGenerations == 3)
+    #expect(pubSubService.clientUsage.startedGenerations == 2)
     #expect(pubSubService.clientUsage.users == 0)
+    #expect(pubSubService.clientUsage.isLingering)
+
+    try await pubSubService.withClientInUse(.service) { _ in }
+  }
+
+  @Test(.timeLimit(.minutes(1)))
+  func shouldPublishWithNewGenerationAfterLingerExpired() async throws {
+    let pubSubService = try PubSubService(lingerDuration: .milliseconds(100))
+    let publisher = Publisher(projectID: projectID, pubSubService: pubSubService)
+    let topic = Topic<PlainTextMessage>(name: uniqueName("RestartableSharedClientIntegrationTests"))
+
+    _ = try await publisher.publish(to: topic, body: "Before linger expired")
+    try await waitUntil { pubSubService.clientUsage.hasBegunShutdown }
+    let published = try await publisher.publish(to: topic, body: "After linger expired")
+
+    #expect(!published.id.isEmpty)
+    #expect(pubSubService.clientUsage.startedGenerations == 2)
+    try await pubSubService.withClientInUse(.service) { _ in }
+  }
+
+  @Test(.timeLimit(.minutes(1)))
+  func shouldNotDelayServiceGroupShutdownByLinger() async throws {
+    let pubSubService = try PubSubService(lingerDuration: .seconds(60))
+    let topic = Topic<PlainTextMessage>(name: uniqueName("RestartableSharedClientIntegrationTests"))
+    let (received, receivedContinuation) = AsyncStream.makeStream(of: String.self)
+    let handler = CallbackHandler(topic: topic) { receivedContinuation.yield($0.body) }
+    let publisher = Publisher(projectID: projectID, pubSubService: pubSubService)
+    let subscriber = PullSubscriber(
+      handler: handler, projectID: projectID, pubSubService: pubSubService)
+
+    try await pubSubService.create(subscription: handler.subscription, projectID: projectID)
+    #expect(pubSubService.clientUsage.isLingering)
+
+    let serviceGroup = ServiceGroup(
+      services: [publisher, subscriber], gracefulShutdownSignals: [],
+      logger: Logger(label: "test.restartable-shared-client.linger"))
+    let run = Task { try await serviceGroup.run() }
+    _ = try await publisher.publish(to: topic, body: "Hello")
+    #expect(await received.first { _ in true } == "Hello")
+
+    let start = ContinuousClock.now
+    await serviceGroup.triggerGracefulShutdown()
+    #expect(try await finishes(run, within: .seconds(10)))
+    #expect(start.duration(to: .now) < .seconds(5))
+    #expect(pubSubService.clientUsage.startedGenerations == 1)
+    #expect(pubSubService.clientUsage.hasBegunShutdown)
   }
 
   /// Stopping cancels the connections rather than waiting for an RPC its last user left running.
@@ -103,7 +149,7 @@ struct RestartableSharedClientIntegrationTests {
 
     let leakedRPC = Mutex<Task<Void, any Error>?>(nil)
     let stopping = Task {
-      try await pubSubService.withClientInUse { clients in
+      try await pubSubService.withClientInUse(.service) { clients in
         let rpc = Task {
           try await clients.subscriber.streamingPull(
             metadata: [:], options: .defaults,
@@ -131,6 +177,7 @@ struct RestartableSharedClientIntegrationTests {
     let published = try await publisher.publish(to: topic, body: "After stopping")
     #expect(!published.id.isEmpty)
     #expect(pubSubService.clientUsage.startedGenerations == 2)
+    try await pubSubService.withClientInUse(.service) { _ in }
   }
 
   // MARK: - Helpers

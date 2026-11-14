@@ -31,6 +31,9 @@ actor PubSubService {
     @Sendable () throws -> GRPCClientPool<GRPCClient<HTTP2ClientTransport.Posix>>
   nonisolated let isUsingEmulator: Bool
 
+  /// Time the clients keep running after their last user was a ``Use/call``.
+  nonisolated let lingerDuration: Duration
+
   /// Largest gRPC message sent or received, as in the Go client. Pub/Sub accepts publish requests
   /// of up to 10 MB and StreamingPull responses batch several messages, so the transport's 4 MiB
   /// default would reject them.
@@ -44,9 +47,11 @@ actor PubSubService {
   /// - Parameter emulatorHost: `host:port` of a Pub/Sub emulator to use instead of Google Cloud.
   init(
     maxStreamsPerConnection: Int = 80,
+    lingerDuration: Duration = .seconds(30),
     channelDebuggingCallbacks: HTTP2ClientTransport.Config.ChannelDebuggingCallbacks = .defaults,
     emulatorHost: String? = ProcessInfo.processInfo.environment["PUBSUB_EMULATOR_HOST"]
   ) throws {
+    self.lingerDuration = lingerDuration
     let target: ResolvableTargets.DNS
     let transportSecurity: HTTP2ClientTransport.Posix.TransportSecurity
     let interceptors: [any ClientInterceptor]
@@ -159,6 +164,18 @@ actor PubSubService {
     }
   }
 
+  /// How long a use of the clients lasts, which decides what happens when it is their last user.
+  enum Use: Sendable {
+
+    /// Runs until its service shuts down. The clients shut down right away after the last one, so
+    /// that the process can exit.
+    case service
+
+    /// A few RPCs. The clients keep running for ``PubSubService/lingerDuration`` after the last
+    /// one, so that consecutive calls reuse their connections.
+    case call
+  }
+
   /// Counts the users of the current generation of clients. The first user after the previous
   /// generation began shutting down starts a new one without waiting for it to stop.
   struct ClientUsage<Generation: Sendable>: Sendable {
@@ -166,15 +183,26 @@ actor PubSubService {
     private(set) var current: Generation?
     private(set) var startedGenerations = 0
 
+    /// Identifies the linger of the current generation while no user holds it.
+    private(set) var linger: Int?
+    private var lingerCount = 0
+
     /// Whether the last generation has begun shutting down and no new one has been started.
     var hasBegunShutdown: Bool {
       startedGenerations > 0 && current == nil
     }
 
+    var isLingering: Bool {
+      linger != nil
+    }
+
+    /// Ends a linger, so that a pending ``expireLinger(_:)`` does nothing.
+    ///
     /// - Returns: The current generation, created with `start` if there is none.
     mutating func retain(startingWith start: () throws -> Generation) rethrows -> Generation {
       if let current {
         users += 1
+        linger = nil
         return current
       }
       let generation = try start()
@@ -184,34 +212,75 @@ actor PubSubService {
       return generation
     }
 
-    /// - Returns: The generation to shut down if this was its last user.
-    mutating func release() -> Generation? {
+    enum Release {
+
+      /// Other users still hold the generation.
+      case keep
+
+      case shutDown(Generation)
+
+      /// The generation keeps running until ``ClientUsage/expireLinger(_:)`` is called with the
+      /// identifier, unless a user arrives before.
+      case linger(Int)
+    }
+
+    mutating func release(_ use: Use) -> Release {
       users -= 1
-      guard users == 0 else {
+      guard users == 0, let current else {
+        return .keep
+      }
+      switch use {
+      case .service:
+        self.current = nil
+        return .shutDown(current)
+      case .call:
+        lingerCount += 1
+        linger = lingerCount
+        return .linger(lingerCount)
+      }
+    }
+
+    /// - Returns: The generation to shut down, unless a user arrived since the linger began.
+    mutating func expireLinger(_ id: Int) -> Generation? {
+      guard linger == id, let current else {
         return nil
       }
-      defer { current = nil }
+      linger = nil
+      self.current = nil
       return current
     }
   }
 
-  private nonisolated let usage = Mutex(ClientUsage<Clients>())
+  private struct State {
+    var usage = ClientUsage<Clients>()
+
+    /// Lingers before stopping a generation last used by a call, then stops it. Awaits the one
+    /// before, so awaiting the latest awaits every generation stopped in the background.
+    var background: Task<Void, Never>?
+  }
+
+  private nonisolated let state = Mutex(State())
 
   /// Runs the current generation of clients while `body` runs, sharing it with concurrent callers,
   /// or starts a new one if there is none. Every RPC runs in such a use, so the clients stop only
   /// once none is in flight.
   ///
-  /// Returns as soon as `body` has, unless this was the last caller: it then stops the clients
-  /// before returning.
+  /// Returns as soon as `body` has. If this was the last caller and a ``Use/service``, it then stops
+  /// the clients, and those stopping in the background, before returning. After the last
+  /// ``Use/call``, the clients keep running for ``lingerDuration`` and then stop in the background.
   ///
   /// - Parameter body: Must not use the clients after returning.
   /// - Throws: Without running `body` if new clients couldn't be created.
   nonisolated func withClientInUse<T: Sendable>(
+    _ use: Use = .call,
     _ body: (Clients) async throws -> T
   ) async throws -> T {
-    let clients = try usage.withLock { usage in
-      try usage.retain { Clients(pool: try makePool()) }
+    let (clients, endedLinger) = try state.withLock { state in
+      let wasLingering = state.usage.isLingering
+      let clients = try state.usage.retain { Clients(pool: try makePool()) }
+      return (clients, wasLingering ? state.background : nil)
     }
+    endedLinger?.cancel()
 
     let result: Result<T, any Error>
     do {
@@ -220,15 +289,45 @@ actor PubSubService {
       result = .failure(error)
     }
 
-    if let stopping = usage.withLock({ $0.release() }) {
+    let (stopping, background) = state.withLock { state -> (Clients?, Task<Void, Never>?) in
+      switch state.usage.release(use) {
+      case .keep:
+        return (nil, nil)
+      case .shutDown(let stopping):
+        return (stopping, state.background)
+      case .linger(let id):
+        state.background = lingerThenStop(id, after: state.background)
+        return (nil, nil)
+      }
+    }
+    if let stopping {
       do {
         try await stop(stopping)
       } catch {
         _ = try result.get()
         throw error
       }
+      await background?.value
     }
     return try result.get()
+  }
+
+  /// Stops the current generation after ``lingerDuration`` unless a user arrives before, which
+  /// cancels the returned task.
+  private nonisolated func lingerThenStop(
+    _ id: Int, after previous: Task<Void, Never>?
+  ) -> Task<Void, Never> {
+    Task {
+      try? await Task.sleep(for: lingerDuration)
+      if let expired = state.withLock({ $0.usage.expireLinger(id) }) {
+        do {
+          try await stop(expired)
+        } catch {
+          Self.logger.error("The gRPC clients failed after lingering: \(error)")
+        }
+      }
+      await previous?.value
+    }
   }
 
   /// Rejects new RPCs and cancels the clients' connections rather than waiting for the transport's
@@ -243,7 +342,7 @@ actor PubSubService {
   }
 
   nonisolated var clientUsage: ClientUsage<Clients> {
-    usage.withLock { $0 }
+    state.withLock { $0.usage }
   }
 
   /// Number of active streams per client of the current generation, in creation order.

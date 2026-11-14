@@ -56,7 +56,7 @@ func withGCPResources<T: Sendable>(
   _ body: @Sendable (GCPResources) async throws -> T
 ) async throws -> T {
   let projectID = try #require(GCP.projectID)
-  return try await PubSubService().withClientInUse { clients in
+  return try await PubSubService().withClientInUse(.service) { clients in
     let resources = GCPResources(projectID: projectID, clients: clients)
     let result: Result<T, any Error>
     do {

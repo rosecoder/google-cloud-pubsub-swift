@@ -33,7 +33,7 @@ func withDisposablePullSubscriber<Message: _Message>(
   )
 
   // Keeps the clients running from creating the subscription until the subscriber is done.
-  try await pubSubService.withClientInUse { _ in
+  try await pubSubService.withClientInUse(.service) { _ in
     logger.debug("Creating subscription...")
     try await pubSubService.create(subscription: subscription, projectID: projectID)
 

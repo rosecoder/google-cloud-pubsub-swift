@@ -49,11 +49,11 @@ public final class Publisher: PublisherProtocol, Service {
   /// Keeps the client running until graceful shutdown or cancellation. Subscribers sharing the
   /// client keep it running for publishing from their handlers after this has returned.
   ///
-  /// Publishing while neither this nor anything else sharing the client runs starts the client
-  /// for each call.
+  /// Publishing while neither this nor anything else sharing the client runs starts the client,
+  /// which keeps running for 30 seconds after the last publish.
   public func run() async throws {
     do {
-      try await pubSubService.withClientInUse { _ in
+      try await pubSubService.withClientInUse(.service) { _ in
         try? await gracefulShutdown()
       }
     } catch is CancellationError {}
