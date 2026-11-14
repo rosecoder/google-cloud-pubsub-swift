@@ -42,11 +42,11 @@ struct PullSubscriberIntegrationTests {
         projectID: projectID,
         pubSubService: pubSubService
       )
+      try await pubSubService.create(subscription: handler.subscription, projectID: projectID)
       let subscriberRunTask = Task {
         try await subscriber.run()
       }
       defer { subscriberRunTask.cancel() }
-      try await pubSubService.create(subscription: handler.subscription, projectID: projectID)
 
       // Publish message
       let publishedMessage = try await publisher.publish(to: topic, body: "Hello")

@@ -42,7 +42,7 @@ struct ConnectionPoolIntegrationTests {
   /// Runs subscribers of their own topic on one shared service until each has received a message.
   ///
   /// - Returns: The streams per streaming client and the number of open TCP connections, including
-  ///   the unary one, once all subscribers streamed.
+  ///   the unary one, once all subscribers received their message.
   private func receiveOneMessageEach(subscriberCount: Int, maxStreamsPerConnection: Int)
     async throws -> Result
   {
@@ -76,19 +76,13 @@ struct ConnectionPoolIntegrationTests {
     return try await testGracefulShutdown { shutdownTrigger in
       let publisherRun = Task { try await publisher.run() }
       defer { publisherRun.cancel() }
+      for handler in handlers {
+        try await pubSubService.create(subscription: handler.subscription, projectID: projectID)
+      }
       let subscriberRuns = subscribers.map { subscriber in
         Task { try await subscriber.run() }
       }
       defer { for run in subscriberRuns { run.cancel() } }
-      for handler in handlers {
-        try await pubSubService.create(subscription: handler.subscription, projectID: projectID)
-      }
-      try await waitUntil {
-        pubSubService.activeStreamCounts.reduce(0, +) == subscriberCount
-      }
-      let activeStreamCounts = pubSubService.activeStreamCounts
-      let openConnectionCount = openConnections.withLock { $0.count }
-
       for topic in topics {
         _ = try await publisher.publish(to: topic, body: "Hello")
       }
@@ -100,6 +94,8 @@ struct ConnectionPoolIntegrationTests {
         }
       }
       #expect(receivedTopics == Set(topics.map(\.name)))
+      let activeStreamCounts = pubSubService.activeStreamCounts
+      let openConnectionCount = openConnections.withLock { $0.count }
 
       shutdownTrigger.triggerGracefulShutdown()
       for run in subscriberRuns {
