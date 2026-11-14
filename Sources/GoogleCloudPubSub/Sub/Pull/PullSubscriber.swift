@@ -362,7 +362,7 @@ public final class PullSubscriber<Handler: _Handler>: Service {
 
       logger.debug("Handling successful.")
       span.setStatus(SpanStatus(code: .ok))
-      guard inventory.claim(item.ackID) else {
+      guard inventory.claim(item.ackID, for: .ack) else {
         logger.debug("Dropped acknowledgement of message already nacked at shutdown.")
         return
       }
@@ -392,7 +392,7 @@ public final class PullSubscriber<Handler: _Handler>: Service {
     if !(error is CancellationError) {
       logger.error("\(error)")
     }
-    guard inventory.claim(item.ackID) else {
+    guard inventory.claim(item.ackID, for: .nack) else {
       logger.debug("Dropped unacknowledgement of message already nacked at shutdown.")
       return
     }
