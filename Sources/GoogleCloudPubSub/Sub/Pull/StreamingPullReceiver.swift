@@ -150,7 +150,9 @@ struct StreamingPullReceiver: Sendable {
     var options = CallOptions.defaults
     // Set per call, since the client's service config gives every method a 60 second timeout.
     options.timeout = streamTimeout
-    options.waitForReady = true
+    // Fails the stream while the channel can't connect instead of waiting up to the timeout, so
+    // that outages are retried and reported like other failures.
+    options.waitForReady = false
 
     try await connection.streamingPull(
       metadata: ["x-goog-request-params": "subscription=\(subscriptionID)"],
