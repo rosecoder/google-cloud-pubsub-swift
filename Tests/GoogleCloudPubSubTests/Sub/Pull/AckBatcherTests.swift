@@ -61,7 +61,7 @@ import Testing
 
       clock.advance(by: .milliseconds(100))
       for task in tasks {
-        try await task.value
+        try await task.cancellableValue
       }
 
       #expect(transport.calls.map(\.ids.count) == [3, 1])
@@ -82,7 +82,7 @@ import Testing
 
       clock.advance(by: .milliseconds(100))
       for task in tasks {
-        try await task.value
+        try await task.cancellableValue
       }
 
       #expect(transport.calls.map(\.ids.count) == [3, 3, 1])
@@ -184,7 +184,7 @@ import Testing
       #expect(batcher.waiterCount == 1)
 
       clock.advance(by: .milliseconds(100))
-      await modify.value
+      await modify.cancellableValue
 
       #expect(transport.calls.map(\.ids.count) == [2, 1])
       #expect(batcher.waiterCount == 0)
@@ -201,7 +201,7 @@ import Testing
       try await waitUntil { batcher.queuedCount == 2 }
 
       modify.cancel()
-      await modify.value
+      await modify.cancellableValue
       #expect(batcher.waiterCount == 0)
 
       clock.advance(by: .milliseconds(100))
@@ -221,7 +221,7 @@ import Testing
       try await waitUntil { batcher.queuedCount == 1 }
 
       clock.advance(by: .milliseconds(100))
-      await modify.value
+      await modify.cancellableValue
 
       #expect(batcher.waiterCount == 0)
     }
@@ -265,9 +265,9 @@ import Testing
 
       clock.advance(by: .milliseconds(100))
 
-      let error = await #expect(throws: RPCError.self) { try await ack.value }
+      let error = await #expect(throws: RPCError.self) { try await ack.cancellableValue }
       #expect(error?.code == .invalidArgument)
-      try await nack.value
+      try await nack.cancellableValue
     }
   }
 
@@ -303,7 +303,7 @@ import Testing
 
       clock.advance(by: .milliseconds(100))
 
-      let error = await #expect(throws: RPCError.self) { try await ack.value }
+      let error = await #expect(throws: RPCError.self) { try await ack.cancellableValue }
       #expect(error?.code == .permissionDenied)
       #expect(transport.calls.count == 1)
       #expect(clock.sleeperCount == 0)
@@ -327,7 +327,7 @@ import Testing
       // The next delay, 2 seconds, would end after the 2 second retry budget.
       clock.advance(by: .seconds(1))
 
-      let error = await #expect(throws: RPCError.self) { try await ack.value }
+      let error = await #expect(throws: RPCError.self) { try await ack.cancellableValue }
       #expect(error?.code == .unavailable)
       #expect(transport.calls.count == 2)
     }
@@ -384,13 +384,15 @@ import Testing
     let gate = Gate()
     let transport = FakeAckTransport { call, _ in
       if call.ids == [AckID("a")] {
-        await gate.wait()
+        try await gate.wait()
       }
     }
     let batcher = makeBatcher(transport: transport)
 
     try await withThrowingDiscardingTaskGroup { group in
       group.addTask { await batcher.run() }
+      // Sends aren't cancelled, so the batcher only returns once the gate is open.
+      defer { gate.open() }
       async let a: Void = batcher.ack(AckID("a"))
       try await waitUntil { batcher.queuedCount == 1 }
       batcher.finish()
@@ -411,11 +413,12 @@ import Testing
     }
     let batcher = makeBatcher(transport: transport)
     let run = Task { await batcher.run() }
+    defer { run.cancel() }
 
     async let a: Void = batcher.ack(AckID("a"))
     try await waitUntil { clock.sleeperCount == 1 }
     run.cancel()
-    await run.value
+    await run.cancellableValue
 
     try await a
     #expect(transport.calls == [.init(.acknowledge, [AckID("a")])])
@@ -438,7 +441,7 @@ import Testing
       batcher.finish(flushBy: clock.now.advanced(by: .milliseconds(2_500)))
       clock.advance(by: .seconds(1))
 
-      let error = await #expect(throws: RPCError.self) { try await ack.value }
+      let error = await #expect(throws: RPCError.self) { try await ack.cancellableValue }
       #expect(error?.code == .unavailable)
       #expect(transport.calls.count == 2)
     }
@@ -451,6 +454,7 @@ import Testing
     }
     let batcher = makeBatcher(transport: transport)
     let run = Task { await batcher.run() }
+    defer { run.cancel() }
 
     let ack = Task { try await batcher.ack(AckID("a")) }
     try await waitUntil { batcher.queuedCount == 1 }
@@ -461,8 +465,8 @@ import Testing
     try await waitUntil { clock.sleeperCount == 1 }
     clock.advance(by: .seconds(1))
 
-    await run.value
-    await #expect(throws: AckBatcherError.flushDeadlineExceeded) { try await ack.value }
+    await run.cancellableValue
+    await #expect(throws: AckBatcherError.flushDeadlineExceeded) { try await ack.cancellableValue }
     #expect(batcher.waiterCount == 0)
   }
 
@@ -470,15 +474,16 @@ import Testing
     let transport = FakeAckTransport()
     let batcher = makeBatcher(transport: transport)
     let run = Task { await batcher.run() }
+    defer { run.cancel() }
 
     let ack = Task { try await batcher.ack(AckID("a")) }
     let group = Task { await batcher.modifyDeadlines([AckID("b")], to: .seconds(30)) }
     try await waitUntil { batcher.queuedCount == 2 }
     batcher.finish(flushBy: clock.now)
 
-    await run.value
-    await #expect(throws: AckBatcherError.flushDeadlineExceeded) { try await ack.value }
-    await group.value
+    await run.cancellableValue
+    await #expect(throws: AckBatcherError.flushDeadlineExceeded) { try await ack.cancellableValue }
+    await group.cancellableValue
     #expect(transport.calls.isEmpty)
     #expect(batcher.waiterCount == 0)
     await #expect(throws: AckBatcherError.shutDown) { try await batcher.ack(AckID("c")) }
@@ -488,6 +493,7 @@ import Testing
     let transport = FakeAckTransport()
     let batcher = makeBatcher(transport: transport)
     let run = Task { await batcher.run() }
+    defer { run.cancel() }
 
     let ack = Task { try await batcher.ack(AckID("a")) }
     try await waitUntil { batcher.queuedCount == 1 }
@@ -495,8 +501,8 @@ import Testing
     batcher.finish(flushBy: clock.now.advanced(by: .seconds(10)))
     batcher.finish()
 
-    await run.value
-    await #expect(throws: AckBatcherError.flushDeadlineExceeded) { try await ack.value }
+    await run.cancellableValue
+    await #expect(throws: AckBatcherError.flushDeadlineExceeded) { try await ack.cancellableValue }
   }
 
   // MARK: - Cancellation
@@ -510,10 +516,10 @@ import Testing
       try await waitUntil { batcher.queuedCount == 2 }
 
       a.cancel()
-      await #expect(throws: CancellationError.self) { try await a.value }
+      await #expect(throws: CancellationError.self) { try await a.cancellableValue }
 
       clock.advance(by: .milliseconds(100))
-      try await b.value
+      try await b.cancellableValue
 
       #expect(transport.normalizedCalls == [.init(.acknowledge, ["a", "b"])])
       #expect(batcher.waiterCount == 0)
@@ -522,9 +528,11 @@ import Testing
 
   @Test func shouldLetInFlightCallerCancelWithoutAffectingOthers() async throws {
     let gate = Gate()
-    let transport = FakeAckTransport { _, _ in await gate.wait() }
+    let transport = FakeAckTransport { _, _ in try await gate.wait() }
 
     try await withBatcher(transport: transport) { batcher in
+      // Sends aren't cancelled, so the batcher only returns once the gate is open.
+      defer { gate.open() }
       let a = Task { try await batcher.ack(AckID("a")) }
       let b = Task { try await batcher.ack(AckID("b")) }
       try await waitUntil { batcher.queuedCount == 2 }
@@ -532,11 +540,11 @@ import Testing
       try await waitUntil { transport.calls.count == 1 }
 
       a.cancel()
-      await #expect(throws: CancellationError.self) { try await a.value }
+      await #expect(throws: CancellationError.self) { try await a.cancellableValue }
       #expect(batcher.waiterCount == 1)
 
       gate.open()
-      try await b.value
+      try await b.cancellableValue
 
       #expect(batcher.waiterCount == 0)
     }
@@ -550,7 +558,7 @@ import Testing
         withUnsafeCurrentTask { $0?.cancel() }
         try await batcher.ack(AckID("a"))
       }
-      await #expect(throws: CancellationError.self) { try await a.value }
+      await #expect(throws: CancellationError.self) { try await a.cancellableValue }
       try await waitUntil { batcher.queuedCount == 1 }
 
       clock.advance(by: .milliseconds(100))

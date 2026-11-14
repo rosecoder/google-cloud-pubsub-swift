@@ -360,9 +360,9 @@ import Testing
     let run = Task { await receiver.run(into: inventory, ackBatcher: ackBatcher) }
     let result = await Result { try await body(inventory) }
     run.cancel()
-    await run.value
+    await run.cancellableValue
     ackBatcher.finish()
-    await batcherRun.value
+    await batcherRun.cancellableValue
     try result.get()
   }
 

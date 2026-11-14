@@ -62,6 +62,7 @@ struct GRPCClientPoolTests {
     try await waitUntil { pool.activeStreamCounts == [1, 1] }
 
     let runTask = Task { try await pool.run() }
+    defer { runTask.cancel() }
     try await waitUntil { factory.clients.allSatisfy(\.didStartConnections) }
 
     held.append(holdSlot(in: pool))
@@ -69,13 +70,14 @@ struct GRPCClientPoolTests {
     try await waitUntil { factory.clients[2].didStartConnections }
 
     pool.beginGracefulShutdown()
-    try await runTask.value
+    try await runTask.cancellableValue
   }
 
   @Test func shouldStopAllClientsAndReturnFromRunOnShutdown() async throws {
     let factory = FakeClientFactory()
     let pool = try GRPCClientPool(maxStreamsPerClient: 1, makeClient: factory.make)
     let runTask = Task { try await pool.run() }
+    defer { runTask.cancel() }
 
     let held = (0..<3).map { _ in holdSlot(in: pool) }
     defer { for task in held { task.cancel() } }
@@ -83,7 +85,7 @@ struct GRPCClientPoolTests {
     try await waitUntil { factory.clients.allSatisfy(\.didStartConnections) }
 
     pool.beginGracefulShutdown()
-    try await runTask.value
+    try await runTask.cancellableValue
     #expect(factory.clients.allSatisfy { $0.didStopConnections })
   }
 
@@ -109,6 +111,7 @@ struct GRPCClientPoolTests {
   @Test func shouldThrowWhenRunTwice() async throws {
     let pool = try GRPCClientPool(makeClient: FakeClientFactory().make)
     let runTask = Task { try await pool.run() }
+    defer { runTask.cancel() }
     try await waitUntil { pool.primary.didStartConnections }
 
     await #expect(throws: RuntimeError.self) {
@@ -116,7 +119,7 @@ struct GRPCClientPoolTests {
     }
 
     pool.beginGracefulShutdown()
-    try await runTask.value
+    try await runTask.cancellableValue
   }
 
   @Test func shouldNeverExceedStreamsPerClientUnderConcurrency() async throws {

@@ -1,9 +1,9 @@
-/// - Returns: Whether `task` finished within `limit`. It's cancelled otherwise, so a hang fails the
-///   test instead of blocking it.
+/// - Returns: Whether `task` finished within `limit`. It's cancelled otherwise, or when the calling
+///   task is, so a hang fails the test instead of blocking it.
 func finishes(_ task: Task<Void, any Error>, within limit: Duration) async throws -> Bool {
   try await withThrowingTaskGroup(of: Bool.self) { group in
     group.addTask {
-      try await task.value
+      try await task.cancellableValue
       return true
     }
     group.addTask {
