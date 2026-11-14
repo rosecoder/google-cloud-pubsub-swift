@@ -43,6 +43,13 @@ public final class PullSubscriberGroup: Service {
   }
 
   public func run() async throws {
+    // A service group shuts down when one of its services returns early, such as a group of no
+    // subscribers configured at runtime.
+    if subscribers.isEmpty {
+      try? await gracefulShutdown()
+      return
+    }
+
     // Only a service group can shut a service down gracefully on request. Each also forwards
     // graceful shutdown of the task running this group to its subscriber.
     let serviceGroups = subscribers.map { subscriber in
