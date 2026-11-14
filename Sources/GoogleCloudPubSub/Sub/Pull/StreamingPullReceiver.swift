@@ -35,7 +35,14 @@ struct StreamingPullReceiver: Sendable {
   /// Time after which each stream is closed and a new one opened, as in the official clients.
   var streamTimeout: Duration = .seconds(900)
 
-  let connection: any StreamingPullConnection
+  /// Runs `body` with a connection to open one stream on, holding a slot of the connection
+  /// until `body` returns.
+  typealias WithConnection =
+    @Sendable (_ body: @Sendable (any StreamingPullConnection) async throws -> Void) async throws
+    -> Void
+
+  /// Called for each stream, so a stream reopened after backing off may use another connection.
+  let withConnection: WithConnection
 
   /// Fully qualified subscription name, `projects/{project}/subscriptions/{subscription}`.
   let subscriptionID: String
@@ -55,8 +62,11 @@ struct StreamingPullReceiver: Sendable {
       let attempt = Attempt()
       var failure: (any Error)?
       do {
-        try await stream(
-          into: inventory, ackBatcher: ackBatcher, session: session, attempt: attempt)
+        try await withConnection { connection in
+          try await stream(
+            on: connection, into: inventory, ackBatcher: ackBatcher, session: session,
+            attempt: attempt)
+        }
       } catch {
         failure = error
       }
@@ -100,7 +110,7 @@ struct StreamingPullReceiver: Sendable {
   }
 
   private func stream(
-    into inventory: MessageInventory, ackBatcher: AckBatcher<ContinuousClock>, session: Session,
+    on connection: any StreamingPullConnection, into inventory: MessageInventory, ackBatcher: AckBatcher<ContinuousClock>, session: Session,
     attempt: Attempt
   ) async throws {
     let (requests, control) = AsyncStream.makeStream(of: Google_Pubsub_V1_StreamingPullRequest.self)
@@ -288,13 +298,17 @@ struct StreamingPullRetry: Hashable, Sendable {
 enum StreamingPullRetryPolicy {
 
   /// - Parameter error: Why the stream ended, or `nil` if the server closed it.
-  /// - Returns: `nil` if receiving should stop because the task was cancelled.
+  /// - Returns: `nil` if receiving should stop because the task was cancelled or the gRPC clients
+  ///   have shut down.
   static func retry(after error: (any Error)?, isCancelled: Bool) -> StreamingPullRetry? {
     guard !isCancelled else {
       return nil
     }
     guard let error else {
       return StreamingPullRetry(delay: .initial, logLevel: .debug)
+    }
+    if let error = error as? RuntimeError, error.code == .clientIsStopped {
+      return nil
     }
     if error is CancellationError {
       // The stream's own timeout cancels its response handler.

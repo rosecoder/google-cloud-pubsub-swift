@@ -160,6 +160,19 @@ import Testing
       ])
   }
 
+  @Test(.timeLimit(.minutes(1)))
+  func shouldStopWhenNoConnectionIsAvailableAfterShutdown() async throws {
+    let inventory = MessageInventory(flowControl: .init())
+    let receiver = makeReceiver(flowControl: .init()) { _ in
+      throw RuntimeError(code: .clientIsStopped, message: "")
+    }
+
+    await receiver.run(
+      into: inventory, ackBatcher: AckBatcher(transport: FakeAckTransport(), logger: logger))
+
+    #expect(clock.sleeperCount == 0)
+  }
+
   @Test func shouldRetryEveryErrorUnlessCancelled() {
     typealias Retry = StreamingPullRetry
     let cases: [(error: (any Error)?, retry: Retry)] = [
@@ -181,6 +194,9 @@ import Testing
       (rpc(.failedPrecondition), Retry(delay: .maximum, logLevel: .error)),
     ]
 
+    #expect(
+      StreamingPullRetryPolicy.retry(
+        after: RuntimeError(code: .clientIsStopped, message: ""), isCancelled: false) == nil)
     for (error, retry) in cases {
       #expect(
         StreamingPullRetryPolicy.retry(after: error, isCancelled: false) == retry,
@@ -236,18 +252,11 @@ import Testing
     ackTransport: FakeAckTransport = FakeAckTransport(),
     _ body: (MessageInventory) async throws -> Void
   ) async throws {
-    let logger = Logger(label: "test.streaming-pull-receiver")
     let inventory = MessageInventory(flowControl: flowControl, initialAckDeadline: .seconds(10))
     let ackBatcher = AckBatcher(transport: ackTransport, logger: logger)
-    let receiver = StreamingPullReceiver(
-      connection: connection,
-      subscriptionID: Self.subscriptionID,
-      clientID: "client-1",
-      flowControl: flowControl,
-      logger: logger,
-      now: { [clock] in clock.now },
-      sleep: { [clock] in try await clock.sleep(until: $0, tolerance: nil) },
-      createSubscription: { [subscriptionCreations] in subscriptionCreations.increment() })
+    let receiver = makeReceiver(flowControl: flowControl) { [connection] body in
+      try await body(connection)
+    }
 
     let batcherRun = Task { await ackBatcher.run() }
     let run = Task { await receiver.run(into: inventory, ackBatcher: ackBatcher) }
@@ -257,6 +266,25 @@ import Testing
     ackBatcher.finish()
     await batcherRun.value
     try result.get()
+  }
+
+  private var logger: Logger {
+    Logger(label: "test.streaming-pull-receiver")
+  }
+
+  private func makeReceiver(
+    flowControl: PullSubscriberOptions.FlowControl,
+    withConnection: @escaping StreamingPullReceiver.WithConnection
+  ) -> StreamingPullReceiver {
+    StreamingPullReceiver(
+      withConnection: withConnection,
+      subscriptionID: Self.subscriptionID,
+      clientID: "client-1",
+      flowControl: flowControl,
+      logger: logger,
+      now: { [clock] in clock.now },
+      sleep: { [clock] in try await clock.sleep(until: $0, tolerance: nil) },
+      createSubscription: { [subscriptionCreations] in subscriptionCreations.increment() })
   }
 }
 
