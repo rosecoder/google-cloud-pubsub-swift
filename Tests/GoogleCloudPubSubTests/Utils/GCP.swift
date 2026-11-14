@@ -2,7 +2,7 @@ import Foundation
 import GRPCCore
 import GRPCNIOTransportHTTP2Posix
 import Logging
-import ServiceLifecycleTestKit
+import ServiceLifecycle
 import Synchronization
 import Testing
 
@@ -173,34 +173,29 @@ func forEachConcurrently<Element: Sendable>(
   }
 }
 
-/// Runs the subscribers and the publisher while `body` runs, then shuts them down gracefully.
-///
-/// The subscribers run as tasks rather than services of one `ServiceGroup`, whose graceful
-/// shutdown hangs with more than one subscriber sharing a `PubSubService`.
+/// Runs the publisher and the subscribers in a `ServiceGroup` while `body` runs, as in production,
+/// then shuts them down gracefully.
 func withRunningSubscribers<Handler: _Handler, T: Sendable>(
   _ subscribers: [PullSubscriber<Handler>],
   publishingWith publisher: Publisher,
   _ body: () async throws -> T
 ) async throws -> T {
-  try await testGracefulShutdown { shutdownTrigger in
-    let publisherRun = Task { try await publisher.run() }
-    let subscriberRuns = subscribers.map { subscriber in
-      Task { try await subscriber.run() }
-    }
-    let result: Result<T, any Error>
-    do {
-      result = .success(try await body())
-    } catch {
-      result = .failure(error)
-    }
-    shutdownTrigger.triggerGracefulShutdown()
-    for run in subscriberRuns {
-      try await run.value
-    }
-    publisherRun.cancel()
-    try await publisherRun.value
-    return try result.get()
+  let serviceGroup = ServiceGroup(
+    services: [publisher, PullSubscriberGroup(subscribers)],
+    logger: Logger(label: "pubsub.gcp-tests.service-group")
+  )
+  let run = Task { try await serviceGroup.run() }
+  defer { run.cancel() }
+
+  let result: Result<T, any Error>
+  do {
+    result = .success(try await body())
+  } catch {
+    result = .failure(error)
   }
+  await serviceGroup.triggerGracefulShutdown()
+  try await run.cancellableValue
+  return try result.get()
 }
 
 struct PollTimeoutError: Error, CustomStringConvertible {
