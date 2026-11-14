@@ -26,20 +26,34 @@ actor PubSubService {
   }
 
   private nonisolated let authorization: Authorization?
-  nonisolated let grpcClient: GRPCClient<HTTP2ClientTransport.Posix>
+
+  /// Clients each with their own HTTP/2 connection. Streaming pulls take a stream slot so that no
+  /// connection carries more streams than the server allows.
+  nonisolated let pool: GRPCClientPool<GRPCClient<HTTP2ClientTransport.Posix>>
   nonisolated let isUsingEmulator: Bool
 
-  init() throws {
+  /// Client for unary RPCs.
+  nonisolated var grpcClient: GRPCClient<HTTP2ClientTransport.Posix> {
+    pool.primary
+  }
+
+  /// - Parameter maxStreamsPerConnection: Streaming pulls per HTTP/2 connection, below the
+  ///   ~100 concurrent streams Google front ends allow to leave room for unary RPCs.
+  init(
+    maxStreamsPerConnection: Int = 80,
+    channelDebuggingCallbacks: HTTP2ClientTransport.Config.ChannelDebuggingCallbacks = .defaults
+  ) throws {
+    let target: ResolvableTargets.DNS
+    let transportSecurity: HTTP2ClientTransport.Posix.TransportSecurity
+    let interceptors: [any ClientInterceptor]
     if let host = ProcessInfo.processInfo.environment["PUBSUB_EMULATOR_HOST"] {
       let components = host.components(separatedBy: ":")
       let port = Int(components[1])!
 
+      target = .dns(host: components[0], port: port)
+      transportSecurity = .plaintext
+      interceptors = []
       self.authorization = nil
-      self.grpcClient = try Self.makeClient(
-        target: .dns(host: components[0], port: port),
-        transportSecurity: .plaintext,
-        interceptors: []
-      )
       self.isUsingEmulator = true
     } else {
       let authorization = Authorization(
@@ -48,28 +62,33 @@ actor PubSubService {
           "https://www.googleapis.com/auth/pubsub",
         ], eventLoopGroup: .singletonMultiThreadedEventLoopGroup)
 
+      target = .dns(host: "pubsub.googleapis.com")
+      transportSecurity = .tls
+      interceptors = [AuthorizationClientInterceptor(authorization: authorization)]
       self.authorization = authorization
-      self.grpcClient = try Self.makeClient(
-        target: .dns(host: "pubsub.googleapis.com"),
-        transportSecurity: .tls,
-        interceptors: [
-          AuthorizationClientInterceptor(authorization: authorization)
-        ]
-      )
       self.isUsingEmulator = false
+    }
+    self.pool = try GRPCClientPool(maxStreamsPerClient: maxStreamsPerConnection) {
+      try Self.makeClient(
+        target: target,
+        transportSecurity: transportSecurity,
+        interceptors: interceptors,
+        channelDebuggingCallbacks: channelDebuggingCallbacks)
     }
   }
 
   private static func makeClient(
     target: ResolvableTargets.DNS,
     transportSecurity: HTTP2ClientTransport.Posix.TransportSecurity,
-    interceptors: [any ClientInterceptor]
+    interceptors: [any ClientInterceptor],
+    channelDebuggingCallbacks: HTTP2ClientTransport.Config.ChannelDebuggingCallbacks
   ) throws -> GRPCClient<HTTP2ClientTransport.Posix> {
     GRPCClient(
       transport: try .http2NIOPosix(
         target: target,
         transportSecurity: transportSecurity,
         config: .defaults { config in
+          config.channelDebuggingCallbacks = channelDebuggingCallbacks
           config.backoff = .init(
             initial: .milliseconds(100),
             max: .seconds(1),
@@ -133,18 +152,13 @@ actor PubSubService {
 
   var runTask: Task<Void, Error>?
 
-  /// Runs the gRPC client's connections until a caller of `run()` is cancelled or shut down
-  /// gracefully and nothing uses the client through ``withClientInUse(_:)`` anymore.
+  /// Runs the connections of every pooled client until a caller of `run()` is cancelled or shut
+  /// down gracefully and nothing uses the clients through ``withClientInUse(_:)`` anymore.
   func run() async throws {
     if runTask == nil {
       let task = Task {
-        do {
-          try await grpcClient.runConnections()
-        } catch let error as RuntimeError
-          where error.code == .clientIsStopped && clientUsage.hasBegunShutdown
-        {
-          // Shut down before its connections started running.
-        }
+        // Also returns when clients were shut down before their connections started running.
+        try await pool.run()
         try await authorization?.shutdown()
       }
       runTask = task
@@ -158,14 +172,14 @@ actor PubSubService {
     }
   }
 
-  /// Keeps the gRPC client from shutting down while `body` runs.
+  /// Keeps the gRPC clients from shutting down while `body` runs.
   nonisolated func withClientInUse<T: Sendable>(
     _ body: @Sendable () async throws -> T
   ) async rethrows -> T {
     usage.withLock { $0.retain() }
     defer {
       if usage.withLock({ $0.release() }) {
-        grpcClient.beginGracefulShutdown()
+        pool.beginGracefulShutdown()
       }
     }
     return try await body()
@@ -177,7 +191,7 @@ actor PubSubService {
 
   private nonisolated func requestShutdown() {
     if usage.withLock({ $0.requestShutdown() }) {
-      grpcClient.beginGracefulShutdown()
+      pool.beginGracefulShutdown()
     }
   }
 

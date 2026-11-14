@@ -1,4 +1,6 @@
+import GRPCCore
 import ServiceLifecycleTestKit
+import Synchronization
 import Testing
 
 @testable import GoogleCloudPubSub
@@ -65,5 +67,38 @@ import Testing
     await holder.value
     #expect(service.clientUsage.hasBegunShutdown)
     try await run.value
+  }
+
+  @Test(.timeLimit(.minutes(1)))
+  func shouldOpenAnotherConnectionForStreamsBeyondMaxStreamsPerConnection() async throws {
+    let service = try PubSubService(maxStreamsPerConnection: 2)
+    let gate = Gate()
+    let clients = Mutex<[ObjectIdentifier]>([])
+    let streams = (0..<3).map { _ in
+      Task {
+        try await service.withClientInUse {
+          try await service.pool.withStreamSlot { client in
+            clients.withLock { $0.append(ObjectIdentifier(client)) }
+            await gate.wait()
+          }
+        }
+      }
+    }
+    let run = Task { try await service.run() }
+    try await waitUntil { service.pool.activeStreamCounts == [2, 1] }
+
+    let primary = ObjectIdentifier(service.grpcClient)
+    #expect(clients.withLock { $0 }.count { $0 == primary } == 2)
+    #expect(Set(clients.withLock { $0 }).count == 2)
+
+    run.cancel()
+    gate.open()
+    for stream in streams {
+      try await stream.value
+    }
+    try await run.value
+    await #expect(throws: RuntimeError.self) {
+      try await service.pool.withStreamSlot { _ in }
+    }
   }
 }
