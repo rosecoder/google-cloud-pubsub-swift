@@ -37,6 +37,14 @@ actor PubSubService {
     pool.primary
   }
 
+  /// Largest gRPC message sent or received, as in the Go client. Pub/Sub accepts publish requests
+  /// of up to 10 MB and StreamingPull responses batch several messages, so the transport's 4 MiB
+  /// default would reject them.
+  ///
+  /// The HTTP/2 transport limits received messages by `maxRequestMessageBytes`, so both limits
+  /// are set.
+  static let maxMessageBytes = 20 * 1024 * 1024
+
   /// - Parameter maxStreamsPerConnection: Streaming pulls per HTTP/2 connection, below the
   ///   ~100 concurrent streams Google front ends allow to leave room for unary RPCs.
   init(
@@ -109,7 +117,9 @@ actor PubSubService {
             .init(
               names: [.init(service: "")],  // Empty service means all methods
               waitForReady: true,
-              timeout: .seconds(60)
+              timeout: .seconds(60),
+              maxRequestMessageBytes: maxMessageBytes,
+              maxResponseMessageBytes: maxMessageBytes
             )
           ]
         )

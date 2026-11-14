@@ -81,6 +81,56 @@ struct StreamingPullIntegrationTests {
     }
   }
 
+  @Test(.timeLimit(.minutes(1)))
+  func shouldReceiveBatchLargerThanDefaultGRPCMessageLimit() async throws {
+    let messageCount = 8
+    let body = String(repeating: "a", count: 900 * 1024)
+    let pubSubService = try PubSubService()
+    let topic = Topic<PlainTextMessage>(name: uniqueName("StreamingPullIntegrationTests"))
+    let (handled, handledContinuation) = AsyncStream.makeStream(of: String.self)
+    let handler = CallbackHandler(topic: topic) { handledContinuation.yield($0.id) }
+    let subscriberClient = Google_Pubsub_V1_Subscriber.Client(wrapping: pubSubService.grpcClient)
+    let ackTransport = AcknowledgingTransport(
+      wrapped: GRPCAckTransport(
+        client: subscriberClient, subscriptionID: handler.subscription.id(projectID: projectID)))
+    let subscriber = PullSubscriber(
+      handler: handler,
+      projectID: projectID,
+      pubSubService: pubSubService,
+      ackTransport: ackTransport
+    )
+    let publisher = Publisher(projectID: projectID, pubSubService: pubSubService)
+
+    try await testGracefulShutdown { shutdownTrigger in
+      let publisherRun = Task { try await publisher.run() }
+      try await pubSubService.create(
+        subscription: handler.subscription,
+        subscriberClient: subscriberClient,
+        publisherClient: subscriber.publisherClient,
+        projectID: projectID
+      )
+      // Published before subscribing, so that the messages arrive in one StreamingPull response.
+      let published = try await publisher.publish(
+        to: topic, bodies: Array(repeating: body, count: messageCount))
+      let subscriberRun = Task { try await subscriber.run() }
+
+      var received = Set<String>()
+      for await id in handled {
+        received.insert(id)
+        if received.count == messageCount {
+          break
+        }
+      }
+      #expect(received == Set(published.map(\.id)))
+      try await waitUntil { ackTransport.acknowledgedCount == messageCount }
+
+      shutdownTrigger.triggerGracefulShutdown()
+      try await subscriberRun.value
+      publisherRun.cancel()
+      try await publisherRun.value
+    }
+  }
+
   // MARK: - Helpers
 
   private struct NackError: Error {}
@@ -154,5 +204,29 @@ private struct CountingConnection: StreamingPullConnection {
     return try await wrapped.streamingPull(
       metadata: metadata, options: options, requestProducer: requestProducer,
       onResponse: onResponse)
+  }
+}
+
+/// Counts the ack IDs Pub/Sub accepted acknowledgements of.
+private final class AcknowledgingTransport: AckTransport {
+
+  let wrapped: any AckTransport
+  private let acknowledged = Mutex<Set<AckID>>([])
+
+  init(wrapped: any AckTransport) {
+    self.wrapped = wrapped
+  }
+
+  var acknowledgedCount: Int {
+    acknowledged.withLock { $0.count }
+  }
+
+  func acknowledge(_ ids: [AckID]) async throws {
+    try await wrapped.acknowledge(ids)
+    acknowledged.withLock { $0.formUnion(ids) }
+  }
+
+  func modifyAckDeadline(_ ids: [AckID], to modification: AckDeadlineModification) async throws {
+    try await wrapped.modifyAckDeadline(ids, to: modification)
   }
 }
