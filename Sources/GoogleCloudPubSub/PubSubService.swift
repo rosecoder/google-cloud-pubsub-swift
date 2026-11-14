@@ -45,11 +45,13 @@ actor PubSubService {
   /// - Parameter maxStreamsPerConnection: Streaming pulls per HTTP/2 connection, below the
   ///   ~100 concurrent streams Google front ends allow to leave room for unary RPCs.
   /// - Parameter emulatorHost: `host:port` of a Pub/Sub emulator to use instead of Google Cloud.
+  /// - Parameter callTimeout: Time after which an RPC is cancelled.
   init(
     maxStreamsPerConnection: Int = 80,
     lingerDuration: Duration = .seconds(30),
     channelDebuggingCallbacks: HTTP2ClientTransport.Config.ChannelDebuggingCallbacks = .defaults,
-    emulatorHost: String? = ProcessInfo.processInfo.environment["PUBSUB_EMULATOR_HOST"]
+    emulatorHost: String? = ProcessInfo.processInfo.environment["PUBSUB_EMULATOR_HOST"],
+    callTimeout: Duration = .seconds(60)
   ) throws {
     self.lingerDuration = lingerDuration
     let target: ResolvableTargets.DNS
@@ -84,7 +86,8 @@ actor PubSubService {
           target: target,
           transportSecurity: transportSecurity,
           interceptors: interceptors,
-          channelDebuggingCallbacks: channelDebuggingCallbacks)
+          channelDebuggingCallbacks: channelDebuggingCallbacks,
+          callTimeout: callTimeout)
       }
     }
   }
@@ -93,7 +96,8 @@ actor PubSubService {
     target: ResolvableTargets.DNS,
     transportSecurity: HTTP2ClientTransport.Posix.TransportSecurity,
     interceptors: [any ClientInterceptor],
-    channelDebuggingCallbacks: HTTP2ClientTransport.Config.ChannelDebuggingCallbacks
+    channelDebuggingCallbacks: HTTP2ClientTransport.Config.ChannelDebuggingCallbacks,
+    callTimeout: Duration
   ) throws -> GRPCClient<HTTP2ClientTransport.Posix> {
     GRPCClient(
       transport: try .http2NIOPosix(
@@ -121,7 +125,7 @@ actor PubSubService {
             .init(
               names: [.init(service: "")],  // Empty service means all methods
               waitForReady: true,
-              timeout: .seconds(60),
+              timeout: callTimeout,
               maxRequestMessageBytes: maxMessageBytes,
               maxResponseMessageBytes: maxMessageBytes
             )

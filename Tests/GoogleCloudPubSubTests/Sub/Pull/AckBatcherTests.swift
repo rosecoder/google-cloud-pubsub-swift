@@ -334,25 +334,121 @@ struct AckBatcherTests {
     }
   }
 
-  @Test(arguments: [
-    (RPCError.Code.unavailable, true),
-    (.deadlineExceeded, true),
-    (.resourceExhausted, true),
-    (.aborted, true),
-    (.internalError, true),
-    (.invalidArgument, false),
-    (.notFound, false),
-    (.permissionDenied, false),
-    (.failedPrecondition, false),
-    (.cancelled, false),
-  ])
-  func shouldClassifyTransientErrors(code: RPCError.Code, isTransient: Bool) {
-    #expect(AckBatcher<TestClock>.isTransient(RPCError(code: code, message: "")) == isTransient)
+  @Test(arguments: timeoutErrors)
+  func shouldRetryTimedOutRPCsThenSucceed(timeout: any Error) async throws {
+    let transport = FakeAckTransport { _, attempt in
+      if attempt == 0 {
+        throw timeout
+      }
+    }
+
+    try await withBatcher(transport: transport) { batcher in
+      async let a: Void = batcher.ack(AckID("a"))
+      try await waitUntil { batcher.queuedCount == 1 }
+
+      clock.advance(by: .milliseconds(100))
+      try await waitUntil { transport.calls.count == 1 && clock.sleeperCount == 1 }
+
+      clock.advance(by: .seconds(1))
+      try await a
+
+      #expect(transport.calls == Array(repeating: .init(.acknowledge, [AckID("a")]), count: 2))
+    }
   }
 
-  @Test func shouldNotTreatNonRPCErrorsAsTransient() {
-    #expect(!AckBatcher<TestClock>.isTransient(CancellationError()))
+  @Test func shouldStopRetryingTimedOutRPCsAtFlushDeadline() async throws {
+    let transport = FakeAckTransport { _, _ in
+      throw Self.wrappedCancellation
+    }
+    let batcher = makeBatcher(transport: transport)
+
+    try await withThrowingDiscardingTaskGroup { group in
+      group.addTask { await batcher.run() }
+      let ack = Task { try await batcher.ack(AckID("a")) }
+      try await waitUntil { batcher.queuedCount == 1 }
+      clock.advance(by: .milliseconds(100))
+      try await waitUntil { transport.calls.count == 1 && clock.sleeperCount == 1 }
+
+      batcher.finish(flushBy: clock.now.advanced(by: .milliseconds(2_500)))
+      clock.advance(by: .seconds(1))
+
+      let error = await #expect(throws: RPCError.self) { try await ack.cancellableValue }
+      #expect(error?.code == .unknown)
+      #expect(transport.calls.count == 2)
+    }
   }
+
+  @Test func shouldNotRetryRPCCancelledAtFlushDeadline() async throws {
+    let transport = FakeAckTransport { _, _ in
+      do {
+        try await Task.sleep(for: .seconds(3_600))
+      } catch {
+        throw Self.wrappedCancellation
+      }
+    }
+    let batcher = makeBatcher(transport: transport)
+    let run = Task { await batcher.run() }
+    defer { run.cancel() }
+
+    let ack = Task { try await batcher.ack(AckID("a")) }
+    try await waitUntil { batcher.queuedCount == 1 }
+    clock.advance(by: .milliseconds(100))
+    try await waitUntil { transport.calls.count == 1 }
+
+    batcher.finish(flushBy: clock.now.advanced(by: .seconds(1)))
+    try await waitUntil { clock.sleeperCount == 1 }
+    clock.advance(by: .seconds(1))
+
+    await run.cancellableValue
+    await #expect(throws: AckBatcherError.flushDeadlineExceeded) { try await ack.cancellableValue }
+    #expect(transport.calls.count == 1)
+  }
+
+  @Test(arguments: [
+    (RPCError.Code.unavailable, AckFailure.transient),
+    (.deadlineExceeded, .transient),
+    (.resourceExhausted, .transient),
+    (.aborted, .transient),
+    (.internalError, .transient),
+    (.unknown, .permanent),
+    (.invalidArgument, .permanent),
+    (.notFound, .permanent),
+    (.permissionDenied, .permanent),
+    (.failedPrecondition, .permanent),
+    (.cancelled, .permanent),
+  ])
+  func shouldClassifyRPCErrors(code: RPCError.Code, failure: AckFailure) {
+    #expect(AckFailure(RPCError(code: code, message: ""), isSenderCancelled: false) == failure)
+  }
+
+  @Test(arguments: timeoutErrors)
+  func shouldClassifyCancellationOfRPCAsTimeout(error: any Error) {
+    #expect(AckFailure(error, isSenderCancelled: false) == .timedOut)
+    #expect(AckFailure(error, isSenderCancelled: false).isRetryable)
+  }
+
+  @Test func shouldNotClassifyUnknownErrorsWithOtherCausesAsTimeout() {
+    let error = RPCError(code: .unknown, message: "", cause: RPCError(code: .aborted, message: ""))
+    #expect(AckFailure(error, isSenderCancelled: false) == .permanent)
+  }
+
+  @Test(arguments: timeoutErrors + [RPCError(code: .unavailable, message: "")])
+  func shouldNotRetryWhenSenderIsCancelled(error: any Error) {
+    #expect(AckFailure(error, isSenderCancelled: true) == .cancelled)
+    #expect(!AckFailure(error, isSenderCancelled: true).isRetryable)
+  }
+
+  @Test func shouldNotTreatOtherErrorsAsRetryable() {
+    struct OtherError: Error {}
+    #expect(AckFailure(OtherError(), isSenderCancelled: false) == .permanent)
+  }
+
+  /// What grpc-swift throws when an RPC's timeout cancels it before or after its stream opened.
+  static let timeoutErrors: [any Error] = [CancellationError(), wrappedCancellation]
+
+  static let wrappedCancellation = RPCError(
+    code: .unknown, message: "The transport threw an unexpected error.",
+    cause: CancellationError())
 
   // MARK: - Shutdown
 
