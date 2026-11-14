@@ -24,12 +24,12 @@ public final class PullSubscriber<Handler: _Handler>: Service {
 
   public let deleteSubscriptionOnShutdown: Bool
 
-  public let options: Options
+  public let options: PullSubscriberOptions
 
   public convenience init(
     handler: Handler,
     deleteSubscriptionOnShutdown: Bool = false,
-    options: Options = Options()
+    options: PullSubscriberOptions = PullSubscriberOptions()
   ) async throws {
     guard let projectID = await (ServiceContext.current ?? .topLevel).projectID else {
       throw ConfigurationError.missingProjectID
@@ -43,7 +43,7 @@ public final class PullSubscriber<Handler: _Handler>: Service {
     handler: Handler,
     projectID: String,
     deleteSubscriptionOnShutdown: Bool = false,
-    options: Options = Options()
+    options: PullSubscriberOptions = PullSubscriberOptions()
   ) throws {
     self.init(
       handler: handler,
@@ -58,7 +58,7 @@ public final class PullSubscriber<Handler: _Handler>: Service {
     handler: Handler,
     projectID: String,
     deleteSubscriptionOnShutdown: Bool = false,
-    options: Options = Options(),
+    options: PullSubscriberOptions = PullSubscriberOptions(),
     pubSubService: PubSubService
   ) {
     self.projectID = projectID
