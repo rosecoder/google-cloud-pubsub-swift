@@ -36,7 +36,8 @@ import Testing
   @Test func minAndMaxAckDeadlineMayBeEqual() {
     let lease = PullSubscriberOptions.Lease(
       minAckDeadline: .seconds(30), maxAckDeadline: .seconds(30))
-    #expect(lease.ackDeadline(basedOn: AckLatencyHistogram(), exactlyOnceDelivery: false) == .seconds(30))
+    #expect(
+      lease.ackDeadline(basedOn: AckLatencyHistogram(), exactlyOnceDelivery: false) == .seconds(30))
   }
 
   @Test func storedOnPullSubscriber() async throws {
@@ -46,7 +47,17 @@ import Testing
     #expect(subscriber.options == options)
 
     let defaultSubscriber = try PullSubscriber(handler: NoopHandler(), projectID: "test-project")
-    #expect(defaultSubscriber.options == PullSubscriber<NoopHandler>.Options())
+    #expect(defaultSubscriber.options == PullSubscriberOptions())
+  }
+
+  @Test func supportedSpellings() {
+    let primary = PullSubscriberOptions(shutdownBehavior: .nackImmediately)
+    let annotated: PullSubscriber.Options = .init(shutdownBehavior: .nackImmediately)
+    let nested: PullSubscriber.Options.Lease = .init()
+    let specialized = PullSubscriber<NoopHandler>.Options(shutdownBehavior: .nackImmediately)
+    #expect(annotated == primary)
+    #expect(specialized == primary)
+    #expect(nested == PullSubscriberOptions.Lease())
   }
 
   // MARK: - Validation
@@ -79,45 +90,60 @@ import Testing
 
   @Test func ackDeadlineWithoutDataIsMinimum() {
     let lease = PullSubscriberOptions.Lease()
-    #expect(lease.ackDeadline(basedOn: AckLatencyHistogram(), exactlyOnceDelivery: false) == .minimum)
+    #expect(
+      lease.ackDeadline(basedOn: AckLatencyHistogram(), exactlyOnceDelivery: false) == .minimum)
   }
 
   @Test func ackDeadlineFollowsPercentile() {
     let lease = PullSubscriberOptions.Lease()
-    #expect(lease.ackDeadline(basedOn: histogram(seconds: 42), exactlyOnceDelivery: false) == .seconds(42))
+    #expect(
+      lease.ackDeadline(basedOn: histogram(seconds: 42), exactlyOnceDelivery: false) == .seconds(42)
+    )
   }
 
   @Test func ackDeadlineIsRaisedToMinimum() {
     let lease = PullSubscriberOptions.Lease(minAckDeadline: .seconds(30))
-    #expect(lease.ackDeadline(basedOn: histogram(seconds: 12), exactlyOnceDelivery: false) == .seconds(30))
-    #expect(lease.ackDeadline(basedOn: histogram(seconds: 45), exactlyOnceDelivery: false) == .seconds(45))
+    #expect(
+      lease.ackDeadline(basedOn: histogram(seconds: 12), exactlyOnceDelivery: false) == .seconds(30)
+    )
+    #expect(
+      lease.ackDeadline(basedOn: histogram(seconds: 45), exactlyOnceDelivery: false) == .seconds(45)
+    )
   }
 
   @Test func ackDeadlineIsLoweredToMaximum() {
     let lease = PullSubscriberOptions.Lease(maxAckDeadline: .seconds(30))
-    #expect(lease.ackDeadline(basedOn: histogram(seconds: 120), exactlyOnceDelivery: false) == .seconds(30))
+    #expect(
+      lease.ackDeadline(basedOn: histogram(seconds: 120), exactlyOnceDelivery: false)
+        == .seconds(30))
   }
 
-  @Test func ackDeadlineWithoutMaximumIsBoundedByPubSub() {
-    let lease = PullSubscriberOptions.Lease(maxAckDeadline: nil)
-    #expect(lease.ackDeadline(basedOn: histogram(seconds: 900), exactlyOnceDelivery: false) == .maximum)
+  @Test func ackDeadlineWithDefaultMaximumIsBoundedByPubSub() {
+    let lease = PullSubscriberOptions.Lease()
+    #expect(
+      lease.ackDeadline(basedOn: histogram(seconds: 900), exactlyOnceDelivery: false) == .maximum)
   }
 
   @Test func exactlyOnceDeliveryUsesHigherDefaultMinimum() {
     let lease = PullSubscriberOptions.Lease()
-    #expect(lease.ackDeadline(basedOn: AckLatencyHistogram(), exactlyOnceDelivery: true) == .seconds(60))
-    #expect(lease.ackDeadline(basedOn: histogram(seconds: 12), exactlyOnceDelivery: true) == .seconds(60))
-    #expect(lease.ackDeadline(basedOn: histogram(seconds: 90), exactlyOnceDelivery: true) == .seconds(90))
+    #expect(
+      lease.ackDeadline(basedOn: AckLatencyHistogram(), exactlyOnceDelivery: true) == .seconds(60))
+    #expect(
+      lease.ackDeadline(basedOn: histogram(seconds: 12), exactlyOnceDelivery: true) == .seconds(60))
+    #expect(
+      lease.ackDeadline(basedOn: histogram(seconds: 90), exactlyOnceDelivery: true) == .seconds(90))
   }
 
   @Test func exactlyOnceDeliveryRespectsExplicitMinimum() {
     let lease = PullSubscriberOptions.Lease(minAckDeadline: .seconds(20))
-    #expect(lease.ackDeadline(basedOn: histogram(seconds: 12), exactlyOnceDelivery: true) == .seconds(20))
+    #expect(
+      lease.ackDeadline(basedOn: histogram(seconds: 12), exactlyOnceDelivery: true) == .seconds(20))
   }
 
   @Test func maximumTakesPrecedenceOverExactlyOnceDefaultMinimum() {
     let lease = PullSubscriberOptions.Lease(maxAckDeadline: .seconds(30))
-    #expect(lease.ackDeadline(basedOn: histogram(seconds: 12), exactlyOnceDelivery: true) == .seconds(30))
+    #expect(
+      lease.ackDeadline(basedOn: histogram(seconds: 12), exactlyOnceDelivery: true) == .seconds(30))
   }
 
   private func histogram(seconds: Int) -> AckLatencyHistogram {
@@ -130,7 +156,8 @@ import Testing
 private struct NoopHandler: _Handler {
 
   let subscription = Subscription(
-    name: "pull-subscriber-options-tests", topic: Topic<DataMessage>(name: "pull-subscriber-options-tests"))
+    name: "pull-subscriber-options-tests",
+    topic: Topic<DataMessage>(name: "pull-subscriber-options-tests"))
 
   func handle(message: DataMessage.Incoming, context: HandlerContext) async throws {}
 }
