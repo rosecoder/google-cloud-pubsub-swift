@@ -11,6 +11,10 @@ import Synchronization
 ///
 /// Receiving pauses once the load (the larger fraction of either limit in use) reaches 1 and
 /// resumes when it drops below 0.8, so pulls are not issued for one free slot at a time.
+///
+/// All messages, held and dispatched, are leased: ``renewLeases(now:)`` returns the IDs whose ack
+/// deadline should be extended. A dispatched message stops being leased and frees its capacity
+/// once it has been dispatched for longer than ``PullSubscriberOptions/Lease/maxLeaseDuration``.
 final class MessageInventory: Sendable {
 
   struct Item: Sendable {
@@ -27,14 +31,47 @@ final class MessageInventory: Sendable {
     }
   }
 
+  struct Received: Sendable, Equatable {
+
+    /// IDs that are now leased, whose deadline should be extended to ``ackDeadline`` right away.
+    let accepted: [AckID]
+
+    /// IDs to nack, which are all of them if ``stopReceiving()`` has already been called.
+    let rejected: [AckID]
+
+    let ackDeadline: AckDeadline
+  }
+
+  struct LeaseRenewal: Sendable, Equatable {
+    let ackDeadline: AckDeadline
+
+    /// IDs of held and dispatched messages whose deadline should be extended.
+    let ids: [AckID]
+
+    /// IDs of messages dispatched for longer than the max lease duration, which are no longer
+    /// leased or counted towards flow control limits.
+    let expired: [AckID]
+  }
+
   private let storage: Mutex<Storage>
 
-  init(flowControl: PullSubscriberOptions.FlowControl) {
-    self.storage = Mutex(Storage(state: State(flowControl: flowControl)))
+  init(
+    flowControl: PullSubscriberOptions.FlowControl,
+    lease: PullSubscriberOptions.Lease = .init(),
+    initialAckDeadline: AckDeadline = .minimum
+  ) {
+    self.storage = Mutex(
+      Storage(
+        state: State(
+          flowControl: flowControl, lease: lease, initialAckDeadline: initialAckDeadline)))
   }
 
   var isEmpty: Bool {
     storage.withLock { $0.state.isEmpty }
+  }
+
+  var ackDeadline: AckDeadline {
+    storage.withLock { $0.state.ackDeadline }
   }
 
   /// Dispatched messages in the order they were received. Ends once ``stopReceiving()`` has been
@@ -78,19 +115,56 @@ final class MessageInventory: Sendable {
   }
 
   /// Adds received messages and dispatches as many as the limits allow.
-  ///
-  /// - Returns: IDs of messages to nack, which are all of them if ``stopReceiving()`` has already
-  ///   been called and none otherwise.
   func add(_ messages: [Google_Pubsub_V1_ReceivedMessage], now: ContinuousClock.Instant)
-    -> [AckID]
+    -> Received
   {
     let items = messages.map { Item($0, receivedAt: now) }
-    return mutate { $0.add(items) }
+    return mutate { $0.add(items, now: now) }
   }
 
   /// Frees the capacity of a message once it has been acked or nacked. Unknown IDs are ignored.
-  func release(_ id: AckID) {
-    mutate { $0.release(id) }
+  func release(_ id: AckID, now: ContinuousClock.Instant = .now) {
+    mutate { $0.release(id, now: now) }
+  }
+
+  func recordAckLatency(_ latency: Duration) {
+    storage.withLock { $0.state.recordAckLatency(latency) }
+  }
+
+  /// Stops leasing expired messages and returns the IDs whose deadline should be extended.
+  func renewLeases(now: ContinuousClock.Instant) -> LeaseRenewal {
+    mutate { $0.renewLeases(now: now) }
+  }
+
+  /// Waits until at least one message is leased.
+  ///
+  /// Must only be called by one task at a time.
+  ///
+  /// - Throws: `CancellationError` if the task is cancelled.
+  func waitUntilNonEmpty() async throws {
+    try await withTaskCancellationHandler {
+      try await withCheckedThrowingContinuation { continuation in
+        let result: Result<Void, any Error>? = storage.withLock { storage in
+          precondition(storage.leaseWaiter == nil, "Only one task may wait for messages to lease")
+          if Task.isCancelled {
+            return .failure(CancellationError())
+          }
+          if !storage.state.isEmpty {
+            return .success(())
+          }
+          storage.leaseWaiter = continuation
+          return nil
+        }
+        if let result {
+          continuation.resume(with: result)
+        }
+      }
+    } onCancel: {
+      storage.withLock { storage in
+        defer { storage.leaseWaiter = nil }
+        return storage.leaseWaiter
+      }?.resume(throwing: CancellationError())
+    }
   }
 
   /// Stops receiving and ends ``dispatched`` once it has returned all dispatched messages.
@@ -160,10 +234,18 @@ extension MessageInventory {
     struct Entry: Sendable {
       let size: Int
       let receivedAt: ContinuousClock.Instant
-      var isDispatched: Bool
+      var dispatchedAt: ContinuousClock.Instant?
+
+      var isDispatched: Bool {
+        dispatchedAt != nil
+      }
     }
 
     let flowControl: PullSubscriberOptions.FlowControl
+    let lease: PullSubscriberOptions.Lease
+    let initialAckDeadline: AckDeadline
+    var exactlyOnceDelivery = false
+    private(set) var histogram = AckLatencyHistogram()
     private(set) var entries: [AckID: Entry] = [:]
     private(set) var held: Deque<Item> = []
 
@@ -174,12 +256,23 @@ extension MessageInventory {
     private(set) var isPaused = false
     private(set) var isReceiving = true
 
-    init(flowControl: PullSubscriberOptions.FlowControl) {
+    init(
+      flowControl: PullSubscriberOptions.FlowControl,
+      lease: PullSubscriberOptions.Lease = .init(),
+      initialAckDeadline: AckDeadline = .minimum
+    ) {
       self.flowControl = flowControl
+      self.lease = lease
+      self.initialAckDeadline = initialAckDeadline
     }
 
     var isEmpty: Bool {
       entries.isEmpty
+    }
+
+    var ackDeadline: AckDeadline {
+      lease.ackDeadline(
+        basedOn: histogram, initial: initialAckDeadline, exactlyOnceDelivery: exactlyOnceDelivery)
     }
 
     /// Number of messages to request in the next pull, or `nil` if receiving should wait.
@@ -200,20 +293,51 @@ extension MessageInventory {
         Double(outstandingBytes) / Double(flowControl.maxOutstandingBytes))
     }
 
-    mutating func add(_ items: [Item]) -> [AckID] {
+    mutating func add(_ items: [Item], now: ContinuousClock.Instant) -> Received {
       guard isReceiving else {
-        return items.map(\.ackID)
+        return Received(accepted: [], rejected: items.map(\.ackID), ackDeadline: ackDeadline)
       }
+      var accepted: [AckID] = []
+      accepted.reserveCapacity(items.count)
       for item in items where entries[item.ackID] == nil {
-        entries[item.ackID] = Entry(
-          size: item.size, receivedAt: item.receivedAt, isDispatched: false)
+        entries[item.ackID] = Entry(size: item.size, receivedAt: item.receivedAt)
         held.append(item)
+        accepted.append(item.ackID)
       }
-      dispatchHeld()
-      return []
+      dispatchHeld(now: now)
+      return Received(accepted: accepted, rejected: [], ackDeadline: ackDeadline)
     }
 
-    mutating func release(_ id: AckID) {
+    mutating func release(_ id: AckID, now: ContinuousClock.Instant) {
+      remove(id)
+      dispatchHeld(now: now)
+    }
+
+    mutating func recordAckLatency(_ latency: Duration) {
+      histogram.record(latency)
+    }
+
+    mutating func renewLeases(now: ContinuousClock.Instant) -> LeaseRenewal {
+      var ids: [AckID] = []
+      var expired: [AckID] = []
+      ids.reserveCapacity(entries.count)
+      for (id, entry) in entries {
+        if let dispatchedAt = entry.dispatchedAt,
+          dispatchedAt.duration(to: now) >= lease.maxLeaseDuration
+        {
+          expired.append(id)
+        } else {
+          ids.append(id)
+        }
+      }
+      for id in expired {
+        remove(id)
+      }
+      dispatchHeld(now: now)
+      return LeaseRenewal(ackDeadline: ackDeadline, ids: ids, expired: expired)
+    }
+
+    private mutating func remove(_ id: AckID) {
       guard let entry = entries.removeValue(forKey: id) else {
         return
       }
@@ -223,7 +347,6 @@ extension MessageInventory {
       } else {
         held.removeAll { $0.ackID == id }
       }
-      dispatchHeld()
     }
 
     mutating func nextReady() -> Item? {
@@ -242,13 +365,13 @@ extension MessageInventory {
 
     // Limits are checked before dispatching, so a single message larger than the byte limit is
     // still dispatched once nothing else is outstanding.
-    private mutating func dispatchHeld() {
+    private mutating func dispatchHeld(now: ContinuousClock.Instant) {
       while let item = held.first,
         outstandingMessages < flowControl.maxOutstandingMessages,
         outstandingBytes < flowControl.maxOutstandingBytes
       {
         held.removeFirst()
-        entries[item.ackID]?.isDispatched = true
+        entries[item.ackID]?.dispatchedAt = now
         outstandingMessages += 1
         outstandingBytes += item.size
         ready.append(item)
@@ -271,9 +394,14 @@ extension MessageInventory {
     var state: State
     var receiveWaiter: CheckedContinuation<Int, any Error>?
     var dispatchWaiter: CheckedContinuation<Item?, Never>?
+    var leaseWaiter: CheckedContinuation<Void, any Error>?
 
     mutating func takeResumptions() -> Resumptions {
       var resumptions = Resumptions()
+      if let waiter = leaseWaiter, !state.isEmpty {
+        resumptions.lease = waiter
+        leaseWaiter = nil
+      }
       if let waiter = dispatchWaiter {
         if let item = state.nextReady() {
           resumptions.dispatch = (waiter, item)
@@ -299,8 +427,10 @@ extension MessageInventory {
   private struct Resumptions: Sendable {
     var dispatch: (CheckedContinuation<Item?, Never>, Item?)?
     var receive: (CheckedContinuation<Int, any Error>, Result<Int, any Error>)?
+    var lease: CheckedContinuation<Void, any Error>?
 
     func resume() {
+      lease?.resume()
       if let (continuation, item) = dispatch {
         continuation.resume(returning: item)
       }

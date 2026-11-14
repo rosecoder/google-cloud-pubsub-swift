@@ -1,23 +1,12 @@
 import Synchronization
 
 /// A clock whose time only moves when ``advance(by:)`` is called.
+///
+/// Uses the instants of `ContinuousClock`, starting at the real time it was created, so it can
+/// drive code that stores `ContinuousClock.Instant`.
 final class TestClock: Clock, Sendable {
 
-  struct Instant: InstantProtocol {
-    var offset: Duration
-
-    func advanced(by duration: Duration) -> Instant {
-      Instant(offset: offset + duration)
-    }
-
-    func duration(to other: Instant) -> Duration {
-      other.offset - offset
-    }
-
-    static func < (lhs: Instant, rhs: Instant) -> Bool {
-      lhs.offset < rhs.offset
-    }
-  }
+  typealias Instant = ContinuousClock.Instant
 
   private struct Sleeper {
     let deadline: Instant
@@ -25,7 +14,7 @@ final class TestClock: Clock, Sendable {
   }
 
   private struct State {
-    var now = Instant(offset: .zero)
+    var now = ContinuousClock.now
     var sleepers: [UInt64: Sleeper] = [:]
     var nextSleeperID: UInt64 = 0
   }
