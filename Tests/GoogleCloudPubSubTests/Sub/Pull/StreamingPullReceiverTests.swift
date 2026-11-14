@@ -36,7 +36,7 @@ import Testing
       Array(stream.metadata[stringValues: "x-goog-request-params"])
         == ["subscription=\(Self.subscriptionID)"])
     #expect(stream.options.timeout == .seconds(900))
-    #expect(stream.options.waitForReady == true)
+    #expect(stream.options.waitForReady == false)
   }
 
   @Test(.timeLimit(.minutes(1)))
