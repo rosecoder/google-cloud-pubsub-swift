@@ -13,8 +13,10 @@ import Synchronization
 /// resumes when it drops below 0.8, so receiving does not resume for one free slot at a time.
 ///
 /// All messages, held and dispatched, are leased: ``renewLeases(now:)`` returns the IDs whose ack
-/// deadline should be extended. A dispatched message stops being leased and frees its capacity
-/// once it has been dispatched for longer than ``PullSubscriberOptions/Lease/maxLeaseDuration``.
+/// deadline should be extended. A message stops being leased once its handler claimed it for a
+/// nack, or for an ack unless exactly-once delivery is enabled, where an ack can still fail. A
+/// dispatched message stops being leased and frees its capacity once it has been dispatched for
+/// longer than ``PullSubscriberOptions/Lease/maxLeaseDuration``.
 final class MessageInventory: Sendable {
 
   struct Item: Sendable {
@@ -31,6 +33,12 @@ final class MessageInventory: Sendable {
     }
   }
 
+  /// How a handler settles its message.
+  enum Outcome: Sendable, Equatable {
+    case ack
+    case nack
+  }
+
   struct Received: Sendable, Equatable {
 
     /// IDs that are now leased, whose deadline should be extended to ``ackDeadline`` right away.
@@ -45,7 +53,7 @@ final class MessageInventory: Sendable {
   struct LeaseRenewal: Sendable, Equatable {
     let ackDeadline: AckDeadline
 
-    /// IDs of held and dispatched messages whose deadline should be extended.
+    /// IDs of leased held and dispatched messages, whose deadline should be extended.
     let ids: [AckID]
 
     /// IDs of messages dispatched for longer than the max lease duration, which are no longer
@@ -237,8 +245,8 @@ final class MessageInventory: Sendable {
   ///
   /// - Returns: `false` if ``closeAll()`` already took the message, so its handler's result must
   ///   be dropped.
-  func claim(_ id: AckID) -> Bool {
-    storage.withLock { $0.state.claim(id) }
+  func claim(_ id: AckID, for outcome: Outcome) -> Bool {
+    storage.withLock { $0.state.claim(id, for: outcome) }
   }
 
   /// Stops receiving and removes every message not claimed by its handler.
@@ -340,8 +348,8 @@ extension MessageInventory {
       let receivedAt: ContinuousClock.Instant
       var dispatchedAt: ContinuousClock.Instant?
 
-      /// Whether its handler is acking or nacking it.
-      var isClaimed = false
+      /// What its handler is settling it with.
+      var claim: Outcome?
 
       var isDispatched: Bool {
         dispatchedAt != nil
@@ -436,7 +444,7 @@ extension MessageInventory {
           dispatchedAt.duration(to: now) >= lease.maxLeaseDuration
         {
           expired.append(id)
-        } else {
+        } else if isLeased(entry) {
           ids.append(id)
         }
       }
@@ -446,6 +454,15 @@ extension MessageInventory {
       dispatchHeld(now: now)
       shortestAcceptedAckDeadline = nil
       return LeaseRenewal(ackDeadline: ackDeadline, ids: ids, expired: expired)
+    }
+
+    // An extension sent after a nack would lease the message again.
+    private func isLeased(_ entry: Entry) -> Bool {
+      switch entry.claim {
+      case nil: true
+      case .ack: exactlyOnceDelivery
+      case .nack: false
+      }
     }
 
     private mutating func remove(_ id: AckID) {
@@ -474,18 +491,18 @@ extension MessageInventory {
       return ids
     }
 
-    mutating func claim(_ id: AckID) -> Bool {
+    mutating func claim(_ id: AckID, for outcome: Outcome) -> Bool {
       guard !closed.contains(id) else {
         return false
       }
-      entries[id]?.isClaimed = true
+      entries[id]?.claim = outcome
       return true
     }
 
     mutating func closeAll() -> [AckID] {
       var ids = stopReceiving()
       ready.removeAll()
-      for (id, entry) in entries where !entry.isClaimed {
+      for (id, entry) in entries where entry.claim == nil {
         ids.append(id)
       }
       for id in ids {
