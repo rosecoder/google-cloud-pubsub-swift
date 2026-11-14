@@ -1,5 +1,10 @@
 extension PullSubscriber {
 
+  /// Alias of ``PullSubscriberOptions``.
+  ///
+  /// Without a generic argument it can only be used where a type is expected, such as
+  /// `let options: PullSubscriber.Options = .init()`. `PullSubscriber.Options()` does not compile
+  /// because `Handler` cannot be inferred, so prefer ``PullSubscriberOptions`` in expressions.
   public typealias Options = PullSubscriberOptions
 }
 
@@ -61,21 +66,21 @@ public struct PullSubscriberOptions: Sendable, Hashable {
 
     /// Upper bound of each lease extension, which also bounds how long it takes for a message to
     /// be redelivered if this subscriber stops extending its lease. Takes precedence over
-    /// ``exactlyOnceDeliveryMinAckDeadline``.
-    public let maxAckDeadline: AckDeadline?
+    /// ``exactlyOnceDeliveryMinAckDeadline``. The default, ``AckDeadline/maximum``, applies no
+    /// bound beyond what Pub/Sub accepts.
+    public let maxAckDeadline: AckDeadline
 
     /// - Precondition: `maxLeaseDuration` is greater than zero and `minAckDeadline` is not
     ///   greater than `maxAckDeadline`.
     public init(
       maxLeaseDuration: Duration = .seconds(60 * 60),
       minAckDeadline: AckDeadline? = nil,
-      maxAckDeadline: AckDeadline? = .maximum
+      maxAckDeadline: AckDeadline = .maximum
     ) {
       precondition(maxLeaseDuration > .zero, "maxLeaseDuration must be greater than zero")
-      if let minAckDeadline, let maxAckDeadline {
-        precondition(
-          minAckDeadline <= maxAckDeadline, "minAckDeadline must not be greater than maxAckDeadline")
-      }
+      precondition(
+        minAckDeadline.map { $0 <= maxAckDeadline } ?? true,
+        "minAckDeadline must not be greater than maxAckDeadline")
       self.maxLeaseDuration = maxLeaseDuration
       self.minAckDeadline = minAckDeadline
       self.maxAckDeadline = maxAckDeadline
@@ -90,10 +95,7 @@ public struct PullSubscriberOptions: Sendable, Hashable {
       {
         deadline = max(deadline, minimum)
       }
-      if let maxAckDeadline {
-        deadline = min(deadline, maxAckDeadline)
-      }
-      return deadline
+      return min(deadline, maxAckDeadline)
     }
   }
 
