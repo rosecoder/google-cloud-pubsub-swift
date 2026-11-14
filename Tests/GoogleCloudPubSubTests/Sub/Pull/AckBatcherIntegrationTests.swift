@@ -22,6 +22,7 @@ struct AckBatcherIntegrationTests {
       let publisherRunTask = Task {
         try await publisher.run()
       }
+      defer { publisherRunTask.cancel() }
       try await pubSubService.create(
         subscription: subscription,
         subscriberClient: subscriberClient,
@@ -52,7 +53,7 @@ struct AckBatcherIntegrationTests {
 
       shutdownTrigger.triggerGracefulShutdown()
       publisherRunTask.cancel()
-      try await publisherRunTask.value
+      try await publisherRunTask.cancellableValue
     }
   }
 

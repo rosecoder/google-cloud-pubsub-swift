@@ -141,6 +141,7 @@ struct StreamingPullIntegrationTests {
 
     try await testGracefulShutdown { shutdownTrigger in
       let publisherRun = Task { try await publisher.run() }
+      defer { publisherRun.cancel() }
       try await pubSubService.create(
         subscription: handler.subscription,
         subscriberClient: subscriberClient,
@@ -151,6 +152,7 @@ struct StreamingPullIntegrationTests {
       let published = try await publisher.publish(
         to: topic, bodies: Array(repeating: body, count: messageCount))
       let subscriberRun = Task { try await subscriber.run() }
+      defer { subscriberRun.cancel() }
 
       var received = Set<String>()
       for await id in handled {
@@ -163,9 +165,9 @@ struct StreamingPullIntegrationTests {
       try await waitUntil { ackTransport.acknowledgedCount == messageCount }
 
       shutdownTrigger.triggerGracefulShutdown()
-      try await subscriberRun.value
+      try await subscriberRun.cancellableValue
       publisherRun.cancel()
-      try await publisherRun.value
+      try await publisherRun.cancellableValue
     }
   }
 
@@ -219,6 +221,7 @@ struct StreamingPullIntegrationTests {
 
     try await testGracefulShutdown { shutdownTrigger in
       let publisherRun = Task { try await publisher.run() }
+      defer { publisherRun.cancel() }
       try await pubSubService.create(
         subscription: handler.subscription,
         subscriberClient: subscriber.client,
@@ -226,6 +229,7 @@ struct StreamingPullIntegrationTests {
         projectID: projectID
       )
       let subscriberRun = Task { try await subscriber.run() }
+      defer { subscriberRun.cancel() }
 
       let result = await Result {
         try await body(
@@ -234,9 +238,9 @@ struct StreamingPullIntegrationTests {
       }
 
       shutdownTrigger.triggerGracefulShutdown()
-      try await subscriberRun.value
+      try await subscriberRun.cancellableValue
       publisherRun.cancel()
-      try await publisherRun.value
+      try await publisherRun.cancellableValue
       try result.get()
     }
   }

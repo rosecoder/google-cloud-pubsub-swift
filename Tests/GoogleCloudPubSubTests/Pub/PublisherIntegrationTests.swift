@@ -19,6 +19,7 @@ struct PublisherIntegrationTests {
       let publisherRunTask = Task {
         try await publisher.run()
       }
+      defer { publisherRunTask.cancel() }
 
       // Execute
       let message = try await publisher.publish(to: topic, body: "Hello")
@@ -29,7 +30,7 @@ struct PublisherIntegrationTests {
       // Teardown
       publisherRunTask.cancel()
       shutdownTrigger.triggerGracefulShutdown()
-      try await publisherRunTask.value
+      try await publisherRunTask.cancellableValue
     }
   }
 
@@ -45,6 +46,7 @@ struct PublisherIntegrationTests {
       let publisherRunTask = Task {
         try await publisher.run()
       }
+      defer { publisherRunTask.cancel() }
 
       let message = try await publisher.publish(
         to: topic, body: String(repeating: "a", count: 5 * 1024 * 1024))
@@ -53,7 +55,7 @@ struct PublisherIntegrationTests {
 
       publisherRunTask.cancel()
       shutdownTrigger.triggerGracefulShutdown()
-      try await publisherRunTask.value
+      try await publisherRunTask.cancellableValue
     }
   }
 }
