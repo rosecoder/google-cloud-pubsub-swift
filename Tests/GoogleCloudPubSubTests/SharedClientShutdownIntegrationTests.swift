@@ -30,7 +30,7 @@ struct SharedClientShutdownIntegrationTests {
 
     let start = ContinuousClock.now
     await serviceGroup.triggerGracefulShutdown()
-    #expect(try await finishes(run, within: .seconds(5)))
+    #expect(try await finishes(run, within: PubSubService.shutdownTimeout + .seconds(5)))
     #expect(start.duration(to: .now) < .seconds(5))
     #expect(pubSubService.clientUsage.hasBegunShutdown)
     #expect(connections.count == 0)
@@ -55,7 +55,7 @@ struct SharedClientShutdownIntegrationTests {
       subscribers, publisher: publisher, pubSubService: pubSubService)
 
     await subscriberGroup.triggerGracefulShutdown()
-    #expect(try await finishes(subscriberRun, within: .seconds(5)))
+    #expect(try await finishes(subscriberRun, within: PubSubService.shutdownTimeout + .seconds(5)))
     #expect(!pubSubService.clientUsage.hasBegunShutdown)
 
     let topic = Topic<PlainTextMessage>(name: uniqueName("SharedClientShutdownIntegrationTests"))
@@ -64,7 +64,7 @@ struct SharedClientShutdownIntegrationTests {
 
     let start = ContinuousClock.now
     await publisherGroup.triggerGracefulShutdown()
-    #expect(try await finishes(publisherRun, within: .seconds(5)))
+    #expect(try await finishes(publisherRun, within: PubSubService.shutdownTimeout + .seconds(5)))
     #expect(start.duration(to: .now) < .seconds(2))
     #expect(connections.count == 0)
   }

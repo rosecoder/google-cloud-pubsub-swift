@@ -109,20 +109,20 @@ public final class Publisher: PublisherProtocol, Service {
       ofKind: .producer
     ) { span in
       span.attributes["pubsub/topic"] = topic.name
-      return try await client.publish(
-        .with {
-          $0.topic = topic.id(projectID: projectID)
-          $0.messages = messages.map { message in
-            Google_Pubsub_V1_PubsubMessage.with {
-              $0.data = message.data
-              $0.attributes = message.attributes
-              //                            if let trace = context.trace {
-              //                                $0.attributes["__traceID"] = trace.id.stringValue
-              //                                $0.attributes["__spanID"] = (trace.rootSpan?.id ?? trace.spanID).stringValue
-              //                            }
-            }
+      let request = Google_Pubsub_V1_PublishRequest.with {
+        $0.topic = topic.id(projectID: projectID)
+        $0.messages = messages.map { message in
+          Google_Pubsub_V1_PubsubMessage.with {
+            $0.data = message.data
+            $0.attributes = message.attributes
+            //                            if let trace = context.trace {
+            //                                $0.attributes["__traceID"] = trace.id.stringValue
+            //                                $0.attributes["__spanID"] = (trace.rootSpan?.id ?? trace.spanID).stringValue
+            //                            }
           }
-        })
+        }
+      }
+      return try await pubSubService.withRPC { [client] in try await client.publish(request) }
     }
   }
 }
