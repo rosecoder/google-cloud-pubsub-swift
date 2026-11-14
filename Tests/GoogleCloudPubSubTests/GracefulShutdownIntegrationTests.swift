@@ -4,11 +4,6 @@ import Testing
 
 @testable import GoogleCloudPubSub
 
-extension Topics {
-
-  fileprivate static let gracefulShutdown = Topic<PlainTextMessage>(name: "GracefulShutdownTests")
-}
-
 /// Reproduces a crash where both Publisher and PushSubscriber (with pull fallback) are used
 /// together in a ServiceGroup and a graceful shutdown (e.g. SIGINT) causes Publisher to fail
 /// with "Service finished unexpectedly", crashing the process.
@@ -20,6 +15,7 @@ struct GracefulShutdownIntegrationTests {
   @Test(.timeLimit(.minutes(1)))
   func publisherAndPushSubscriberShouldShutdownGracefully() async throws {
     let pubSubService = try PubSubService()
+    let topic = Topic<PlainTextMessage>(name: uniqueName("GracefulShutdownTests"))
 
     let subscriber = PushSubscriber(
       projectID: "graceful-shutdown-tests",
@@ -27,7 +23,7 @@ struct GracefulShutdownIntegrationTests {
       pubSubService: pubSubService
     )
     subscriber.register(
-      handler: CallbackHandler(topic: Topics.gracefulShutdown, callback: { _ in })
+      handler: CallbackHandler(topic: topic, callback: { _ in })
     )
 
     let publisher = Publisher(
