@@ -56,10 +56,8 @@ func withGCPResources<T: Sendable>(
   _ body: @Sendable (GCPResources) async throws -> T
 ) async throws -> T {
   let projectID = try #require(GCP.projectID)
-  let service = try PubSubService()
-  let resources = GCPResources(projectID: projectID, service: service)
-
-  return try await service.withClientInUse {
+  return try await PubSubService().withClientInUse { clients in
+    let resources = GCPResources(projectID: projectID, clients: clients)
     let result: Result<T, any Error>
     do {
       result = .success(try await body(resources))
@@ -82,10 +80,11 @@ final class GCPResources: Sendable {
   private let topicIDs = Mutex<[String]>([])
   private let subscriptionIDs = Mutex<[String]>([])
 
-  init(projectID: String, service: PubSubService) {
+  /// - Parameter clients: Must stay in use while the resources are.
+  init(projectID: String, clients: PubSubService.Clients) {
     self.projectID = projectID
-    self.publisherClient = Google_Pubsub_V1_Publisher.Client(wrapping: service.grpcClient)
-    self.subscriberClient = Google_Pubsub_V1_Subscriber.Client(wrapping: service.grpcClient)
+    self.publisherClient = clients.publisher
+    self.subscriberClient = clients.subscriber
   }
 
   /// Returns a topic that is deleted at the end of the test, creating it unless `create` is false.
@@ -256,6 +255,28 @@ final class Deliveries: Sendable {
 
   func ids() -> Set<String> {
     counts.withLock { Set($0.keys) }
+  }
+}
+
+/// Opens StreamingPull streams on the clients of `pubSubService` in use.
+struct ServiceStreamingPullConnection: StreamingPullConnection {
+
+  let pubSubService: PubSubService
+
+  func streamingPull<Result: Sendable>(
+    metadata: Metadata,
+    options: CallOptions,
+    requestProducer:
+      @Sendable @escaping (RPCWriter<Google_Pubsub_V1_StreamingPullRequest>) async throws -> Void,
+    onResponse:
+      @Sendable @escaping (StreamingClientResponse<Google_Pubsub_V1_StreamingPullResponse>)
+      async throws -> Result
+  ) async throws -> Result {
+    try await pubSubService.withClientInUse { clients in
+      try await clients.subscriber.streamingPull(
+        metadata: metadata, options: options, requestProducer: requestProducer,
+        onResponse: onResponse)
+    }
   }
 }
 

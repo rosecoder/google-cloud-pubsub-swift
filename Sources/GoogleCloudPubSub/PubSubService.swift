@@ -27,17 +27,9 @@ actor PubSubService {
     }
   }
 
-  private nonisolated let authorization: Authorization?
-
-  /// Clients each with their own HTTP/2 connection. Streaming pulls take a stream slot so that no
-  /// connection carries more streams than the server allows.
-  nonisolated let pool: GRPCClientPool<GRPCClient<HTTP2ClientTransport.Posix>>
+  private nonisolated let makePool:
+    @Sendable () throws -> GRPCClientPool<GRPCClient<HTTP2ClientTransport.Posix>>
   nonisolated let isUsingEmulator: Bool
-
-  /// Client for unary RPCs.
-  nonisolated var grpcClient: GRPCClient<HTTP2ClientTransport.Posix> {
-    pool.primary
-  }
 
   /// Largest gRPC message sent or received, as in the Go client. Pub/Sub accepts publish requests
   /// of up to 10 MB and StreamingPull responses batch several messages, so the transport's 4 MiB
@@ -65,9 +57,11 @@ actor PubSubService {
       target = .dns(host: components[0], port: port)
       transportSecurity = .plaintext
       interceptors = []
-      self.authorization = nil
       self.isUsingEmulator = true
     } else {
+      // Shared by every generation of clients and never shut down, since up to
+      // google-cloud-auth-swift 1.2.3 that also shuts down the process-wide default provider,
+      // even one set with `AuthorizationSystem.bootstrap(_:)`, which then can't be used again.
       let authorization = Authorization(
         scopes: [
           "https://www.googleapis.com/auth/cloud-platform",
@@ -77,15 +71,16 @@ actor PubSubService {
       target = .dns(host: "pubsub.googleapis.com")
       transportSecurity = .tls
       interceptors = [AuthorizationClientInterceptor(authorization: authorization)]
-      self.authorization = authorization
       self.isUsingEmulator = false
     }
-    self.pool = try GRPCClientPool(maxStreamsPerClient: maxStreamsPerConnection) {
-      try Self.makeClient(
-        target: target,
-        transportSecurity: transportSecurity,
-        interceptors: interceptors,
-        channelDebuggingCallbacks: channelDebuggingCallbacks)
+    self.makePool = {
+      try GRPCClientPool(maxStreamsPerClient: maxStreamsPerConnection) {
+        try Self.makeClient(
+          target: target,
+          transportSecurity: transportSecurity,
+          interceptors: interceptors,
+          channelDebuggingCallbacks: channelDebuggingCallbacks)
+      }
     }
   }
 
@@ -132,70 +127,102 @@ actor PubSubService {
     )
   }
 
-  struct ClientUsage: Sendable {
+  /// One generation of clients, started for the first user and shut down after the last one, since
+  /// a `GRPCClient` can't run again once stopped.
+  struct Clients: Sendable {
+
+    /// Clients each with their own HTTP/2 connection. Streaming pulls take a stream slot so that
+    /// no connection carries more streams than the server allows.
+    let pool: GRPCClientPool<GRPCClient<HTTP2ClientTransport.Posix>>
+
+    fileprivate let run: Task<Void, any Error>
+
+    fileprivate init(pool: GRPCClientPool<GRPCClient<HTTP2ClientTransport.Posix>>) {
+      self.pool = pool
+      self.run = Task {
+        // Also returns when clients were shut down before their connections started running.
+        try await pool.run()
+      }
+    }
+
+    /// Client for unary RPCs.
+    var primary: GRPCClient<HTTP2ClientTransport.Posix> {
+      pool.primary
+    }
+
+    var publisher: Google_Pubsub_V1_Publisher.Client<HTTP2ClientTransport.Posix> {
+      .init(wrapping: pool.primary)
+    }
+
+    var subscriber: Google_Pubsub_V1_Subscriber.Client<HTTP2ClientTransport.Posix> {
+      .init(wrapping: pool.primary)
+    }
+  }
+
+  /// Counts the users of the current generation of clients. The first user after the previous
+  /// generation began shutting down starts a new one without waiting for it to stop.
+  struct ClientUsage<Generation: Sendable>: Sendable {
     private(set) var users = 0
-    private(set) var hasBegunShutdown = false
+    private(set) var current: Generation?
+    private(set) var startedGenerations = 0
 
-    mutating func retain() throws {
-      if hasBegunShutdown {
-        throw RuntimeError(
-          code: .clientIsStopped,
-          message: "The Pub/Sub clients shut down when their last user stopped and can't be reused."
-        )
+    /// Whether the last generation has begun shutting down and no new one has been started.
+    var hasBegunShutdown: Bool {
+      startedGenerations > 0 && current == nil
+    }
+
+    /// - Returns: The current generation, created with `start` if there is none.
+    mutating func retain(startingWith start: () throws -> Generation) rethrows -> Generation {
+      if let current {
+        users += 1
+        return current
       }
+      let generation = try start()
+      current = generation
+      startedGenerations += 1
       users += 1
+      return generation
     }
 
-    /// - Returns: Whether the clients should begin shutting down now.
-    mutating func release() -> Bool {
+    /// - Returns: The generation to shut down if this was its last user.
+    mutating func release() -> Generation? {
       users -= 1
-      hasBegunShutdown = users == 0
-      return hasBegunShutdown
+      guard users == 0 else {
+        return nil
+      }
+      defer { current = nil }
+      return current
     }
   }
 
-  private struct State {
-    var usage = ClientUsage()
-    var run: Task<Void, any Error>?
-    var rpcsInFlight = 0
-    var rpcsFinished: CheckedContinuation<Void, Never>?
-  }
+  private nonisolated let usage = Mutex(ClientUsage<Clients>())
 
-  private nonisolated let state = Mutex(State())
-
-  /// Runs the clients' connections while `body` runs, sharing them with concurrent callers.
+  /// Runs the current generation of clients while `body` runs, sharing it with concurrent callers,
+  /// or starts a new one if there is none. Every RPC runs in such a use, so the clients stop only
+  /// once none is in flight.
   ///
-  /// Returns as soon as `body` has, unless this was the last caller: it then lets RPCs in flight
-  /// finish, for at most ``shutdownTimeout``, and stops the clients before returning. Cancelling
-  /// the last caller stops them right away.
+  /// Returns as soon as `body` has, unless this was the last caller: it then stops the clients
+  /// before returning.
   ///
-  /// - Throws: `RuntimeError` with code `clientIsStopped` without running `body` if the clients
-  ///   have already shut down.
+  /// - Parameter body: Must not use the clients after returning.
+  /// - Throws: Without running `body` if new clients couldn't be created.
   nonisolated func withClientInUse<T: Sendable>(
-    _ body: @Sendable () async throws -> T
+    _ body: (Clients) async throws -> T
   ) async throws -> T {
-    let run = try state.withLock { state in
-      try state.usage.retain()
-      if state.run == nil {
-        state.run = Task { [pool, authorization] in
-          // Also returns when clients were shut down before their connections started running.
-          try await pool.run()
-          try await authorization?.shutdown()
-        }
-      }
-      return state.run!
+    let clients = try usage.withLock { usage in
+      try usage.retain { Clients(pool: try makePool()) }
     }
 
     let result: Result<T, any Error>
     do {
-      result = .success(try await body())
+      result = .success(try await body(clients))
     } catch {
       result = .failure(error)
     }
 
-    if state.withLock({ $0.usage.release() }) {
+    if let stopping = usage.withLock({ $0.release() }) {
       do {
-        try await stopClients(run)
+        try await stop(stopping)
       } catch {
         _ = try result.get()
         throw error
@@ -204,84 +231,37 @@ actor PubSubService {
     return try result.get()
   }
 
-  static var shutdownTimeout: Duration {
-    .seconds(5)
-  }
-
-  /// Rejects new RPCs, waits for the ones in flight and then cancels `run` rather than waiting for
-  /// the transport's graceful shutdown, which also waits for connection attempts in progress: up to
-  /// the connect timeout, or indefinitely if the server never completes the HTTP/2 handshake.
-  private nonisolated func stopClients(_ run: Task<Void, any Error>) async throws {
-    pool.beginGracefulShutdown()
-    let hasTimedOut = await withTaskGroup(of: Bool.self) { group in
-      group.addTask {
-        await self.waitUntilRPCsFinished()
-        return false
-      }
-      group.addTask {
-        try? await Task.sleep(for: Self.shutdownTimeout)
-        return !Task.isCancelled
-      }
-      defer { group.cancelAll() }
-      return await group.next()!
-    }
-    if hasTimedOut {
-      Self.logger.warning(
-        "Cancelled \(state.withLock { $0.rpcsInFlight }) RPCs still in flight \(Self.shutdownTimeout) after the last user of the gRPC clients stopped."
-      )
-    }
-    run.cancel()
-    if case .failure(let error) = await run.result, !(error is CancellationError) {
+  /// Rejects new RPCs and cancels the clients' connections rather than waiting for the transport's
+  /// graceful shutdown, which also waits for connection attempts in progress: up to the connect
+  /// timeout, or indefinitely if the server never completes the HTTP/2 handshake.
+  private nonisolated func stop(_ clients: Clients) async throws {
+    clients.pool.beginGracefulShutdown()
+    clients.run.cancel()
+    if case .failure(let error) = await clients.run.result, !(error is CancellationError) {
       throw error
     }
   }
 
-  private nonisolated func waitUntilRPCsFinished() async {
-    await withTaskCancellationHandler {
-      await withCheckedContinuation { continuation in
-        let hasFinished = state.withLock { state in
-          if state.rpcsInFlight == 0 || Task.isCancelled {
-            return true
-          }
-          state.rpcsFinished = continuation
-          return false
-        }
-        if hasFinished {
-          continuation.resume()
-        }
-      }
-    } onCancel: {
-      state.withLock { state in
-        defer { state.rpcsFinished = nil }
-        return state.rpcsFinished
-      }?.resume()
-    }
+  nonisolated var clientUsage: ClientUsage<Clients> {
+    usage.withLock { $0 }
   }
 
-  /// Keeps the clients from being stopped while `body` runs an RPC, which may be started without
-  /// holding them through ``withClientInUse(_:)``, such as a publish from outside a service.
-  nonisolated func withRPC<T: Sendable>(_ body: @Sendable () async throws -> T) async rethrows -> T
+  /// Number of active streams per client of the current generation, in creation order.
+  nonisolated var activeStreamCounts: [Int] {
+    clientUsage.current?.pool.activeStreamCounts ?? []
+  }
+
+  /// Creates `subscription`, and its topic if needed, unless it exists.
+  nonisolated func create<Message: _Message>(subscription: Subscription<Message>, projectID: String)
+    async throws
   {
-    state.withLock { $0.rpcsInFlight += 1 }
-    defer {
-      state.withLock { state -> CheckedContinuation<Void, Never>? in
-        state.rpcsInFlight -= 1
-        guard state.rpcsInFlight == 0 else {
-          return nil
-        }
-        defer { state.rpcsFinished = nil }
-        return state.rpcsFinished
-      }?.resume()
+    try await withClientInUse { clients in
+      try await self.create(
+        subscription: subscription,
+        subscriberClient: clients.subscriber,
+        publisherClient: clients.publisher,
+        projectID: projectID)
     }
-    return try await body()
-  }
-
-  nonisolated var rpcsInFlight: Int {
-    state.withLock { $0.rpcsInFlight }
-  }
-
-  nonisolated var clientUsage: ClientUsage {
-    state.withLock { $0.usage }
   }
 
   func create(
@@ -299,7 +279,7 @@ actor PubSubService {
           $0.name = topic.id(projectID: projectID)
           $0.labels = topic.labels
         }
-        _ = try await withRPC { try await publisherClient.createTopic(request) }
+        _ = try await publisherClient.createTopic(request)
       }
     } catch let error as RPCError where error.code == .alreadyExists {
       // pass
@@ -340,7 +320,7 @@ actor PubSubService {
             }
           }
         }
-        _ = try await withRPC { try await subscriberClient.createSubscription(request) }
+        _ = try await subscriberClient.createSubscription(request)
       }
     } catch let error as RPCError {
       switch error.code {
@@ -368,6 +348,15 @@ actor PubSubService {
     }
   }
 
+  nonisolated func delete<Message: _Message>(subscription: Subscription<Message>, projectID: String)
+    async throws
+  {
+    try await withClientInUse { clients in
+      try await self.delete(
+        subscription: subscription, subscriberClient: clients.subscriber, projectID: projectID)
+    }
+  }
+
   func delete<Message: _Message>(
     subscription: Subscription<Message>,
     subscriberClient: Google_Pubsub_V1_Subscriber.ClientProtocol,
@@ -376,16 +365,14 @@ actor PubSubService {
     let request = Google_Pubsub_V1_DeleteSubscriptionRequest.with {
       $0.subscription = subscription.id(projectID: projectID)
     }
-    try await withRetryableTask { [service = self] in
+    try await withRetryableTask {
       do {
         try await withSpan(
           "pubsub-delete-subscription",
           ofKind: .producer
         ) { span in
           span.attributes["pubsub/subscription"] = subscription.name
-          _ = try await service.withRPC {
-            try await subscriberClient.deleteSubscription(request)
-          }
+          _ = try await subscriberClient.deleteSubscription(request)
         }
       } catch let error as RPCError {
         switch error.code {

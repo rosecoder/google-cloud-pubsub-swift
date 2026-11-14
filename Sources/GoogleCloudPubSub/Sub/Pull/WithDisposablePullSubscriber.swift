@@ -32,21 +32,14 @@ func withDisposablePullSubscriber<Message: _Message>(
     pubSubService: pubSubService
   )
 
-  let publisher = Publisher(
-    projectID: projectID,
-    pubSubService: pubSubService
-  )
+  // Keeps the clients running from creating the subscription until the subscriber is done.
+  try await pubSubService.withClientInUse { _ in
+    logger.debug("Creating subscription...")
+    try await pubSubService.create(subscription: subscription, projectID: projectID)
 
-  logger.debug("Creating subscription...")
-  try await subscriber.pubSubService.create(
-    subscription: subscription,
-    subscriberClient: subscriber.client,
-    publisherClient: publisher.client,
-    projectID: projectID
-  )
-
-  logger.debug("Running subscriber...")
-  try await subscriber.run()
+    logger.debug("Running subscriber...")
+    try await subscriber.run()
+  }
 }
 
 private final class CallbackHandler<Message: _Message>: Handler {

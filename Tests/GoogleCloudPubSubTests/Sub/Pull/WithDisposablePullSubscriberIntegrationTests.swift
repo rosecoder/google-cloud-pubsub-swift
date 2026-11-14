@@ -48,10 +48,10 @@ struct WithDisposablePullSubscriberIntegrationTests {
       defer { subscriberRunTask.cancel() }
 
       // Publish message once the subscription exists, as it wouldn't receive it otherwise
-      try await waitUntilSubscriptionExists(
-        id: subscription.id(projectID: projectID),
-        client: Google_Pubsub_V1_Subscriber.Client(wrapping: pubSubService.grpcClient)
-      )
+      try await pubSubService.withClientInUse { clients in
+        try await waitUntilSubscriptionExists(
+          id: subscription.id(projectID: projectID), client: clients.subscriber)
+      }
       let publishedMessage = try await publisher.publish(to: topic, body: "Hello")
 
       // Wait for message

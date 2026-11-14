@@ -16,7 +16,7 @@ import Testing
       try await waitUntil { service.clientUsage.users == 1 }
 
       // Stands in for a subscriber sharing the service that stops before the publisher.
-      try await service.withClientInUse {}
+      try await service.withClientInUse { _ in }
       #expect(!service.clientUsage.hasBegunShutdown)
 
       let start = ContinuousClock.now

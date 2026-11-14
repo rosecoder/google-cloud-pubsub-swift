@@ -46,12 +46,7 @@ struct PullSubscriberIntegrationTests {
         try await subscriber.run()
       }
       defer { subscriberRunTask.cancel() }
-      try await pubSubService.create(
-        subscription: handler.subscription,
-        subscriberClient: subscriber.client,
-        publisherClient: subscriber.publisherClient,
-        projectID: projectID
-      )
+      try await pubSubService.create(subscription: handler.subscription, projectID: projectID)
 
       // Publish message
       let publishedMessage = try await publisher.publish(to: topic, body: "Hello")
@@ -109,12 +104,14 @@ struct PullSubscriberIntegrationTests {
       defer { subscriberRunTask.cancel() }
 
       // Wait for the subscriber to create topic and subscription
-      try await waitUntilSubscriptionExists(
-        id: handler.subscription.id(projectID: projectID),
-        client: subscriber.client
-      )
-      let createdTopic = try await subscriber.publisherClient.getTopic(
-        .with { $0.topic = topic.id(projectID: projectID) })
+      let createdTopic = try await pubSubService.withClientInUse { clients in
+        try await waitUntilSubscriptionExists(
+          id: handler.subscription.id(projectID: projectID),
+          client: clients.subscriber
+        )
+        return try await clients.publisher.getTopic(
+          .with { $0.topic = topic.id(projectID: projectID) })
+      }
       #expect(createdTopic.name == topic.id(projectID: projectID))
 
       // Publish message without letting the publisher create the topic
@@ -166,12 +163,7 @@ struct PullSubscriberIntegrationTests {
         try await publisher.run()
       }
       defer { publisherRunTask.cancel() }
-      try await pubSubService.create(
-        subscription: handler.subscription,
-        subscriberClient: subscriber.client,
-        publisherClient: subscriber.publisherClient,
-        projectID: projectID
-      )
+      try await pubSubService.create(subscription: handler.subscription, projectID: projectID)
       let subscriberRunTask = Task {
         try await subscriber.run()
       }
@@ -228,12 +220,7 @@ struct PullSubscriberIntegrationTests {
         try await publisher.run()
       }
       defer { publisherRunTask.cancel() }
-      try await pubSubService.create(
-        subscription: handler.subscription,
-        subscriberClient: subscriber.client,
-        publisherClient: subscriber.publisherClient,
-        projectID: projectID
-      )
+      try await pubSubService.create(subscription: handler.subscription, projectID: projectID)
       let subscriberRunTask = Task {
         try await subscriber.run()
       }
