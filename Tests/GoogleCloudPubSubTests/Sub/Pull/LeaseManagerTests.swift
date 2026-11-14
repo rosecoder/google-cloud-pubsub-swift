@@ -214,7 +214,7 @@ import Testing
     defer { run.cancel() }
     try await body()
     run.cancel()
-    await run.value
+    await run.cancellableValue
   }
 
   private func message(_ id: String) -> Google_Pubsub_V1_ReceivedMessage {

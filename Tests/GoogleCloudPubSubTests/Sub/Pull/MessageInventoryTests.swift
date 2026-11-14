@@ -303,7 +303,7 @@ import Testing
     let wait = Task { try await inventory.waitUntilReceivable() }
     inventory.release(AckID("ack-a"))
 
-    try await wait.value
+    try await wait.cancellableValue
   }
 
   @Test func shouldReportWhetherExactlyOnceDeliveryChanged() {
@@ -323,7 +323,7 @@ import Testing
     let wait = Task { try await inventory.waitUntilReceivable() }
     wait.cancel()
 
-    await #expect(throws: CancellationError.self) { try await wait.value }
+    await #expect(throws: CancellationError.self) { try await wait.cancellableValue }
   }
 
   @Test func shouldThrowWhenReceivingStops() async throws {
@@ -333,7 +333,7 @@ import Testing
     let wait = Task { try await inventory.waitUntilReceivable() }
     _ = inventory.stopReceiving()
 
-    await #expect(throws: CancellationError.self) { try await wait.value }
+    await #expect(throws: CancellationError.self) { try await wait.cancellableValue }
   }
 
   @Test func shouldYieldDispatchedMessagesInOrderAndEndAfterStopping() async throws {
@@ -350,7 +350,7 @@ import Testing
     _ = inventory.add([message("c")], now: .now)
     _ = inventory.stopReceiving()
 
-    #expect(await collected.value == ["ack-a", "ack-b", "ack-c"].map(AckID.init(rawValue:)))
+    #expect(await collected.cancellableValue == ["ack-a", "ack-b", "ack-c"].map(AckID.init(rawValue:)))
   }
 
   @Test func shouldYieldAllDispatchedMessagesToCancelledConsumer() async throws {
@@ -369,7 +369,7 @@ import Testing
       return ids
     }
 
-    #expect(await collected.value == [AckID("ack-a"), AckID("ack-b")])
+    #expect(await collected.cancellableValue == [AckID("ack-a"), AckID("ack-b")])
   }
 
   @Test func shouldDispatchHeldMessageWhenReleased() async throws {
@@ -394,7 +394,7 @@ import Testing
 
     _ = inventory.add([message("a")], now: .now)
 
-    #expect(try await wait.value)
+    #expect(try await wait.cancellableValue)
     #expect(try await !inventory.waitUntilNonEmpty())
   }
 
@@ -409,7 +409,7 @@ import Testing
     #expect(inventory.closeAll().isEmpty)
     inventory.release(AckID("ack-b"))
 
-    try await wait.value
+    try await wait.cancellableValue
   }
 
   @Test func shouldThrowWhenWaitingUntilEmptyIsCancelled() async throws {
@@ -419,7 +419,7 @@ import Testing
 
     wait.cancel()
 
-    await #expect(throws: CancellationError.self) { try await wait.value }
+    await #expect(throws: CancellationError.self) { try await wait.cancellableValue }
   }
 
   @Test func shouldWaitUntilMessagesAreAcceptedWithShorterDeadline() async throws {
@@ -434,7 +434,7 @@ import Testing
 
     _ = inventory.add([message("b")], now: .now)
 
-    #expect(try await wait.value == .seconds(12))
+    #expect(try await wait.cancellableValue == .seconds(12))
   }
 
   @Test func shouldReturnRightAwayWhenMessagesWereAcceptedWithShorterDeadlineSinceRenewal()
@@ -449,7 +449,7 @@ import Testing
     _ = inventory.renewLeases(now: .now)
     let wait = Task { try await inventory.waitUntilAccepted(shorterThan: .seconds(30)) }
     wait.cancel()
-    await #expect(throws: CancellationError.self) { try await wait.value }
+    await #expect(throws: CancellationError.self) { try await wait.cancellableValue }
   }
 
   @Test func shouldThrowWhenWaitingUntilNonEmptyIsCancelled() async throws {
@@ -458,7 +458,7 @@ import Testing
 
     wait.cancel()
 
-    await #expect(throws: CancellationError.self) { try await wait.value }
+    await #expect(throws: CancellationError.self) { try await wait.cancellableValue }
   }
 }
 

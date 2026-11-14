@@ -50,7 +50,7 @@ import Testing
     let ackGate = Gate()
     let ackTransport = FakeAckTransport { call, _ in
       if call.kind == .acknowledge {
-        await ackGate.wait()
+        try await ackGate.wait()
       }
     }
     handlerGate.open()
@@ -71,7 +71,7 @@ import Testing
     let ackGate = Gate()
     let ackTransport = FakeAckTransport { call, _ in
       if call.kind == .acknowledge {
-        await ackGate.wait()
+        try await ackGate.wait()
       }
     }
     handlerGate.open()
@@ -259,7 +259,7 @@ import Testing
       topic: Topic<DataMessage>(name: uniqueName("PullSubscriberFlowControlTests"))
     ) { [recorder, handlerGate] message in
       try await recorder.record(message.id) {
-        await handlerGate.wait()
+        try await handlerGate.wait()
         try await handle(message.id)
         if message.id == "fail" {
           throw HandlerError()
@@ -279,16 +279,11 @@ import Testing
 
     try await testGracefulShutdown { shutdownTrigger in
       let run = Task { await subscriber.receiveAndProcess() }
-      do {
-        try await body()
-      } catch {
-        handlerGate.open()
-        shutdownTrigger.triggerGracefulShutdown()
-        await run.value
-        throw error
-      }
+      let result = await Result { try await body() }
+      handlerGate.open()
       shutdownTrigger.triggerGracefulShutdown()
-      await run.value
+      await run.cancellableValue
+      try result.get()
     }
   }
 

@@ -13,17 +13,19 @@ import Testing
     let service = try PubSubService()
     let firstGate = Gate()
     let secondGate = Gate()
-    let first = Task { try await service.withClientInUse { await firstGate.wait() } }
-    let second = Task { try await service.withClientInUse { await secondGate.wait() } }
+    let first = Task { try await service.withClientInUse { try await firstGate.wait() } }
+    defer { first.cancel() }
+    let second = Task { try await service.withClientInUse { try await secondGate.wait() } }
+    defer { second.cancel() }
     try await waitUntil { service.clientUsage.users == 2 }
 
     firstGate.open()
-    try await first.value
+    try await first.cancellableValue
     #expect(!service.clientUsage.hasBegunShutdown)
     try await service.pool.withStreamSlot { _ in }
 
     secondGate.open()
-    try await second.value
+    try await second.cancellableValue
     #expect(service.clientUsage.hasBegunShutdown)
     await #expect(throws: RuntimeError.self) {
       try await service.pool.withStreamSlot { _ in }
@@ -48,7 +50,8 @@ import Testing
   func shouldEndClientUseWhenBodyThrows() async throws {
     let service = try PubSubService()
     let gate = Gate()
-    let holder = Task { try await service.withClientInUse { await gate.wait() } }
+    let holder = Task { try await service.withClientInUse { try await gate.wait() } }
+    defer { holder.cancel() }
     try await waitUntil { service.clientUsage.users == 1 }
 
     await #expect(throws: CancellationError.self) {
@@ -61,7 +64,7 @@ import Testing
     #expect(!service.clientUsage.hasBegunShutdown)
 
     gate.open()
-    try await holder.value
+    try await holder.cancellableValue
     #expect(service.clientUsage.hasBegunShutdown)
   }
 
@@ -86,11 +89,12 @@ import Testing
         try await service.withClientInUse {
           try await service.pool.withStreamSlot { client in
             clients.withLock { $0.append(ObjectIdentifier(client)) }
-            await gate.wait()
+            try await gate.wait()
           }
         }
       }
     }
+    defer { for stream in streams { stream.cancel() } }
     try await waitUntil { service.pool.activeStreamCounts == [2, 1] }
 
     let primary = ObjectIdentifier(service.grpcClient)
@@ -99,7 +103,7 @@ import Testing
 
     gate.open()
     for stream in streams {
-      try await stream.value
+      try await stream.cancellableValue
     }
     await #expect(throws: RuntimeError.self) {
       try await service.pool.withStreamSlot { _ in }
