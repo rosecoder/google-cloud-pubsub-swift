@@ -111,7 +111,83 @@ import Testing
     }
   }
 
+  @Test(.timeLimit(.minutes(1)))
+  func shouldPlanFromCurrentDeadlineAfterIdling() async throws {
+    let inventory = MessageInventory(
+      flowControl: .init(maxOutstandingMessages: 10), initialAckDeadline: .seconds(10))
+    inventory.recordAckLatency(.seconds(600))
+    _ = inventory.add([message("a")], now: clock.now)
+
+    try await withLeaseManager(inventory) {
+      try await waitUntil { clock.sleeperCount == 1 }
+      clock.advance(by: .seconds(540))
+      try await waitUntil { recorder.extensions == [Extension(["a"], .seconds(600))] }
+
+      // The renewal after the release plans its next one from the 600 second deadline.
+      try await waitUntil { clock.sleeperCount == 1 }
+      inventory.release(AckID("ack-a"), now: clock.now)
+      clock.advance(by: .seconds(540))
+      try await waitUntil { inventory.hasLeaseWaiter }
+
+      recordFastAcks(inventory)
+      let received = inventory.add([message("b")], now: clock.now)
+      #expect(received.ackDeadline == .seconds(10))
+
+      try await expectRenewal(of: ["b"], within: .seconds(9))
+    }
+  }
+
+  @Test(.timeLimit(.minutes(1)))
+  func shouldReplanWhenMessageIsReceivedWithShorterDeadline() async throws {
+    let inventory = MessageInventory(
+      flowControl: .init(maxOutstandingMessages: 10), initialAckDeadline: .seconds(10))
+    inventory.recordAckLatency(.seconds(600))
+    _ = inventory.add([message("a")], now: clock.now)
+
+    try await withLeaseManager(inventory) {
+      try await waitUntil { (clock.nextWakeUp ?? .zero) > .seconds(9) }
+
+      recordFastAcks(inventory)
+      let received = inventory.add([message("b")], now: clock.now)
+      #expect(received.ackDeadline == .seconds(10))
+
+      try await expectRenewal(of: ["a", "b"], within: .seconds(9))
+    }
+  }
+
+  @Test(.timeLimit(.minutes(1)))
+  func shouldNotReplanWhenMessageIsReceivedWithSameDeadline() async throws {
+    let inventory = MessageInventory(
+      flowControl: .init(maxOutstandingMessages: 10), initialAckDeadline: .seconds(600))
+    _ = inventory.add([message("a")], now: clock.now)
+
+    try await withLeaseManager(inventory) {
+      try await waitUntil { clock.sleeperCount == 1 }
+      let planned = try #require(clock.nextWakeUp)
+
+      _ = inventory.add([message("b")], now: clock.now)
+      await yieldRepeatedly()
+
+      #expect(clock.nextWakeUp == planned)
+    }
+  }
+
   // MARK: - Helpers
+
+  /// Brings the 99th percentile of ack latencies, and so the ack deadline, down to 10 seconds.
+  private func recordFastAcks(_ inventory: MessageInventory) {
+    for _ in 0..<200 {
+      inventory.recordAckLatency(.seconds(1))
+    }
+  }
+
+  private func expectRenewal(of ids: Set<String>, within limit: Duration) async throws {
+    let count = recorder.extensions.count
+    try await waitUntil { clock.nextWakeUp.map { $0 <= limit } ?? false }
+    clock.advance(by: limit)
+    try await waitUntil { recorder.extensions.count == count + 1 }
+    #expect(recorder.extensions.last == Extension(ids, .seconds(10)))
+  }
 
   /// Fires the next renewal, which is at most 90% of the 10 second deadline away.
   private func tick() async throws {
