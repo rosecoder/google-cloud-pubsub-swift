@@ -1,64 +1,86 @@
-import Darwin
 import Foundation
 
+#if canImport(Darwin)
+  import Darwin
+#elseif canImport(Glibc)
+  import Glibc
+#endif
+
 struct ProcessSnapshot: Sendable {
-  var footprintBytes: UInt64 = 0
   var residentBytes: UInt64 = 0
   var cpuSeconds: Double = 0
   var threads: Int = 0
+  var fileDescriptors: Int = 0
+  /// Established TCP connections to port 443 in the process's network namespace (Linux only).
+  var tlsConnections: Int = 0
 }
 
 enum ProcessMetrics {
 
   static func snapshot() -> ProcessSnapshot {
     var snapshot = ProcessSnapshot()
-    let task = mach_task_self_
-
-    var vmInfo = task_vm_info_data_t()
-    var vmCount = mach_msg_type_number_t(
-      MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<integer_t>.size)
-    let vmResult = withUnsafeMutablePointer(to: &vmInfo) {
-      $0.withMemoryRebound(to: integer_t.self, capacity: Int(vmCount)) {
-        task_info(task, task_flavor_t(TASK_VM_INFO), $0, &vmCount)
-      }
-    }
-    if vmResult == KERN_SUCCESS {
-      snapshot.footprintBytes = vmInfo.phys_footprint
-      snapshot.residentBytes = vmInfo.resident_size
-    }
-
     var usage = rusage()
     if getrusage(RUSAGE_SELF, &usage) == 0 {
       snapshot.cpuSeconds = seconds(usage.ru_utime) + seconds(usage.ru_stime)
     }
-
-    var threads: thread_act_array_t?
-    var threadCount: mach_msg_type_number_t = 0
-    if task_threads(task, &threads, &threadCount) == KERN_SUCCESS, let threads {
-      snapshot.threads = Int(threadCount)
-      for index in 0..<Int(threadCount) {
-        mach_port_deallocate(task, threads[index])
+    #if os(Linux)
+      if let status = try? String(contentsOfFile: "/proc/self/status", encoding: .utf8) {
+        for line in status.split(separator: "\n") {
+          if line.hasPrefix("VmRSS:") {
+            snapshot.residentBytes = (UInt64(field(line, 1)) ?? 0) * 1024
+          } else if line.hasPrefix("Threads:") {
+            snapshot.threads = Int(field(line, 1)) ?? 0
+          }
+        }
       }
-      vm_deallocate(
-        task, vm_address_t(UInt(bitPattern: threads)),
-        vm_size_t(Int(threadCount) * MemoryLayout<thread_t>.stride))
-    }
+      snapshot.fileDescriptors =
+        ((try? FileManager.default.contentsOfDirectory(atPath: "/proc/self/fd"))?.count ?? 1) - 1
+      snapshot.tlsConnections = ["/proc/self/net/tcp", "/proc/self/net/tcp6"].reduce(0) {
+        $0 + establishedConnections(toPort: 443, table: $1)
+      }
+    #else
+      var info = mach_task_basic_info()
+      var count = mach_msg_type_number_t(
+        MemoryLayout<mach_task_basic_info>.size / MemoryLayout<natural_t>.size)
+      let result = withUnsafeMutablePointer(to: &info) {
+        $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
+          task_info(mach_task_self_, task_flavor_t(MACH_TASK_BASIC_INFO), $0, &count)
+        }
+      }
+      if result == KERN_SUCCESS {
+        snapshot.residentBytes = UInt64(info.resident_size)
+      }
+      var threads: thread_act_array_t?
+      var threadCount: mach_msg_type_number_t = 0
+      if task_threads(mach_task_self_, &threads, &threadCount) == KERN_SUCCESS, let threads {
+        snapshot.threads = Int(threadCount)
+        for index in 0..<Int(threadCount) {
+          mach_port_deallocate(mach_task_self_, threads[index])
+        }
+        vm_deallocate(
+          mach_task_self_, vm_address_t(UInt(bitPattern: threads)),
+          vm_size_t(Int(threadCount) * MemoryLayout<thread_t>.stride))
+      }
+      snapshot.fileDescriptors =
+        ((try? FileManager.default.contentsOfDirectory(atPath: "/dev/fd"))?.count ?? 1) - 1
+    #endif
     return snapshot
   }
 
-  /// CPU seconds and resident bytes of another process of the same user, such as the emulator.
-  static func otherProcess(_ pid: Int32) -> (cpuSeconds: Double, residentBytes: UInt64)? {
-    var info = proc_taskinfo()
-    let size = Int32(MemoryLayout<proc_taskinfo>.size)
-    guard proc_pidinfo(pid, PROC_PIDTASKINFO, 0, &info, size) == size else {
-      return nil
+  private static func field(_ line: Substring, _ index: Int) -> Substring {
+    let fields = line.split(whereSeparator: { $0 == " " || $0 == "\t" })
+    return index < fields.count ? fields[index] : ""
+  }
+
+  private static func establishedConnections(toPort port: Int, table path: String) -> Int {
+    guard let table = try? String(contentsOfFile: path, encoding: .utf8) else { return 0 }
+    let portHex = String(format: ":%04X", port)
+    return table.split(separator: "\n").dropFirst().reduce(0) { count, line in
+      let fields = line.split(separator: " ")
+      // fields: sl local_address rem_address st ...
+      guard fields.count > 3, fields[2].hasSuffix(portHex), fields[3] == "01" else { return count }
+      return count + 1
     }
-    var timebase = mach_timebase_info_data_t()
-    mach_timebase_info(&timebase)
-    let nanos =
-      Double(info.pti_total_user + info.pti_total_system) * Double(timebase.numer)
-      / Double(timebase.denom)
-    return (nanos / 1e9, info.pti_resident_size)
   }
 
   private static func seconds(_ value: timeval) -> Double {
@@ -82,4 +104,19 @@ func slope(times: [Double], values: [Double]) -> Double {
 
 func megabytes(_ bytes: UInt64) -> Double {
   Double(bytes) / 1_048_576
+}
+
+/// Monotonic nanoseconds, for durations within this process.
+func monotonicNanos() -> UInt64 {
+  var spec = timespec()
+  clock_gettime(CLOCK_MONOTONIC, &spec)
+  return UInt64(spec.tv_sec) * 1_000_000_000 + UInt64(spec.tv_nsec)
+}
+
+/// Wall clock nanoseconds, written into messages so latency can be measured across processes on
+/// the same host.
+func wallClockNanos() -> UInt64 {
+  var spec = timespec()
+  clock_gettime(CLOCK_REALTIME, &spec)
+  return UInt64(spec.tv_sec) * 1_000_000_000 + UInt64(spec.tv_nsec)
 }

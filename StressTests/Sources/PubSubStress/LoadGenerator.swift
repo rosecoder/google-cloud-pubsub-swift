@@ -1,40 +1,31 @@
 import Foundation
-import GRPCCore
+import GoogleCloudPubSub
 import Synchronization
 
-@testable import GoogleCloudPubSub
-
-/// Layout of the first 20 bytes of every message body; the rest is filler.
+/// Identifies a published message by the attributes it carries; the body is filler.
 struct MessageHeader {
-  static let size = 20
+
+  static let seqKey = "stress-seq"
+  static let publishedKey = "stress-published-ns"
 
   let seq: UInt64
   let publishedAtNanos: UInt64
-  let topicIndex: UInt32
 
-  init(seq: UInt64, publishedAtNanos: UInt64, topicIndex: UInt32) {
+  init(seq: UInt64, publishedAtNanos: UInt64) {
     self.seq = seq
     self.publishedAtNanos = publishedAtNanos
-    self.topicIndex = topicIndex
   }
 
-  init?(_ body: Data) {
-    guard body.count >= Self.size else { return nil }
-    (seq, publishedAtNanos, topicIndex) = body.withUnsafeBytes { bytes in
-      (
-        UInt64(littleEndian: bytes.loadUnaligned(fromByteOffset: 0, as: UInt64.self)),
-        UInt64(littleEndian: bytes.loadUnaligned(fromByteOffset: 8, as: UInt64.self)),
-        UInt32(littleEndian: bytes.loadUnaligned(fromByteOffset: 16, as: UInt32.self))
-      )
-    }
+  init?(_ attributes: [String: String]) {
+    guard let seq = attributes[Self.seqKey].flatMap(UInt64.init),
+      let published = attributes[Self.publishedKey].flatMap(UInt64.init)
+    else { return nil }
+    self.seq = seq
+    self.publishedAtNanos = published
   }
 
-  func write(into body: inout Data) {
-    body.withUnsafeMutableBytes { bytes in
-      bytes.storeBytes(of: seq.littleEndian, toByteOffset: 0, as: UInt64.self)
-      bytes.storeBytes(of: publishedAtNanos.littleEndian, toByteOffset: 8, as: UInt64.self)
-      bytes.storeBytes(of: topicIndex.littleEndian, toByteOffset: 16, as: UInt32.self)
-    }
+  var attributes: [String: String] {
+    [Self.seqKey: String(seq), Self.publishedKey: String(publishedAtNanos)]
   }
 }
 
@@ -66,6 +57,7 @@ final class LoadGenerator: Sendable {
   private let stats = Mutex(Stats())
   private let pacer: Mutex<Pacer>
   private let isStopped = Atomic<Bool>(false)
+  private let isPaused = Atomic<Bool>(false)
   private let pendingDeliveries: @Sendable () -> Int
 
   init(
@@ -77,7 +69,7 @@ final class LoadGenerator: Sendable {
     self.batchSize = config.batchSize
     self.concurrency = config.publishers
     self.maxBacklog = config.maxBacklog
-    self.template = Data((0..<max(config.messageSize, MessageHeader.size)).map { UInt8(truncatingIfNeeded: $0 &* 31) })
+    self.template = Data((0..<max(config.messageSize, 1)).map { UInt8(truncatingIfNeeded: $0 &* 31) })
     self.allocated = Mutex(Array(repeating: 0, count: topics.count))
     self.unconfirmed = Mutex(Array(repeating: [], count: topics.count))
     self.pacer = Mutex(Pacer(rate: config.rate))
@@ -87,6 +79,11 @@ final class LoadGenerator: Sendable {
   var rate: Double {
     get { pacer.withLock { $0.rate } }
     set { pacer.withLock { $0.rate = newValue } }
+  }
+
+  var isPausedNow: Bool {
+    get { isPaused.load(ordering: .relaxed) }
+    set { isPaused.store(newValue, ordering: .relaxed) }
   }
 
   func allocatedCount(topic: Int) -> UInt64 {
@@ -135,7 +132,7 @@ final class LoadGenerator: Sendable {
     await withDiscardingTaskGroup { group in
       for _ in 0..<concurrency {
         group.addTask {
-          while !Task.isCancelled {
+          while !Task.isCancelled, !abortRequested.load(ordering: .relaxed) {
             let index = next.wrappingAdd(1, ordering: .relaxed).oldValue
             guard index < batches.count else { return }
             await self.publishBatch(to: batches[index].0, count: batches[index].1)
@@ -145,8 +142,15 @@ final class LoadGenerator: Sendable {
     }
   }
 
+  /// Publishes one batch to the first topic outside of the paced load.
+  func publishOne() async {
+    await publishBatch(to: 0, count: 1)
+  }
+
   private func waitForCapacity() async {
-    while pendingDeliveries() > maxBacklog, !isStopped.load(ordering: .relaxed) {
+    while (pendingDeliveries() > maxBacklog || isPaused.load(ordering: .relaxed)),
+      !isStopped.load(ordering: .relaxed)
+    {
       try? await Task.sleep(for: .milliseconds(20))
     }
     let wakeAt = pacer.withLock { pacer -> UInt64? in
@@ -158,7 +162,7 @@ final class LoadGenerator: Sendable {
       return slot > now ? slot : nil
     }
     if let wakeAt {
-      try? await Task.sleep(for: .nanoseconds(Int64(wakeAt - monotonicNanos())))
+      try? await Task.sleep(for: .nanoseconds(Int64(wakeAt) - Int64(monotonicNanos())))
     }
   }
 
@@ -167,16 +171,16 @@ final class LoadGenerator: Sendable {
       defer { allocated[topic] += UInt64(count) }
       return allocated[topic]
     }
-    let now = monotonicNanos()
+    let started = monotonicNanos()
+    let now = wallClockNanos()
     let messages = (0..<count).map { offset in
-      var body = template
-      MessageHeader(seq: start + UInt64(offset), publishedAtNanos: now, topicIndex: UInt32(topic))
-        .write(into: &body)
-      return try! OutgoingDataMessage(body: body)
+      try! OutgoingDataMessage(
+        body: template,
+        attributes: MessageHeader(seq: start + UInt64(offset), publishedAtNanos: now).attributes)
     }
     do {
       try await publisher.publish(to: topics[topic], messages: messages)
-      let micros = (monotonicNanos() - now) / 1_000
+      let micros = (monotonicNanos() - started) / 1_000
       stats.withLock { stats in
         stats.publishedMessages += count
         stats.publishRPCs += 1
@@ -184,8 +188,8 @@ final class LoadGenerator: Sendable {
       }
     } catch {
       unconfirmed.withLock { $0[topic].append(start..<(start + UInt64(count))) }
-      let code = (error as? RPCError).map { "\($0.code)" } ?? String(describing: type(of: error))
-      stats.withLock { $0.failedRPCs[code, default: 0] += 1 }
+      let code = String(describing: error).prefix(80)
+      stats.withLock { $0.failedRPCs[String(code), default: 0] += 1 }
     }
   }
 }
