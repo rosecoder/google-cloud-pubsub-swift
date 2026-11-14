@@ -1,3 +1,4 @@
+import GRPCCore
 import ServiceLifecycleTestKit
 import Testing
 
@@ -38,5 +39,21 @@ import Testing
     run.cancel()
     try await run.cancellableValue
     #expect(service.clientUsage.hasBegunShutdown)
+  }
+
+  @Test(arguments: [
+    (RPCError(code: .notFound, message: "Topic not found"), true),
+    (
+      RPCError(
+        code: .notFound,
+        message: "Resource not found (resource=projects/publisher-tests/topics/missing)."),
+      true
+    ),
+    (RPCError(code: .notFound, message: ""), true),
+    (RPCError(code: .permissionDenied, message: "Topic not found"), false),
+    (RPCError(code: .unavailable, message: ""), false),
+  ])
+  func shouldTreatNotFoundAsMissingTopic(error: RPCError, isMissing: Bool) {
+    #expect(Publisher.isMissingTopic(error) == isMissing)
   }
 }

@@ -35,12 +35,8 @@ struct GCPNotFoundTests {
       try await withRunningSubscribers(
         [PullSubscriber<CallbackHandler<PlainTextMessage>>](), publishingWith: publisher
       ) {
-        await withKnownIssue(
-          "Publisher only creates topics on the emulator's \"Topic not found\" message, while Pub/Sub responds with \"Resource not found (resource=…)\""
-        ) {
-          let message = try await publisher.publish(to: topic, body: "Hello")
-          #expect(!message.id.isEmpty)
-        }
+        let message = try await publisher.publish(to: topic, body: "Hello")
+        #expect(!message.id.isEmpty)
       }
     }
   }
