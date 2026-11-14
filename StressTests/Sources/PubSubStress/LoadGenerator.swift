@@ -94,6 +94,11 @@ final class LoadGenerator: Sendable {
     allocated.withLock { $0 }
   }
 
+  /// Messages per topic whose publish failed, which may or may not be delivered.
+  var unconfirmedCounts: [Int] {
+    unconfirmed.withLock { $0.map { $0.reduce(0) { $0 + $1.count } } }
+  }
+
   func unconfirmedRanges(topic: Int) -> [Range<UInt64>] {
     unconfirmed.withLock { $0[topic] }
   }
