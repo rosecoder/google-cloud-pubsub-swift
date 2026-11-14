@@ -6,4 +6,7 @@ extension Tag {
 
   /// Takes tens of seconds, for example to wait for ack deadlines to pass.
   @Tag static var slow: Self
+
+  /// Runs against real Google Cloud Pub/Sub instead of the emulator.
+  @Tag static var gcp: Self
 }
