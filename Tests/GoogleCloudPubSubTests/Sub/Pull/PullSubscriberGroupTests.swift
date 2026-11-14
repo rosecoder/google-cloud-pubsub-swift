@@ -1,5 +1,7 @@
 import Logging
 import ServiceLifecycle
+import ServiceLifecycleTestKit
+import Synchronization
 import Testing
 
 @testable import GoogleCloudPubSub
@@ -75,6 +77,22 @@ import Testing
 
     await #expect(throws: SubscriberFailure.self) { try await group.run() }
     #expect(service.clientUsage.users == 0)
+  }
+
+  @Test(.timeLimit(.minutes(1)))
+  func shouldRunUntilGracefulShutdownWithoutSubscribers() async throws {
+    try await testGracefulShutdown { shutdownTrigger in
+      let hasReturned = Mutex(false)
+      let run = Task {
+        try await PullSubscriberGroup([]).run()
+        hasReturned.withLock { $0 = true }
+      }
+      try await Task.sleep(for: .milliseconds(100))
+      #expect(!hasReturned.withLock { $0 })
+
+      shutdownTrigger.triggerGracefulShutdown()
+      #expect(try await finishes(run, within: .seconds(5)))
+    }
   }
 
   // MARK: - Cancellation
