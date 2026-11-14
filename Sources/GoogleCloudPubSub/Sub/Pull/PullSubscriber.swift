@@ -3,7 +3,6 @@ import GRPCCore
 import GoogleCloudAuth
 import Logging
 import NIO
-import RetryableTask
 import ServiceLifecycle
 import Tracing
 
@@ -15,6 +14,7 @@ public final class PullSubscriber<Handler: _Handler>: Service {
   let client: Google_Pubsub_V1_Subscriber.ClientProtocol
   let publisherClient: Google_Pubsub_V1_Publisher.ClientProtocol
   let pubSubService: PubSubService
+  let ackBatcher: AckBatcher<ContinuousClock>
 
   public enum ConfigurationError: Error {
     case missingProjectID
@@ -61,12 +61,18 @@ public final class PullSubscriber<Handler: _Handler>: Service {
     options: PullSubscriberOptions = PullSubscriberOptions(),
     pubSubService: PubSubService
   ) {
+    let logger = Logger(label: "pubsub.subscriber." + handler.subscription.name)
+    let client = Google_Pubsub_V1_Subscriber.Client(wrapping: pubSubService.grpcClient)
     self.projectID = projectID
-    self.logger = Logger(label: "pubsub.subscriber." + handler.subscription.name)
+    self.logger = logger
     self.handler = handler
-    self.client = Google_Pubsub_V1_Subscriber.Client(wrapping: pubSubService.grpcClient)
+    self.client = client
     self.publisherClient = Google_Pubsub_V1_Publisher.Client(wrapping: pubSubService.grpcClient)
     self.pubSubService = pubSubService
+    self.ackBatcher = AckBatcher(
+      transport: GRPCAckTransport(
+        client: client, subscriptionID: handler.subscription.id(projectID: projectID)),
+      logger: logger)
     self.deleteSubscriptionOnShutdown = deleteSubscriptionOnShutdown
     self.options = options
   }
@@ -85,8 +91,16 @@ public final class PullSubscriber<Handler: _Handler>: Service {
     }
     await pubSubService.registerBlockerForGRPCShutdown(task: blockerTask)
 
-    await cancelWhenGracefulShutdown {
-      await self.continuesPull()
+    await withDiscardingTaskGroup { group in
+      group.addTask {
+        await self.ackBatcher.run()
+      }
+      await cancelWhenGracefulShutdown {
+        await self.continuesPull()
+      }
+      // Pulling only returns once all received messages are handled, so every ack has been
+      // submitted by now and is sent before the gRPC client is allowed to shut down.
+      ackBatcher.finish()
     }
 
     if deleteSubscriptionOnShutdown {
@@ -237,9 +251,7 @@ public final class PullSubscriber<Handler: _Handler>: Service {
       span.setStatus(SpanStatus(code: .ok))
 
       do {
-        try await acknowledge(
-          id: message.ackID, subscriptionID: handler.subscription.id(projectID: projectID),
-          logger: logger)
+        try await ackBatcher.ack(AckID(message.ackID))
       } catch {
         logger.critical("Failed to acknowledge message: \(error)")
       }
@@ -255,34 +267,9 @@ public final class PullSubscriber<Handler: _Handler>: Service {
     span.recordError(error)
 
     do {
-      try await unacknowledge(
-        id: message.ackID, subscriptionID: handler.subscription.id(projectID: projectID),
-        logger: logger)
+      try await ackBatcher.nack(AckID(message.ackID))
     } catch {
       logger.error("Failed to unacknowledge message: \(error)")
-    }
-  }
-
-  // MARK: - Acknowledge
-
-  private func acknowledge(id: String, subscriptionID: String, logger: Logger) async throws {
-    try await withRetryableTask(logger: logger) {
-      _ = try await client.acknowledge(
-        Google_Pubsub_V1_AcknowledgeRequest.with {
-          $0.subscription = subscriptionID
-          $0.ackIds = [id]
-        })
-    }
-  }
-
-  private func unacknowledge(id: String, subscriptionID: String, logger: Logger) async throws {
-    try await withRetryableTask(logger: logger) {
-      _ = try await client.modifyAckDeadline(
-        Google_Pubsub_V1_ModifyAckDeadlineRequest.with {
-          $0.subscription = subscriptionID
-          $0.ackIds = [id]
-          $0.ackDeadlineSeconds = 0
-        })
     }
   }
 }
