@@ -25,6 +25,7 @@ struct SharedClientShutdownIntegrationTests {
       logger: Logger(label: "test.shared-client-shutdown"))
 
     let run = Task { try await serviceGroup.run() }
+    defer { run.cancel() }
     try await publishAndReceiveOneMessageEach(
       subscribers, publisher: publisher, pubSubService: pubSubService)
 
@@ -79,7 +80,9 @@ struct SharedClientShutdownIntegrationTests {
       logger: Logger(label: "test.shared-client-shutdown.publisher"))
 
     let publisherRun = Task { try await publisherGroup.run() }
+    defer { publisherRun.cancel() }
     let subscriberRun = Task { try await subscriberGroup.run() }
+    defer { subscriberRun.cancel() }
     try await publishAndReceiveOneMessageEach(
       subscribers, publisher: publisher, pubSubService: pubSubService)
 
