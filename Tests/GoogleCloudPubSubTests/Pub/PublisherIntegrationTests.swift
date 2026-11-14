@@ -32,4 +32,28 @@ struct PublisherIntegrationTests {
       try await publisherRunTask.value
     }
   }
+
+  @Test func shouldPublishMessageLargerThanDefaultGRPCMessageLimit() async throws {
+    let pubSubService = try PubSubService()
+    let topic = Topic<PlainTextMessage>(name: uniqueName("PublisherIntegrationTests"))
+
+    try await testGracefulShutdown { shutdownTrigger in
+      let publisher = Publisher(
+        projectID: "publisher-integration-tests",
+        pubSubService: pubSubService
+      )
+      let publisherRunTask = Task {
+        try await publisher.run()
+      }
+
+      let message = try await publisher.publish(
+        to: topic, body: String(repeating: "a", count: 5 * 1024 * 1024))
+
+      #expect(message.id.isEmpty == false)
+
+      publisherRunTask.cancel()
+      shutdownTrigger.triggerGracefulShutdown()
+      try await publisherRunTask.value
+    }
+  }
 }

@@ -98,8 +98,9 @@ struct StreamingPullReceiver: Sendable {
       }
       logger.log(
         level: retry.logLevel,
-        failure.map { "StreamingPull failed (reconnecting in \(delay)): \($0)" }
-          ?? "StreamingPull ended (reconnecting in \(delay))")
+        failure.map {
+          "StreamingPull failed (reconnecting in \(delay)): \($0)\(Self.hint(for: $0))"
+        } ?? "StreamingPull ended (reconnecting in \(delay))")
 
       do {
         try await sleep(now().advanced(by: delay))
@@ -107,6 +108,16 @@ struct StreamingPullReceiver: Sendable {
         return
       }
     }
+  }
+
+  /// The transport reports a response exceeding the message size limit only as a decoding failure.
+  private static func hint(for error: any Error) -> String {
+    guard let error = error as? RPCError, error.code == .internalError,
+      error.message == "Failed to decode message"
+    else {
+      return ""
+    }
+    return " (possibly a response larger than the limit of \(PubSubService.maxMessageBytes) bytes)"
   }
 
   private func stream(
