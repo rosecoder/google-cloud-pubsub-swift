@@ -464,7 +464,7 @@ final class AckBatcher<C: Clock>: Sendable where C.Duration == Duration {
       if isPastDeadline {
         logger.warning("\(count) acknowledgements not sent before the shutdown deadline.")
       } else {
-        logger.critical("Failed to acknowledge \(count) messages: \(error)")
+        logger.error("Failed to acknowledge \(count) messages: \(error)")
       }
     case .modifyAckDeadline(.nack):
       if !isPastDeadline {

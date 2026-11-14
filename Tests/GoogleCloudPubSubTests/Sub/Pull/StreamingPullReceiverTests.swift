@@ -11,6 +11,7 @@ import Testing
   let connection = FakeStreamingPullConnection()
   let clock = TestClock()
   let subscriptionCreations = Counter()
+  let logs = LogRecorder()
 
   @Test(.timeLimit(.minutes(1)))
   func shouldOpenStreamWithInitialRequestRoutingHeaderAndTimeout() async throws {
@@ -35,7 +36,7 @@ import Testing
       Array(stream.metadata[stringValues: "x-goog-request-params"])
         == ["subscription=\(Self.subscriptionID)"])
     #expect(stream.options.timeout == .seconds(900))
-    #expect(stream.options.waitForReady == true)
+    #expect(stream.options.waitForReady == false)
   }
 
   @Test(.timeLimit(.minutes(1)))
@@ -90,6 +91,91 @@ import Testing
       #expect(try await reconnect(after: unavailable).isAbout(.milliseconds(200)))
       #expect(try await reconnect(after: nil).isAbout(.milliseconds(100)))
     }
+  }
+
+  @Test(.timeLimit(.minutes(1)))
+  func shouldStartBackoffOverAfterStreamStayedOpenForThirtySeconds() async throws {
+    let unavailable = rpc(.unavailable)
+
+    try await withReceiver { _ in
+      try await waitUntilStreamIsOpen()
+      #expect(try await reconnect(after: unavailable).isAbout(.milliseconds(100)))
+      #expect(try await reconnect(after: unavailable).isAbout(.milliseconds(200)))
+
+      clock.advance(by: .seconds(29))
+      #expect(try await reconnect(after: unavailable).isAbout(.milliseconds(400)))
+
+      clock.advance(by: .seconds(30))
+      #expect(try await reconnect(after: unavailable).isAbout(.milliseconds(100)))
+      #expect(try await reconnect(after: unavailable).isAbout(.milliseconds(200)))
+    }
+  }
+
+  @Test(.timeLimit(.minutes(1)))
+  func shouldReconnectRightAwayWhenStreamTimesOut() async throws {
+    try await withReceiver { _ in
+      try await waitUntilStreamIsOpen()
+      for _ in 0..<5 {
+        _ = try await reconnect(after: rpc(.internalError))
+      }
+
+      clock.advance(by: .seconds(900))
+      #expect(try await reconnect(after: Self.timeoutBeforeHeaders).isAbout(.milliseconds(100)))
+      for _ in 0..<5 {
+        _ = try await reconnect(after: rpc(.internalError))
+      }
+      #expect(try await reconnect(after: CancellationError()).isAbout(.milliseconds(100)))
+      for _ in 0..<5 {
+        _ = try await reconnect(after: rpc(.internalError))
+      }
+      #expect(try await reconnect(after: rpc(.deadlineExceeded)).isAbout(.milliseconds(100)))
+    }
+
+    #expect(logs.entries.filter { $0.message.hasPrefix("StreamingPull ended") }.isEmpty)
+    #expect(
+      logs.entries.filter { $0.message.contains("CancellationError") }.map(\.level)
+        == [.debug, .debug])
+  }
+
+  @Test(.timeLimit(.minutes(1)))
+  func shouldRetryUnauthenticatedQuickly() async throws {
+    try await withReceiver { _ in
+      try await waitUntilStreamIsOpen()
+      #expect(try await reconnect(after: rpc(.unauthenticated)).isAbout(.milliseconds(100)))
+      #expect(try await reconnect(after: rpc(.unauthenticated)).isAbout(.milliseconds(200)))
+    }
+
+    #expect(reconnectLogLevels == [.debug, .debug])
+  }
+
+  @Test(.timeLimit(.minutes(1)))
+  func shouldLogRoutineFailuresAtDebugUntilTheyRepeat() async throws {
+    try await withReceiver { _ in
+      try await waitUntilStreamIsOpen()
+      for _ in 0..<5 {
+        _ = try await reconnect(after: rpc(.internalError))
+      }
+      clock.advance(by: .seconds(30))
+      _ = try await reconnect(after: rpc(.unknown))
+      _ = try await reconnect(after: nil)
+    }
+
+    #expect(reconnectLogLevels == [.debug, .debug, .debug, .debug, .warning, .debug, .debug])
+    let warning = logs.entries.first { $0.level == .warning }
+    #expect(warning?.message.contains("failure 5 without a healthy stream") == true)
+  }
+
+  @Test func shouldRaiseLogLevelWhileStreamsKeepFailing() {
+    let start = ContinuousClock.now
+    var outage = StreamingPullReceiver.Outage(since: start)
+    outage.failures = 4
+    #expect(outage.logLevel(at: start.advanced(by: .seconds(59))) == .trace)
+    #expect(outage.logLevel(at: start.advanced(by: .seconds(60))) == .warning)
+    #expect(outage.logLevel(at: start.advanced(by: .seconds(599))) == .warning)
+    #expect(outage.logLevel(at: start.advanced(by: .seconds(600))) == .error)
+
+    outage.failures = 5
+    #expect(outage.logLevel(at: start) == .warning)
   }
 
   @Test(.timeLimit(.minutes(1)))
@@ -178,18 +264,25 @@ import Testing
     let cases: [(error: (any Error)?, retry: Retry)] = [
       (nil, Retry(delay: .initial, logLevel: .debug)),
       (CancellationError(), Retry(delay: .initial, logLevel: .debug)),
+      (Self.timeoutBeforeHeaders, Retry(delay: .initial, logLevel: .debug)),
       (rpc(.deadlineExceeded), Retry(delay: .initial, logLevel: .debug)),
-      (rpc(.unavailable), Retry(delay: .increasing, logLevel: .trace)),
-      (rpc(.resourceExhausted), Retry(delay: .increasing, logLevel: .warning)),
-      (rpc(.aborted), Retry(delay: .increasing, logLevel: .warning)),
-      (rpc(.internalError), Retry(delay: .increasing, logLevel: .warning)),
-      (rpc(.unknown), Retry(delay: .increasing, logLevel: .warning)),
-      (rpc(.cancelled), Retry(delay: .increasing, logLevel: .warning)),
-      (ChannelError.ioOnClosedChannel, Retry(delay: .increasing, logLevel: .debug)),
-      (ChannelError.connectTimeout(.seconds(1)), Retry(delay: .increasing, logLevel: .warning)),
+      (rpc(.unavailable), Retry(delay: .increasing, logLevel: .trace, escalates: true)),
+      (rpc(.resourceExhausted), Retry(delay: .increasing, logLevel: .debug, escalates: true)),
+      (rpc(.aborted), Retry(delay: .increasing, logLevel: .debug, escalates: true)),
+      (rpc(.internalError), Retry(delay: .increasing, logLevel: .debug, escalates: true)),
+      (rpc(.unknown), Retry(delay: .increasing, logLevel: .debug, escalates: true)),
+      (rpc(.cancelled), Retry(delay: .increasing, logLevel: .debug, escalates: true)),
+      (rpc(.unauthenticated), Retry(delay: .increasing, logLevel: .debug, escalates: true)),
+      (
+        ChannelError.ioOnClosedChannel,
+        Retry(delay: .increasing, logLevel: .debug, escalates: true)
+      ),
+      (
+        ChannelError.connectTimeout(.seconds(1)),
+        Retry(delay: .increasing, logLevel: .warning, escalates: true)
+      ),
       (rpc(.notFound), Retry(delay: .increasing, createsSubscription: true, logLevel: .warning)),
       (rpc(.permissionDenied), Retry(delay: .maximum, logLevel: .error)),
-      (rpc(.unauthenticated), Retry(delay: .maximum, logLevel: .error)),
       (rpc(.invalidArgument), Retry(delay: .maximum, logLevel: .error)),
       (rpc(.failedPrecondition), Retry(delay: .maximum, logLevel: .error)),
     ]
@@ -208,6 +301,11 @@ import Testing
   // MARK: - Helpers
 
   private static let subscriptionID = "projects/p/subscriptions/s"
+
+  /// What the transport throws when a stream times out before response headers arrived.
+  private static let timeoutBeforeHeaders = RPCError(
+    code: .unknown, message: "The transport threw an unexpected error.",
+    cause: CancellationError())
 
   private var requests: [Google_Pubsub_V1_StreamingPullRequest] {
     connection.streams.last?.requests ?? []
@@ -269,7 +367,11 @@ import Testing
   }
 
   private var logger: Logger {
-    Logger(label: "test.streaming-pull-receiver")
+    logs.logger(label: "test.streaming-pull-receiver")
+  }
+
+  private var reconnectLogLevels: [Logger.Level] {
+    logs.entries.filter { $0.message.hasPrefix("StreamingPull") }.map(\.level)
   }
 
   private func makeReceiver(
