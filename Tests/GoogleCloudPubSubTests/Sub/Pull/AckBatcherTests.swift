@@ -419,6 +419,84 @@ import Testing
     #expect(transport.calls == [.init(.acknowledge, [AckID("a")])])
   }
 
+  @Test func shouldStopRetryingAtFlushDeadline() async throws {
+    let transport = FakeAckTransport { _, _ in
+      throw RPCError(code: .unavailable, message: "Unavailable")
+    }
+    let batcher = makeBatcher(transport: transport)
+
+    try await withThrowingDiscardingTaskGroup { group in
+      group.addTask { await batcher.run() }
+      let ack = Task { try await batcher.ack(AckID("a")) }
+      try await waitUntil { batcher.queuedCount == 1 }
+      clock.advance(by: .milliseconds(100))
+      try await waitUntil { transport.calls.count == 1 && clock.sleeperCount == 1 }
+
+      // The 10 second retry budget would allow 3 more attempts.
+      batcher.finish(flushBy: clock.now.advanced(by: .milliseconds(2_500)))
+      clock.advance(by: .seconds(1))
+
+      let error = await #expect(throws: RPCError.self) { try await ack.value }
+      #expect(error?.code == .unavailable)
+      #expect(transport.calls.count == 2)
+    }
+  }
+
+  @Test(.timeLimit(.minutes(1)))
+  func shouldCancelInFlightRPCsAtFlushDeadline() async throws {
+    let transport = FakeAckTransport { _, _ in
+      try await Task.sleep(for: .seconds(3_600))
+    }
+    let batcher = makeBatcher(transport: transport)
+    let run = Task { await batcher.run() }
+
+    let ack = Task { try await batcher.ack(AckID("a")) }
+    try await waitUntil { batcher.queuedCount == 1 }
+    clock.advance(by: .milliseconds(100))
+    try await waitUntil { transport.calls.count == 1 }
+
+    batcher.finish(flushBy: clock.now.advanced(by: .seconds(1)))
+    try await waitUntil { clock.sleeperCount == 1 }
+    clock.advance(by: .seconds(1))
+
+    await run.value
+    await #expect(throws: AckBatcherError.flushDeadlineExceeded) { try await ack.value }
+    #expect(batcher.waiterCount == 0)
+  }
+
+  @Test func shouldFailUnsentRequestsWhenFlushDeadlineHasPassed() async throws {
+    let transport = FakeAckTransport()
+    let batcher = makeBatcher(transport: transport)
+    let run = Task { await batcher.run() }
+
+    let ack = Task { try await batcher.ack(AckID("a")) }
+    let group = Task { await batcher.modifyDeadlines([AckID("b")], to: .seconds(30)) }
+    try await waitUntil { batcher.queuedCount == 2 }
+    batcher.finish(flushBy: clock.now)
+
+    await run.value
+    await #expect(throws: AckBatcherError.flushDeadlineExceeded) { try await ack.value }
+    await group.value
+    #expect(transport.calls.isEmpty)
+    #expect(batcher.waiterCount == 0)
+    await #expect(throws: AckBatcherError.shutDown) { try await batcher.ack(AckID("c")) }
+  }
+
+  @Test func shouldOnlyMoveFlushDeadlineEarlier() async throws {
+    let transport = FakeAckTransport()
+    let batcher = makeBatcher(transport: transport)
+    let run = Task { await batcher.run() }
+
+    let ack = Task { try await batcher.ack(AckID("a")) }
+    try await waitUntil { batcher.queuedCount == 1 }
+    batcher.finish(flushBy: clock.now)
+    batcher.finish(flushBy: clock.now.advanced(by: .seconds(10)))
+    batcher.finish()
+
+    await run.value
+    await #expect(throws: AckBatcherError.flushDeadlineExceeded) { try await ack.value }
+  }
+
   // MARK: - Cancellation
 
   @Test func shouldLetQueuedCallerCancelWithoutAffectingOthers() async throws {

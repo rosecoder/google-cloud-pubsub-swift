@@ -6,6 +6,9 @@ enum AckBatcherError: Error {
 
   /// The request was submitted after ``AckBatcher/run()`` returned.
   case shutDown
+
+  /// The request had not been sent by the deadline passed to ``AckBatcher/finish(flushBy:)``.
+  case flushDeadlineExceeded
 }
 
 /// Coalesces acknowledgements and ack deadline modifications of one subscription into batched RPCs.
@@ -18,6 +21,8 @@ enum AckBatcherError: Error {
 ///
 /// Requests are only sent while ``run()`` is running. ``finish()`` makes ``run()`` send everything
 /// still queued, including requests submitted while it drains, and return once all RPCs are done.
+/// ``finish(flushBy:)`` also bounds that: retries stop at the deadline, and at the deadline RPCs
+/// still running are cancelled and requests not yet sent fail.
 ///
 /// Cancelling a waiting caller only stops it from waiting: its request is still sent, since a
 /// dropped ack would cause a redelivery.
@@ -279,16 +284,28 @@ final class AckBatcher<C: Clock>: Sendable where C.Duration == Duration {
     // cancellation from reaching the RPCs.
     let loop = Task {
       await withDiscardingTaskGroup { group in
-        while let batches = await nextBatches() {
-          for batch in batches {
-            let (requests, superseded) = batch.deduplicated()
-            complete(superseded, with: .success(()), finishesRequest: false)
-            state.withLock { $0.inFlightCount += requests.count }
-            for (operation, entries) in requests {
-              group.addTask {
-                await self.send(entries, operation)
+        while true {
+          switch await nextBatches() {
+          case .flush(let batches):
+            for batch in batches {
+              let (requests, superseded) = batch.deduplicated()
+              complete(superseded, with: .success(()), finishesRequest: false)
+              state.withLock { $0.inFlightCount += requests.count }
+              for (operation, entries) in requests {
+                group.addTask {
+                  await self.send(entries, operation)
+                }
               }
             }
+          case .stop:
+            return
+          case .abandon(let unsent):
+            logger.debug("Dropped \(unsent.count) requests not sent by the flush deadline")
+            complete(
+              unsent, with: .failure(AckBatcherError.flushDeadlineExceeded),
+              finishesRequest: false)
+            group.cancelAll()
+            return
           }
         }
       }
@@ -302,19 +319,37 @@ final class AckBatcher<C: Clock>: Sendable where C.Duration == Duration {
 
   /// Makes ``run()`` send all queued requests and return.
   func finish() {
+    finish(flushBy: nil)
+  }
+
+  /// Makes ``run()`` send all queued requests and return, at the latest at `deadline`.
+  ///
+  /// Requests are not retried past the deadline. At the deadline, RPCs still running are
+  /// cancelled and requests not yet sent fail with ``AckBatcherError/flushDeadlineExceeded``.
+  /// Calling it again only ever moves the deadline earlier.
+  func finish(flushBy deadline: C.Instant?) {
     state.withLock { state in
       if state.lifecycle == .running {
         state.lifecycle = .finishing
+      }
+      if let deadline {
+        state.flushDeadline = min(state.flushDeadline ?? deadline, deadline)
       }
       return state.wake()
     }?.resume()
   }
 
-  private func nextBatches() async -> [Batch]? {
+  private func nextBatches() async -> Next {
     while true {
       let action = state.withLock { state -> Action in
         // Everything a pending wakeup signals is observed below.
         state.hasPendingWakeup = false
+        if state.lifecycle != .running, let deadline = state.flushDeadline, deadline <= clock.now {
+          state.sealOpen()
+          defer { state.sealed = [] }
+          state.lifecycle = .finished
+          return .next(.abandon(state.sealed.flatMap(\.entries)))
+        }
         if let openedAt = state.openedAt,
           state.lifecycle != .running || openedAt.advanced(by: configuration.maxDelay) <= clock.now
         {
@@ -322,14 +357,14 @@ final class AckBatcher<C: Clock>: Sendable where C.Duration == Duration {
         }
         if !state.sealed.isEmpty {
           defer { state.sealed = [] }
-          return .flush(state.sealed)
+          return .next(.flush(state.sealed))
         }
         if state.lifecycle != .running {
           guard state.inFlightCount == 0 else {
-            return .wait
+            return state.flushDeadline.map { .sleep(until: $0) } ?? .wait
           }
           state.lifecycle = .finished
-          return .stop
+          return .next(.stop)
         }
         if let openedAt = state.openedAt {
           return .sleep(until: openedAt.advanced(by: configuration.maxDelay))
@@ -338,10 +373,8 @@ final class AckBatcher<C: Clock>: Sendable where C.Duration == Duration {
       }
 
       switch action {
-      case .flush(let batches):
-        return batches
-      case .stop:
-        return nil
+      case .next(let next):
+        return next
       case .wait:
         await waitForWakeup()
       case .sleep(let deadline):
@@ -397,7 +430,8 @@ final class AckBatcher<C: Clock>: Sendable where C.Duration == Duration {
       result = .success(())
     } catch {
       logger.debug("Failed to send \(operation) of \(ids.count) messages: \(error)")
-      result = .failure(error)
+      // Sends are only cancelled at the flush deadline.
+      result = .failure(Task.isCancelled ? AckBatcherError.flushDeadlineExceeded : error)
     }
     complete(entries, with: result, finishesRequest: true)
   }
@@ -415,7 +449,9 @@ final class AckBatcher<C: Clock>: Sendable where C.Duration == Duration {
           throw error
         }
         let delay = backoff.next()
-        guard clock.now.advanced(by: delay) <= giveUpAt else {
+        let retryAt = clock.now.advanced(by: delay)
+        let flushDeadline = state.withLock { $0.flushDeadline }
+        guard retryAt <= giveUpAt, flushDeadline.map({ retryAt < $0 }) ?? true else {
           throw error
         }
         logger.debug("Retrying \(operation) of \(count) messages in \(delay): \(error)")
@@ -542,6 +578,10 @@ extension AckBatcher {
       count == 0
     }
 
+    var entries: [Entry] {
+      requests.values.flatMap { $0 }
+    }
+
     mutating func append(_ entry: Entry, for operation: Operation, size: Int) {
       requests[operation, default: []].append(entry)
       count += 1
@@ -613,11 +653,18 @@ extension AckBatcher {
     case finished
   }
 
-  fileprivate enum Action {
+  fileprivate enum Next {
     case flush([Batch])
+    case stop
+
+    /// The flush deadline has passed with these entries still unsent.
+    case abandon([Entry])
+  }
+
+  fileprivate enum Action {
+    case next(Next)
     case sleep(until: C.Instant)
     case wait
-    case stop
   }
 
   fileprivate struct State {
@@ -631,6 +678,7 @@ extension AckBatcher {
     var wakeup: CheckedContinuation<Void, Never>?
     var hasPendingWakeup = false
     var lifecycle = Lifecycle.running
+    var flushDeadline: C.Instant?
     var hasStarted = false
 
     mutating func sealOpen() {
