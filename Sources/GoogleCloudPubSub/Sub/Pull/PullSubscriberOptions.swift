@@ -1,0 +1,111 @@
+extension PullSubscriber {
+
+  public typealias Options = PullSubscriberOptions
+}
+
+/// Configuration of how a ``PullSubscriber`` receives, leases and releases messages.
+///
+/// Defaults match Google's official Pub/Sub client libraries unless noted otherwise.
+public struct PullSubscriberOptions: Sendable, Hashable {
+
+  public var flowControl: FlowControl
+  public var lease: Lease
+  public var shutdownBehavior: ShutdownBehavior
+
+  public init(
+    flowControl: FlowControl = FlowControl(),
+    lease: Lease = Lease(),
+    shutdownBehavior: ShutdownBehavior = .waitForProcessing(timeout: .seconds(30))
+  ) {
+    self.flowControl = flowControl
+    self.lease = lease
+    self.shutdownBehavior = shutdownBehavior
+  }
+
+  /// Limits on messages that have been received but not yet acknowledged or nacked by this
+  /// subscriber. Receiving pauses while either limit is reached.
+  public struct FlowControl: Sendable, Hashable {
+
+    public let maxOutstandingMessages: Int
+    public let maxOutstandingBytes: Int
+
+    /// - Precondition: Both limits are greater than zero.
+    public init(
+      maxOutstandingMessages: Int = 1_000,
+      maxOutstandingBytes: Int = 100 * 1024 * 1024
+    ) {
+      precondition(maxOutstandingMessages > 0, "maxOutstandingMessages must be greater than zero")
+      precondition(maxOutstandingBytes > 0, "maxOutstandingBytes must be greater than zero")
+      self.maxOutstandingMessages = maxOutstandingMessages
+      self.maxOutstandingBytes = maxOutstandingBytes
+    }
+  }
+
+  /// How the ack deadline of received messages is extended while they are being processed.
+  ///
+  /// Each extension uses the 99th percentile of observed time-to-ack, bounded by
+  /// ``minAckDeadline`` and ``maxAckDeadline``.
+  public struct Lease: Sendable, Hashable {
+
+    /// Minimum ack deadline used for subscriptions with exactly-once delivery when no
+    /// ``minAckDeadline`` is set.
+    public static let exactlyOnceDeliveryMinAckDeadline = AckDeadline.seconds(60)
+
+    /// Total time a message is kept leased before it is left to expire and be redelivered.
+    public let maxLeaseDuration: Duration
+
+    /// Lower bound of each lease extension. When `nil`, no bound is applied except for
+    /// subscriptions with exactly-once delivery, which use
+    /// ``exactlyOnceDeliveryMinAckDeadline``.
+    public let minAckDeadline: AckDeadline?
+
+    /// Upper bound of each lease extension, which also bounds how long it takes for a message to
+    /// be redelivered if this subscriber stops extending its lease. Takes precedence over
+    /// ``exactlyOnceDeliveryMinAckDeadline``.
+    public let maxAckDeadline: AckDeadline?
+
+    /// - Precondition: `maxLeaseDuration` is greater than zero and `minAckDeadline` is not
+    ///   greater than `maxAckDeadline`.
+    public init(
+      maxLeaseDuration: Duration = .seconds(60 * 60),
+      minAckDeadline: AckDeadline? = nil,
+      maxAckDeadline: AckDeadline? = .maximum
+    ) {
+      precondition(maxLeaseDuration > .zero, "maxLeaseDuration must be greater than zero")
+      if let minAckDeadline, let maxAckDeadline {
+        precondition(
+          minAckDeadline <= maxAckDeadline, "minAckDeadline must not be greater than maxAckDeadline")
+      }
+      self.maxLeaseDuration = maxLeaseDuration
+      self.minAckDeadline = minAckDeadline
+      self.maxAckDeadline = maxAckDeadline
+    }
+
+    func ackDeadline(basedOn histogram: AckLatencyHistogram, exactlyOnceDelivery: Bool)
+      -> AckDeadline
+    {
+      var deadline = histogram.percentile(99)
+      if let minimum = minAckDeadline
+        ?? (exactlyOnceDelivery ? Self.exactlyOnceDeliveryMinAckDeadline : nil)
+      {
+        deadline = max(deadline, minimum)
+      }
+      if let maxAckDeadline {
+        deadline = min(deadline, maxAckDeadline)
+      }
+      return deadline
+    }
+  }
+
+  /// What happens to messages still being processed when the subscriber shuts down.
+  public enum ShutdownBehavior: Sendable, Hashable {
+
+    /// Nack all outstanding messages right away so Pub/Sub can redeliver them to another
+    /// subscriber.
+    case nackImmediately
+
+    /// Keep processing and leasing outstanding messages until they finish or `timeout` elapses,
+    /// after which any remaining messages are nacked.
+    case waitForProcessing(timeout: Duration)
+  }
+}
