@@ -1,3 +1,5 @@
+import Logging
+import ServiceLifecycle
 import ServiceLifecycleTestKit
 import Synchronization
 import Testing
@@ -150,16 +152,49 @@ import Testing
       try await waitUntil { probe.started == ["a"] && service.clientUsage.users == 2 }
 
       shutdownTrigger.triggerGracefulShutdown()
-      try await waitUntil { service.clientUsage.users == 1 }
-      #expect(service.clientUsage.isShutdownRequested)
+      try await idleRun.value
+      #expect(service.clientUsage.users == 1)
       #expect(!service.clientUsage.hasBegunShutdown)
 
       gate.open()
       try await busyRun.value
-      try await idleRun.value
       #expect(service.clientUsage.hasBegunShutdown)
       #expect(ackTransport.ids(of: .acknowledge) == [AckID("ack-a")])
     }
+  }
+
+  /// A service group shuts its services down one at a time and waits for each to return, so a
+  /// subscriber must not wait for the others to release the shared client.
+  @Test(.timeLimit(.minutes(1)), arguments: [2, 10])
+  func shouldShutDownSubscribersSharingClientOneAfterAnotherInServiceGroup(
+    subscriberCount: Int
+  ) async throws {
+    let service = try PubSubService()
+    let gate = Gate()
+    let connections = (0..<subscriberCount).map { _ in FakeStreamingPullConnection() }
+    let subscribers = connections.map { connection in
+      makeSubscriber(
+        .waitForProcessing(timeout: .seconds(30)), pubSubService: service, connection: connection,
+        handle: { _ in await gate.wait() })
+    }
+    for (index, connection) in connections.enumerated() {
+      connection.deliver([message("\(index)")])
+    }
+    let serviceGroup = ServiceGroup(
+      services: subscribers, gracefulShutdownSignals: [],
+      logger: Logger(label: "test.pull-subscriber-shutdown"))
+
+    let run = Task { try await serviceGroup.run() }
+    try await waitUntil { probe.started.count == subscriberCount }
+    await serviceGroup.triggerGracefulShutdown()
+    gate.open()
+
+    #expect(try await finishes(run, within: .seconds(5)))
+    #expect(
+      Set(ackTransport.ids(of: .acknowledge))
+        == Set((0..<subscriberCount).map { AckID("ack-\($0)") }))
+    #expect(service.clientUsage.users == 0)
+    #expect(service.clientUsage.hasBegunShutdown)
   }
 
   // MARK: - Helpers
