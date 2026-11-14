@@ -14,10 +14,12 @@ import Testing
     let service = try PubSubService()
     let firstGate = Gate()
     let secondGate = Gate()
-    let first = Task { try await service.withClientInUse { _ in try await firstGate.wait() } }
+    let first = Task {
+      try await service.withClientInUse(.service) { _ in try await firstGate.wait() }
+    }
     defer { first.cancel() }
     let second = Task {
-      try await service.withClientInUse { clients in
+      try await service.withClientInUse(.service) { clients in
         try await secondGate.wait()
         return clients
       }
@@ -41,10 +43,10 @@ import Testing
   @Test(.timeLimit(.minutes(1)))
   func shouldStartNewGenerationWhenUsedAfterShutdown() async throws {
     let service = try PubSubService()
-    let stopped = try await service.withClientInUse { $0 }
+    let stopped = try await service.withClientInUse(.service) { $0 }
     #expect(service.clientUsage.hasBegunShutdown)
 
-    let restarted = try await service.withClientInUse { clients in
+    let restarted = try await service.withClientInUse(.service) { clients in
       #expect(service.clientUsage.users == 1)
       #expect(!service.clientUsage.hasBegunShutdown)
       try await clients.pool.withStreamSlot { _ in }
@@ -66,7 +68,7 @@ import Testing
     let gate = Gate()
     let streams = (0..<2).map { _ in
       Task {
-        try await service.withClientInUse { clients in
+        try await service.withClientInUse(.service) { clients in
           try await clients.pool.withStreamSlot { _ in try await gate.wait() }
         }
       }
@@ -79,7 +81,7 @@ import Testing
     }
     #expect(service.activeStreamCounts == [])
 
-    let counts = try await service.withClientInUse { $0.pool.activeStreamCounts }
+    let counts = try await service.withClientInUse(.service) { $0.pool.activeStreamCounts }
     #expect(counts == [0])
   }
 
@@ -89,7 +91,7 @@ import Testing
     // Holds the clients so that their identifiers aren't reused.
     var primaries: [GRPCClient<HTTP2ClientTransport.Posix>] = []
     for _ in 0..<5 {
-      let primary = try await service.withClientInUse { clients in
+      let primary = try await service.withClientInUse(.service) { clients in
         try await clients.pool.withStreamSlot { $0 }
       }
       primaries.append(primary)
@@ -103,7 +105,9 @@ import Testing
   func shouldEndClientUseWhenBodyThrows() async throws {
     let service = try PubSubService()
     let gate = Gate()
-    let holder = Task { try await service.withClientInUse { _ in try await gate.wait() } }
+    let holder = Task {
+      try await service.withClientInUse(.service) { _ in try await gate.wait() }
+    }
     defer { holder.cancel() }
     try await waitUntil { service.clientUsage.users == 1 }
 
@@ -127,7 +131,7 @@ import Testing
     struct BodyError: Error {}
 
     await #expect(throws: BodyError.self) {
-      try await service.withClientInUse { _ in throw BodyError() }
+      try await service.withClientInUse(.service) { _ in throw BodyError() }
     }
     #expect(service.clientUsage.hasBegunShutdown)
   }
@@ -139,7 +143,7 @@ import Testing
     let clients = Mutex<[ObjectIdentifier]>([])
     let streams = (0..<3).map { _ in
       Task {
-        try await service.withClientInUse { pooled in
+        try await service.withClientInUse(.service) { pooled in
           try await pooled.pool.withStreamSlot { client in
             clients.withLock { $0.append(ObjectIdentifier(client)) }
             try await gate.wait()
@@ -183,7 +187,9 @@ import Testing
         onCreateHTTP2Stream: nil),
       emulatorHost: "127.0.0.1:\(server.port)")
     let gate = Gate()
-    let user = Task { try await service.withClientInUse { _ in try await gate.wait() } }
+    let user = Task {
+      try await service.withClientInUse(.service) { _ in try await gate.wait() }
+    }
     defer { user.cancel() }
     try await waitUntil { connections.withLock { $0 } > 0 }
 
@@ -196,10 +202,12 @@ import Testing
   /// Such as a publish from outside a service while the service shuts down.
   @Test(.timeLimit(.minutes(1)))
   func shouldKeepClientsRunningForRPCOutlivingOtherUsers() async throws {
-    let service = try PubSubService()
+    let service = try PubSubService(lingerDuration: .milliseconds(20))
     let userGate = Gate()
     let rpcGate = Gate()
-    let user = Task { try await service.withClientInUse { _ in try await userGate.wait() } }
+    let user = Task {
+      try await service.withClientInUse(.service) { _ in try await userGate.wait() }
+    }
     defer { user.cancel() }
     let rpc = Task {
       try await service.withClientInUse { clients in
@@ -216,7 +224,7 @@ import Testing
 
     rpcGate.open()
     try await rpc.cancellableValue
-    #expect(service.clientUsage.hasBegunShutdown)
+    try await waitUntil { service.clientUsage.hasBegunShutdown }
   }
 
   @Test(.timeLimit(.minutes(1)))
@@ -226,7 +234,7 @@ import Testing
     let service = try PubSubService(emulatorHost: "127.0.0.1:\(server.port)")
     let hasStartedRPC = Mutex(false)
     let user = Task {
-      try await service.withClientInUse { clients in
+      try await service.withClientInUse(.service) { clients in
         hasStartedRPC.withLock { $0 = true }
         _ = try await clients.publisher.getTopic(.with { $0.topic = "projects/p/topics/t" })
       }
@@ -239,6 +247,87 @@ import Testing
     _ = await user.result
     #expect(start.duration(to: .now) < .seconds(1))
     #expect(service.clientUsage.hasBegunShutdown)
+  }
+
+  // MARK: - Linger
+
+  @Test(.timeLimit(.minutes(1)))
+  func shouldReuseGenerationForCallsWithinLinger() async throws {
+    let service = try PubSubService(lingerDuration: .seconds(60))
+    let first = try await service.withClientInUse { $0 }
+    #expect(service.clientUsage.isLingering)
+    #expect(!service.clientUsage.hasBegunShutdown)
+
+    let second = try await service.withClientInUse { clients in
+      #expect(!service.clientUsage.isLingering)
+      return clients
+    }
+    #expect(second.primary === first.primary)
+    #expect(service.clientUsage.startedGenerations == 1)
+    #expect(service.clientUsage.isLingering)
+
+    try await service.withClientInUse(.service) { _ in }
+    #expect(service.clientUsage.hasBegunShutdown)
+  }
+
+  @Test(.timeLimit(.minutes(1)))
+  func shouldShutDownAfterLinger() async throws {
+    let service = try PubSubService(lingerDuration: .milliseconds(20))
+    let lingered = try await service.withClientInUse { $0 }
+
+    try await waitUntil { service.clientUsage.hasBegunShutdown }
+    let restarted = try await service.withClientInUse { $0 }
+    #expect(restarted.primary !== lingered.primary)
+    #expect(service.clientUsage.startedGenerations == 2)
+
+    // Also waits until the lingered generation has stopped in the background.
+    try await service.withClientInUse(.service) { _ in }
+    await #expect(throws: RuntimeError.self) {
+      try await lingered.pool.withStreamSlot { _ in }
+    }
+  }
+
+  @Test(.timeLimit(.minutes(1)))
+  func shouldShutDownRightAwayWhenServiceIsLastUser() async throws {
+    let service = try PubSubService(lingerDuration: .seconds(60))
+    let gate = Gate()
+    let serviceUse = Task {
+      try await service.withClientInUse(.service) { clients in
+        try await gate.wait()
+        return clients
+      }
+    }
+    try await waitUntil { service.clientUsage.users == 1 }
+    try await service.withClientInUse { _ in }
+    #expect(!service.clientUsage.isLingering)
+
+    let start = ContinuousClock.now
+    gate.open()
+    let stopped = try await serviceUse.value
+    #expect(start.duration(to: .now) < .seconds(1))
+    #expect(service.clientUsage.hasBegunShutdown)
+    await #expect(throws: RuntimeError.self) {
+      try await stopped.pool.withStreamSlot { _ in }
+    }
+  }
+
+  @Test(.timeLimit(.minutes(1)))
+  func shouldReuseLingeringGenerationForServiceAndShutDownAfterIt() async throws {
+    let service = try PubSubService(lingerDuration: .seconds(60))
+    let lingered = try await service.withClientInUse { $0 }
+
+    let start = ContinuousClock.now
+    let used = try await service.withClientInUse(.service) { clients in
+      #expect(!service.clientUsage.isLingering)
+      return clients
+    }
+    #expect(start.duration(to: .now) < .seconds(1))
+    #expect(used.primary === lingered.primary)
+    #expect(service.clientUsage.startedGenerations == 1)
+    #expect(service.clientUsage.hasBegunShutdown)
+    await #expect(throws: RuntimeError.self) {
+      try await lingered.pool.withStreamSlot { _ in }
+    }
   }
 }
 
@@ -292,9 +381,9 @@ private final class UnresponsiveServer: Sendable {
     _ = usage.retain { 1 }
     _ = usage.retain { 2 }
 
-    #expect(usage.release() == nil)
+    #expect(usage.release(.service).shutDownGeneration == nil)
     #expect(!usage.hasBegunShutdown)
-    #expect(usage.release() == 1)
+    #expect(usage.release(.service).shutDownGeneration == 1)
     #expect(usage.users == 0)
     #expect(usage.current == nil)
     #expect(usage.hasBegunShutdown)
@@ -303,15 +392,15 @@ private final class UnresponsiveServer: Sendable {
   @Test func shouldStartNewGenerationAfterLastUserLeft() {
     var usage = PubSubService.ClientUsage<Int>()
     _ = usage.retain { 1 }
-    _ = usage.release()
+    _ = usage.release(.service)
 
     // The previous generation may still be shutting down.
     #expect(usage.retain { 2 } == 2)
     #expect(usage.retain { 3 } == 2)
     #expect(usage.startedGenerations == 2)
     #expect(!usage.hasBegunShutdown)
-    #expect(usage.release() == nil)
-    #expect(usage.release() == 2)
+    #expect(usage.release(.service).shutDownGeneration == nil)
+    #expect(usage.release(.service).shutDownGeneration == 2)
   }
 
   @Test func shouldStayUnchangedWhenStartingGenerationFails() {
@@ -323,5 +412,94 @@ private final class UnresponsiveServer: Sendable {
     #expect(usage.startedGenerations == 0)
     #expect(!usage.hasBegunShutdown)
     #expect(usage.retain { 1 } == 1)
+  }
+
+  // MARK: - Linger
+
+  @Test func shouldLingerWhenLastUserIsCall() throws {
+    var usage = PubSubService.ClientUsage<Int>()
+    _ = usage.retain { 1 }
+
+    let id = try #require(usage.release(.call).lingerID)
+    #expect(usage.isLingering)
+    #expect(usage.current == 1)
+    #expect(!usage.hasBegunShutdown)
+
+    #expect(usage.expireLinger(id) == 1)
+    #expect(!usage.isLingering)
+    #expect(usage.hasBegunShutdown)
+    #expect(usage.expireLinger(id) == nil)
+  }
+
+  @Test func shouldNotLingerWhenCallEndsBeforeService() {
+    var usage = PubSubService.ClientUsage<Int>()
+    _ = usage.retain { 1 }
+    _ = usage.retain { 2 }
+
+    #expect(usage.release(.call).isKeep)
+    #expect(!usage.isLingering)
+    #expect(usage.release(.service).shutDownGeneration == 1)
+    #expect(usage.hasBegunShutdown)
+  }
+
+  @Test func shouldLingerWhenCallEndsAfterService() {
+    var usage = PubSubService.ClientUsage<Int>()
+    _ = usage.retain { 1 }
+    _ = usage.retain { 2 }
+
+    #expect(usage.release(.service).isKeep)
+    #expect(usage.release(.call).lingerID != nil)
+    #expect(usage.isLingering)
+  }
+
+  @Test func shouldReuseLingeringGenerationAndIgnoreItsExpiry() throws {
+    var usage = PubSubService.ClientUsage<Int>()
+    _ = usage.retain { 1 }
+    let id = try #require(usage.release(.call).lingerID)
+
+    #expect(usage.retain { 2 } == 1)
+    #expect(!usage.isLingering)
+    #expect(usage.expireLinger(id) == nil)
+    #expect(usage.current == 1)
+    #expect(usage.startedGenerations == 1)
+  }
+
+  @Test func shouldShutDownLingeringGenerationRightAwayAfterServiceReusedIt() throws {
+    var usage = PubSubService.ClientUsage<Int>()
+    _ = usage.retain { 1 }
+    let id = try #require(usage.release(.call).lingerID)
+
+    _ = usage.retain { 2 }
+    #expect(usage.release(.service).shutDownGeneration == 1)
+    #expect(usage.hasBegunShutdown)
+    #expect(usage.expireLinger(id) == nil)
+  }
+
+  @Test func shouldExpireOnlyLatestLinger() throws {
+    var usage = PubSubService.ClientUsage<Int>()
+    _ = usage.retain { 1 }
+    let first = try #require(usage.release(.call).lingerID)
+    _ = usage.retain { 2 }
+    let second = try #require(usage.release(.call).lingerID)
+
+    #expect(first != second)
+    #expect(usage.expireLinger(first) == nil)
+    #expect(usage.isLingering)
+    #expect(usage.expireLinger(second) == 1)
+  }
+}
+
+extension PubSubService.ClientUsage.Release {
+
+  fileprivate var isKeep: Bool {
+    if case .keep = self { true } else { false }
+  }
+
+  fileprivate var shutDownGeneration: Generation? {
+    if case .shutDown(let generation) = self { generation } else { nil }
+  }
+
+  fileprivate var lingerID: Int? {
+    if case .linger(let id) = self { id } else { nil }
   }
 }

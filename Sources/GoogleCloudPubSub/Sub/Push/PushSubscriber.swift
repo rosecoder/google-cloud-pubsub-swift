@@ -119,7 +119,7 @@ public final class PushSubscriber: Service {
       "Using pull subscriber instead of push. Push is not supported during local development.")
 
     // Keeps the client running for subscribers registered later.
-    try await pubSubService.withClientInUse { _ in
+    try await pubSubService.withClientInUse(.service) { _ in
       await withDiscardingTaskGroup { group in
         await withGracefulShutdownHandler {
           for await run in self.pullSubscriberRuns.stream {

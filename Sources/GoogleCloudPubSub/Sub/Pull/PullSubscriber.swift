@@ -165,7 +165,7 @@ public final class PullSubscriber<Handler: _Handler>: Service {
     logger.debug("Subscribed to \(handler.subscription.name)")
 
     // Keeps one generation of clients running for the RPCs below, which each use it too.
-    try await pubSubService.withClientInUse { _ in
+    try await pubSubService.withClientInUse(.service) { _ in
       await self.receiveAndProcess()
       try await self.deleteSubscriptionIfNeeded()
     }
