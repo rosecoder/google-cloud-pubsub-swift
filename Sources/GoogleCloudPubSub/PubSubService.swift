@@ -35,36 +35,10 @@ actor PubSubService {
       let port = Int(components[1])!
 
       self.authorization = nil
-      self.grpcClient = GRPCClient(
-        transport: try .http2NIOPosix(
-          target: .dns(host: components[0], port: port),
-          transportSecurity: .plaintext,
-          config: .defaults { config in
-            config.backoff = .init(
-              initial: .milliseconds(100),
-              max: .seconds(1),
-              multiplier: 1.6,
-              jitter: 0.2
-            )
-            config.connection = .init(
-              maxIdleTime: .seconds(30 * 60),
-              keepalive: .init(
-                time: .seconds(30),
-                timeout: .seconds(5),
-                allowWithoutCalls: true
-              )
-            )
-          },
-          serviceConfig: .init(
-            methodConfig: [
-              .init(
-                names: [.init(service: "")],  // Empty service means all methods
-                waitForReady: true,
-                timeout: .seconds(60)
-              )
-            ]
-          )
-        )
+      self.grpcClient = try Self.makeClient(
+        target: .dns(host: components[0], port: port),
+        transportSecurity: .plaintext,
+        interceptors: []
       )
       self.isUsingEmulator = true
     } else {
@@ -75,42 +49,54 @@ actor PubSubService {
         ], eventLoopGroup: .singletonMultiThreadedEventLoopGroup)
 
       self.authorization = authorization
-      self.grpcClient = GRPCClient(
-        transport: try .http2NIOPosix(
-          target: .dns(host: "pubsub.googleapis.com"),
-          transportSecurity: .tls,
-          config: .defaults { config in
-            config.backoff = .init(
-              initial: .milliseconds(100),
-              max: .seconds(1),
-              multiplier: 1.6,
-              jitter: 0.2
-            )
-            config.connection = .init(
-              maxIdleTime: .seconds(30 * 60),
-              keepalive: .init(
-                time: .seconds(30),
-                timeout: .seconds(5),
-                allowWithoutCalls: true
-              )
-            )
-          },
-          serviceConfig: .init(
-            methodConfig: [
-              .init(
-                names: [.init(service: "")],  // Empty service means all methods
-                waitForReady: true,
-                timeout: .seconds(60)
-              )
-            ]
-          )
-        ),
+      self.grpcClient = try Self.makeClient(
+        target: .dns(host: "pubsub.googleapis.com"),
+        transportSecurity: .tls,
         interceptors: [
           AuthorizationClientInterceptor(authorization: authorization)
         ]
       )
       self.isUsingEmulator = false
     }
+  }
+
+  private static func makeClient(
+    target: ResolvableTargets.DNS,
+    transportSecurity: HTTP2ClientTransport.Posix.TransportSecurity,
+    interceptors: [any ClientInterceptor]
+  ) throws -> GRPCClient<HTTP2ClientTransport.Posix> {
+    GRPCClient(
+      transport: try .http2NIOPosix(
+        target: target,
+        transportSecurity: transportSecurity,
+        config: .defaults { config in
+          config.backoff = .init(
+            initial: .milliseconds(100),
+            max: .seconds(1),
+            multiplier: 1.6,
+            jitter: 0.2
+          )
+          config.connection = .init(
+            maxIdleTime: .seconds(30 * 60),
+            keepalive: .init(
+              time: .seconds(30),
+              timeout: .seconds(5),
+              allowWithoutCalls: true
+            )
+          )
+        },
+        serviceConfig: .init(
+          methodConfig: [
+            .init(
+              names: [.init(service: "")],  // Empty service means all methods
+              waitForReady: true,
+              timeout: .seconds(60)
+            )
+          ]
+        )
+      ),
+      interceptors: interceptors
+    )
   }
 
   struct ClientUsage: Sendable {
