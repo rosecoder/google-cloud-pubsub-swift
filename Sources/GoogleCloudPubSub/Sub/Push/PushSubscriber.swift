@@ -118,22 +118,22 @@ public final class PushSubscriber: Service {
     logger.info(
       "Using pull subscriber instead of push. Push is not supported during local development.")
 
-    try await withThrowingDiscardingTaskGroup { group in
-      group.addTask {
-        try await self.pubSubService.run()
-      }
-      await withGracefulShutdownHandler {
-        for await run in pullSubscriberRuns.stream {
-          group.addTask {
-            do {
-              try await run()
-            } catch {
-              self.logger.error("Pull subscriber failed: \(error)")
+    // Keeps the client running for subscribers registered later.
+    try await pubSubService.withClientInUse {
+      await withDiscardingTaskGroup { group in
+        await withGracefulShutdownHandler {
+          for await run in self.pullSubscriberRuns.stream {
+            group.addTask {
+              do {
+                try await run()
+              } catch {
+                self.logger.error("Pull subscriber failed: \(error)")
+              }
             }
           }
+        } onGracefulShutdown: {
+          self.pullSubscriberRuns.continuation.finish()
         }
-      } onGracefulShutdown: {
-        self.pullSubscriberRuns.continuation.finish()
       }
     }
   }

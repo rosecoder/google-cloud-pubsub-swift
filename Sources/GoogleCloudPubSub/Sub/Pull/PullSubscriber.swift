@@ -168,23 +168,10 @@ public final class PullSubscriber<Handler: _Handler>: Service {
   public func run() async throws {
     logger.debug("Subscribed to \(handler.subscription.name)")
 
-    // The client is in use before its run starts, so its shutdown can't begin in between.
-    let (pubSubServiceRun, result) = await pubSubService.withClientInUse {
-      let pubSubServiceRun = Task {
-        try await self.pubSubService.run()
-      }
+    try await pubSubService.withClientInUse {
       await self.receiveAndProcess()
-      do {
-        try await self.deleteSubscriptionIfNeeded()
-        return (pubSubServiceRun, Result<Void, any Error>.success(()))
-      } catch {
-        return (pubSubServiceRun, .failure(error))
-      }
+      try await self.deleteSubscriptionIfNeeded()
     }
-
-    pubSubServiceRun.cancel()
-    try await pubSubServiceRun.value
-    try result.get()
   }
 
   private func deleteSubscriptionIfNeeded() async throws {
