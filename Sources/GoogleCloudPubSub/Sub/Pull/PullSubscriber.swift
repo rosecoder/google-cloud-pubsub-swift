@@ -13,6 +13,7 @@ public final class PullSubscriber<Handler: _Handler>: Service {
 
   private let handler: Handler
   let client: Google_Pubsub_V1_Subscriber.ClientProtocol
+  let publisherClient: Google_Pubsub_V1_Publisher.ClientProtocol
   let pubSubService: PubSubService
 
   public enum ConfigurationError: Error {
@@ -56,6 +57,7 @@ public final class PullSubscriber<Handler: _Handler>: Service {
     self.logger = Logger(label: "pubsub.subscriber." + handler.subscription.name)
     self.handler = handler
     self.client = Google_Pubsub_V1_Subscriber.Client(wrapping: pubSubService.grpcClient)
+    self.publisherClient = Google_Pubsub_V1_Publisher.Client(wrapping: pubSubService.grpcClient)
     self.pubSubService = pubSubService
     self.deleteSubscriptionOnShutdown = deleteSubscriptionOnShutdown
   }
@@ -111,7 +113,7 @@ public final class PullSubscriber<Handler: _Handler>: Service {
             try await pubSubService.create(
               subscription: handler.subscription,
               subscriberClient: client,
-              publisherClient: Publisher(projectID: projectID).client,
+              publisherClient: publisherClient,
               projectID: projectID
             )
           } catch {

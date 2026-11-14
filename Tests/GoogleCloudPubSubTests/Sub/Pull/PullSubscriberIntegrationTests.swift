@@ -1,25 +1,24 @@
+import GRPCCore
 import ServiceLifecycleTestKit
 import Synchronization
 import Testing
 
 @testable import GoogleCloudPubSub
 
-extension Topics {
-
-  fileprivate static let test = Topic<PlainTextMessage>(name: "PullSubscriberIntegrationTests")
-}
-
 @Suite(.tags(.integration))
 struct PullSubscriberIntegrationTests {
+
+  let projectID = "pull-subscriber-integration-tests"
 
   @Test(.timeLimit(.minutes(1)))
   func shouldReceiveMessage() async throws {
     let pubSubService = try PubSubService()
+    let topic = Topic<PlainTextMessage>(name: uniqueName("PullSubscriberIntegrationTests"))
 
     try await testGracefulShutdown { shutdownTrigger in
       // Setup publisher
       let publisher = Publisher(
-        projectID: "pull-subscriber-integration-tests",
+        projectID: projectID,
         pubSubService: pubSubService
       )
       let publisherRunTask = Task {
@@ -37,24 +36,31 @@ struct PullSubscriberIntegrationTests {
       }
 
       // Setup subscriber
-      let subscriber = PullSubscriber(
-        handler: CallbackHandler(
-          topic: Topics.test,
-          callback: { message in
-            callbackContinuation.withLock {
-              $0?.resume(returning: message)
-            }
+      let handler = CallbackHandler(
+        topic: topic,
+        callback: { message in
+          callbackContinuation.withLock {
+            $0?.resume(returning: message)
           }
-        ),
-        projectID: "pull-subscriber-integration-tests",
+        }
+      )
+      let subscriber = PullSubscriber(
+        handler: handler,
+        projectID: projectID,
         pubSubService: pubSubService
       )
       let subscriberRunTask = Task {
         try await subscriber.run()
       }
+      try await pubSubService.create(
+        subscription: handler.subscription,
+        subscriberClient: subscriber.client,
+        publisherClient: subscriber.publisherClient,
+        projectID: projectID
+      )
 
       // Publish message
-      let publishedMessage = try await publisher.publish(to: Topics.test, body: "Hello")
+      let publishedMessage = try await publisher.publish(to: topic, body: "Hello")
 
       // Wait
       let receivedMessage = await callbackTask.value
@@ -74,6 +80,80 @@ struct PullSubscriberIntegrationTests {
           subscriberRunTask.cancel()
           try await subscriberRunTask.value
         }
+      }
+    }
+  }
+
+  @Test(.timeLimit(.minutes(1)))
+  func shouldCreateMissingTopicAndSubscriptionWithInjectedService() async throws {
+    let pubSubService = try PubSubService()
+    let topic = Topic<PlainTextMessage>(name: uniqueName("PullSubscriberIntegrationTests"))
+    let subscriptionName = uniqueName("PullSubscriberIntegrationTests")
+
+    try await testGracefulShutdown { shutdownTrigger in
+      // Setup callback handler
+      let (messageStream, messageContinuation) = AsyncStream.makeStream(
+        of: PlainTextMessage.Incoming.self)
+
+      // Setup subscriber for a topic and subscription that don't exist yet
+      let handler = CallbackHandler(
+        topic: topic,
+        subscriptionName: subscriptionName,
+        callback: { message in
+          messageContinuation.yield(message)
+        }
+      )
+      let subscriber = PullSubscriber(
+        handler: handler,
+        projectID: projectID,
+        pubSubService: pubSubService
+      )
+      let subscriberRunTask = Task {
+        try await subscriber.run()
+      }
+
+      // Wait for the subscriber to create topic and subscription
+      try await waitUntilSubscriptionExists(
+        id: handler.subscription.id(projectID: projectID),
+        client: subscriber.client
+      )
+      let createdTopic = try await subscriber.publisherClient.getTopic(
+        .with { $0.topic = topic.id(projectID: projectID) })
+      #expect(createdTopic.name == topic.id(projectID: projectID))
+
+      // Publish message without letting the publisher create the topic
+      let publisher = Publisher(
+        projectID: projectID,
+        createTopicsIfNeeded: false,
+        pubSubService: pubSubService
+      )
+      let publishedMessage = try await publisher.publish(to: topic, body: "Hello")
+
+      // Wait
+      let receivedMessage = try #require(await messageStream.first(where: { _ in true }))
+
+      // Assert
+      #expect(publishedMessage.id == receivedMessage.id)
+      #expect(receivedMessage.body == "Hello")
+
+      // Teardown
+      messageContinuation.finish()
+      shutdownTrigger.triggerGracefulShutdown()
+      subscriberRunTask.cancel()
+      try await subscriberRunTask.value
+    }
+  }
+
+  private func waitUntilSubscriptionExists(
+    id: String,
+    client: Google_Pubsub_V1_Subscriber.ClientProtocol
+  ) async throws {
+    while true {
+      do {
+        _ = try await client.getSubscription(.with { $0.subscription = id })
+        return
+      } catch let error as RPCError where error.code == .notFound {
+        try await Task.sleep(for: .milliseconds(50))
       }
     }
   }
