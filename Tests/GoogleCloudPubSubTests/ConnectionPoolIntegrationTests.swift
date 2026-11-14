@@ -17,7 +17,7 @@ struct ConnectionPoolIntegrationTests {
     let result = try await receiveOneMessageEach(subscriberCount: 5, maxStreamsPerConnection: 2)
 
     #expect(result.activeStreamCounts == [2, 2, 1])
-    #expect(result.openConnections == 3)
+    #expect(result.openConnections == 4)
   }
 
   @Test(
@@ -29,7 +29,7 @@ struct ConnectionPoolIntegrationTests {
     let result = try await receiveOneMessageEach(subscriberCount: 135, maxStreamsPerConnection: 80)
 
     #expect(result.activeStreamCounts == [80, 55])
-    #expect(result.openConnections == 2)
+    #expect(result.openConnections == 3)
   }
 
   // MARK: - Helpers
@@ -41,8 +41,8 @@ struct ConnectionPoolIntegrationTests {
 
   /// Runs subscribers of their own topic on one shared service until each has received a message.
   ///
-  /// - Returns: The streams per pooled client and the number of open TCP connections once all
-  ///   subscribers streamed.
+  /// - Returns: The streams per streaming client and the number of open TCP connections, including
+  ///   the unary one, once all subscribers streamed.
   private func receiveOneMessageEach(subscriberCount: Int, maxStreamsPerConnection: Int)
     async throws -> Result
   {

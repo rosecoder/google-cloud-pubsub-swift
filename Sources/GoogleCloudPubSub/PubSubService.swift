@@ -42,8 +42,8 @@ actor PubSubService {
   /// are set.
   static let maxMessageBytes = 20 * 1024 * 1024
 
-  /// - Parameter maxStreamsPerConnection: Streaming pulls per HTTP/2 connection, below the
-  ///   ~100 concurrent streams Google front ends allow to leave room for unary RPCs.
+  /// - Parameter maxStreamsPerConnection: Streaming pulls per HTTP/2 connection, below the 100
+  ///   concurrent streams Google front ends allow. Unary RPCs use a connection of their own.
   /// - Parameter emulatorHost: `host:port` of a Pub/Sub emulator to use instead of Google Cloud.
   /// - Parameter callTimeout: Time after which an RPC is cancelled.
   init(
@@ -141,7 +141,8 @@ actor PubSubService {
   struct Clients: Sendable {
 
     /// Clients each with their own HTTP/2 connection. Streaming pulls take a stream slot so that
-    /// no connection carries more streams than the server allows.
+    /// no connection carries more streams than the server allows, and none on the unary client so
+    /// that acknowledgements never wait for a stream slot.
     let pool: GRPCClientPool<GRPCClient<HTTP2ClientTransport.Posix>>
 
     fileprivate let run: Task<Void, any Error>
@@ -155,16 +156,18 @@ actor PubSubService {
     }
 
     /// Client for unary RPCs.
-    var primary: GRPCClient<HTTP2ClientTransport.Posix> {
-      pool.primary
+    var unary: GRPCClient<HTTP2ClientTransport.Posix> {
+      pool.unary
     }
 
+    /// For unary RPCs.
     var publisher: Google_Pubsub_V1_Publisher.Client<HTTP2ClientTransport.Posix> {
-      .init(wrapping: pool.primary)
+      .init(wrapping: pool.unary)
     }
 
+    /// For unary RPCs. Streaming pulls should use a client of ``GRPCClientPool/withStreamSlot(_:)``.
     var subscriber: Google_Pubsub_V1_Subscriber.Client<HTTP2ClientTransport.Posix> {
-      .init(wrapping: pool.primary)
+      .init(wrapping: pool.unary)
     }
   }
 
@@ -349,7 +352,7 @@ actor PubSubService {
     state.withLock { $0.usage }
   }
 
-  /// Number of active streams per client of the current generation, in creation order.
+  /// Number of active streams per streaming client of the current generation, in creation order.
   nonisolated var activeStreamCounts: [Int] {
     clientUsage.current?.pool.activeStreamCounts ?? []
   }

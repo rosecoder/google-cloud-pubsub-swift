@@ -8,16 +8,18 @@ protocol PooledClient: Sendable {
 
 extension GRPCClient: PooledClient {}
 
-/// Spreads long-lived streams over multiple clients (and therefore HTTP/2 connections).
+/// Keeps unary RPCs and long-lived streams on separate clients (and therefore HTTP/2 connections),
+/// and spreads the streams over multiple clients.
 ///
 /// Servers cap concurrent streams per connection (Google front ends commonly at 100) and opening a
 /// stream beyond that limit queues silently instead of failing. Neither the transport nor the load
 /// balancers open extra connections based on stream count, so the pool does it by creating
-/// additional clients when every existing client holds `maxStreamsPerClient` streams.
+/// additional clients when every streaming client holds `maxStreamsPerClient` streams. Unary RPCs,
+/// such as acknowledgements, would otherwise queue behind the streams sharing their connection.
 final class GRPCClientPool<Client: PooledClient>: Sendable {
 
-  /// Client used for unary RPCs. Also the first client streams are assigned to.
-  let primary: Client
+  /// Client used for unary RPCs. Never carries streams of ``withStreamSlot(_:)``.
+  let unary: Client
 
   private let maxStreamsPerClient: Int
   private let makeClient: @Sendable () throws -> Client
@@ -26,13 +28,13 @@ final class GRPCClientPool<Client: PooledClient>: Sendable {
   private let newClientsContinuation: AsyncStream<Client>.Continuation
 
   private struct State {
-    var slots: [(client: Client, activeStreams: Int)]
+    var slots: [(client: Client, activeStreams: Int)] = []
     var isRunning = false
     var isClosed = false
   }
 
   /// - Parameter maxStreamsPerClient: Should stay below the server's concurrent stream limit with
-  ///   headroom for unary RPCs on the same connection.
+  ///   headroom for streams that are still closing while their replacements open.
   /// - Parameter makeClient: Called while holding the pool's lock; must not call back into the pool.
   init(
     maxStreamsPerClient: Int = 80,
@@ -40,13 +42,13 @@ final class GRPCClientPool<Client: PooledClient>: Sendable {
   ) throws {
     precondition(maxStreamsPerClient > 0, "maxStreamsPerClient must be positive")
 
-    let primary = try makeClient()
-    self.primary = primary
+    let unary = try makeClient()
+    self.unary = unary
     self.maxStreamsPerClient = maxStreamsPerClient
     self.makeClient = makeClient
-    self.state = Mutex(State(slots: [(primary, 0)]))
+    self.state = Mutex(State())
     (newClients, newClientsContinuation) = AsyncStream.makeStream(of: Client.self)
-    newClientsContinuation.yield(primary)
+    newClientsContinuation.yield(unary)
   }
 
   /// Runs the connections of every client in the pool, including clients created after this
@@ -76,8 +78,8 @@ final class GRPCClientPool<Client: PooledClient>: Sendable {
     }
   }
 
-  /// Executes `body` with a client that has a free stream slot, holding the slot until `body`
-  /// returns or throws.
+  /// Executes `body` with a streaming client that has a free stream slot, holding the slot until
+  /// `body` returns or throws. The first stream creates the first streaming client.
   func withStreamSlot<T: Sendable>(
     _ body: @Sendable (Client) async throws -> T
   ) async throws -> T {
@@ -94,7 +96,7 @@ final class GRPCClientPool<Client: PooledClient>: Sendable {
         return []
       }
       state.isClosed = true
-      return state.slots.map(\.client)
+      return [unary] + state.slots.map(\.client)
     }
     for client in clients {
       client.beginGracefulShutdown()
@@ -102,7 +104,7 @@ final class GRPCClientPool<Client: PooledClient>: Sendable {
     newClientsContinuation.finish()
   }
 
-  /// Number of active streams per client, in creation order.
+  /// Number of active streams per streaming client, in creation order.
   var activeStreamCounts: [Int] {
     state.withLock { $0.slots.map(\.activeStreams) }
   }

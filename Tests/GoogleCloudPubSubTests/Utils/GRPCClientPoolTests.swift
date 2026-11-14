@@ -11,16 +11,17 @@ struct GRPCClientPoolTests {
     let factory = FakeClientFactory()
     let pool = try GRPCClientPool(makeClient: factory.make)
     #expect(factory.clients.count == 1)
-    #expect(pool.primary === factory.clients[0])
+    #expect(pool.unary === factory.clients[0])
+    #expect(pool.activeStreamCounts == [])
 
     let held = (0..<80).map { _ in holdSlot(in: pool) }
     defer { for task in held { task.cancel() } }
     try await waitUntil { pool.activeStreamCounts == [80] }
-    #expect(factory.clients.count == 1)
+    #expect(factory.clients.count == 2)
 
     let id = try await pool.withStreamSlot { $0.id }
-    #expect(id == 1)
-    #expect(factory.clients.count == 2)
+    #expect(id == 2)
+    #expect(factory.clients.count == 3)
     #expect(pool.activeStreamCounts == [80, 0])
   }
 
@@ -39,8 +40,8 @@ struct GRPCClientPoolTests {
     try await waitUntil { pool.activeStreamCounts == [1, 1] }
 
     let id = try await pool.withStreamSlot { $0.id }
-    #expect(id == 0)
-    #expect(factory.clients.count == 2)
+    #expect(id == 1)
+    #expect(factory.clients.count == 3)
   }
 
   @Test func shouldReleaseSlotWhenBodyThrows() async throws {
@@ -66,8 +67,8 @@ struct GRPCClientPoolTests {
     try await waitUntil { factory.clients.allSatisfy(\.didStartConnections) }
 
     held.append(holdSlot(in: pool))
-    try await waitUntil { factory.clients.count == 3 }
-    try await waitUntil { factory.clients[2].didStartConnections }
+    try await waitUntil { factory.clients.count == 4 }
+    try await waitUntil { factory.clients[3].didStartConnections }
 
     pool.beginGracefulShutdown()
     try await runTask.cancellableValue
@@ -81,11 +82,12 @@ struct GRPCClientPoolTests {
 
     let held = (0..<3).map { _ in holdSlot(in: pool) }
     defer { for task in held { task.cancel() } }
-    try await waitUntil { factory.clients.count == 3 }
+    try await waitUntil { factory.clients.count == 4 }
     try await waitUntil { factory.clients.allSatisfy(\.didStartConnections) }
 
     pool.beginGracefulShutdown()
     try await runTask.cancellableValue
+    #expect(pool.unary.didStopConnections)
     #expect(factory.clients.allSatisfy { $0.didStopConnections })
   }
 
@@ -105,14 +107,14 @@ struct GRPCClientPoolTests {
     await #expect(throws: RuntimeError.self) {
       try await pool.withStreamSlot { _ in }
     }
-    #expect(pool.activeStreamCounts == [0])
+    #expect(pool.activeStreamCounts == [])
   }
 
   @Test func shouldThrowWhenRunTwice() async throws {
     let pool = try GRPCClientPool(makeClient: FakeClientFactory().make)
     let runTask = Task { try await pool.run() }
     defer { runTask.cancel() }
-    try await waitUntil { pool.primary.didStartConnections }
+    try await waitUntil { pool.unary.didStartConnections }
 
     await #expect(throws: RuntimeError.self) {
       try await pool.run()
@@ -147,7 +149,7 @@ struct GRPCClientPoolTests {
     let peaks = inFlight.withLock { $0.values.map(\.peak) }
     #expect(peaks.allSatisfy { $0 <= maxStreamsPerClient })
     #expect(pool.activeStreamCounts.allSatisfy { $0 == 0 })
-    #expect(pool.activeStreamCounts.count == factory.clients.count)
+    #expect(pool.activeStreamCounts.count == factory.clients.count - 1)
   }
 }
 
