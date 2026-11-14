@@ -81,6 +81,44 @@ struct StreamingPullIntegrationTests {
     }
   }
 
+  /// Messages in flight when a stream times out are redelivered once their ack deadline expired.
+  @Test(.tags(.slow), .timeLimit(.minutes(2)))
+  func shouldReconnectRightAwayWithoutLosingMessagesWhenStreamsTimeOut() async throws {
+    let logs = LogRecorder()
+    let (handled, handledContinuation) = AsyncStream.makeStream(of: String.self)
+
+    try await withSubscriber(
+      streamTimeout: .seconds(2), logs: logs, handle: { handledContinuation.yield($0) }
+    ) { publish, streamCount in
+      var published = Set(try await publish((0..<10).map { "Before \($0)" }))
+      try await waitUntil(timeout: .seconds(30)) { streamCount.value >= 6 }
+      published.formUnion(try await publish((0..<10).map { "After \($0)" }))
+
+      var received = Set<String>()
+      for await id in handled {
+        received.insert(id)
+        if received.isSuperset(of: published) {
+          break
+        }
+      }
+      #expect(received.isSuperset(of: published))
+    }
+
+    let reconnects = logs.entries.filter { $0.message.hasPrefix("StreamingPull") }
+    // The server times out the stream as well, so either side may end it first. The emulator may
+    // also reset it, which only counts as a timeout once the stream lasted 30 seconds.
+    let timeouts = reconnects.filter {
+      $0.message.contains("CancellationError") || $0.message.contains("deadlineExceeded")
+    }
+    #expect(!timeouts.isEmpty, "\(reconnects.map(\.message))")
+    for reconnect in timeouts {
+      #expect(reconnect.level == .debug, "\(reconnect.message)")
+      #expect(
+        reconnectDelay(in: reconnect.message).map { $0 <= .milliseconds(120) } == true,
+        "\(reconnect.message)")
+    }
+  }
+
   @Test(.timeLimit(.minutes(1)))
   func shouldReceiveBatchLargerThanDefaultGRPCMessageLimit() async throws {
     let messageCount = 8
@@ -135,11 +173,26 @@ struct StreamingPullIntegrationTests {
 
   private struct NackError: Error {}
 
+  /// Parses the delay of a log message like "StreamingPull failed (reconnecting in 0.1 seconds)".
+  private func reconnectDelay(in message: String) -> Duration? {
+    guard let start = message.range(of: "reconnecting in "),
+      let end = message.range(of: " seconds", range: start.upperBound..<message.endIndex),
+      let seconds = Double(message[start.upperBound..<end.lowerBound])
+    else {
+      return nil
+    }
+    return .seconds(seconds)
+  }
+
   /// Runs a subscriber of a new subscription until `body` returns.
   ///
   /// `body` gets a function publishing messages and returning their IDs, and the number of
   /// streams opened so far.
+  ///
+  /// - Parameter streamTimeout: Replaces the timeout of each stream if set.
   private func withSubscriber(
+    streamTimeout: Duration? = nil,
+    logs: LogRecorder = LogRecorder(),
     handle: @escaping @Sendable (_ id: String) async throws -> Void,
     _ body: (
       _ publish: ([String]) async throws -> [String], _ streamCount: Counter
@@ -157,7 +210,10 @@ struct StreamingPullIntegrationTests {
       pubSubService: pubSubService,
       streamingPullConnection: CountingConnection(
         wrapped: Google_Pubsub_V1_Subscriber.Client(wrapping: pubSubService.grpcClient),
-        count: streamCount)
+        count: streamCount, timeout: streamTimeout),
+      clock: ContinuousClock(),
+      leaseGenerator: SystemRandomNumberGenerator(),
+      logger: logs.logger(label: "test.streaming-pull-integration")
     )
     let publisher = Publisher(projectID: projectID, pubSubService: pubSubService)
 
@@ -190,6 +246,7 @@ private struct CountingConnection: StreamingPullConnection {
 
   let wrapped: any StreamingPullConnection
   let count: Counter
+  var timeout: Duration?
 
   func streamingPull<Result: Sendable>(
     metadata: Metadata,
@@ -201,6 +258,8 @@ private struct CountingConnection: StreamingPullConnection {
       async throws -> Result
   ) async throws -> Result {
     count.increment()
+    var options = options
+    options.timeout = timeout ?? options.timeout
     return try await wrapped.streamingPull(
       metadata: metadata, options: options, requestProducer: requestProducer,
       onResponse: onResponse)
