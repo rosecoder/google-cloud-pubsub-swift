@@ -3,6 +3,10 @@ import GRPCCore
 @testable import GoogleCloudPubSub
 
 /// Polls until a subscriber has created the subscription, after which published messages reach it.
+///
+/// Creating the subscription as well while a subscriber runs isn't safe on the emulator: its
+/// CreateSubscription isn't atomic, so two concurrent creates can both succeed and the later one
+/// replaces the subscription, dropping the messages already published to it.
 func waitUntilSubscriptionExists(
   id: String,
   client: Google_Pubsub_V1_Subscriber.ClientProtocol

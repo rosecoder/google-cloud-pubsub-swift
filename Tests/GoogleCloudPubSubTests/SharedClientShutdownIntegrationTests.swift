@@ -134,8 +134,11 @@ struct SharedClientShutdownIntegrationTests {
   private func publishAndReceiveOneMessageEach(
     _ subscribers: Subscribers, publisher: Publisher, pubSubService: PubSubService
   ) async throws {
-    for subscription in subscribers.subscriptions {
-      try await pubSubService.create(subscription: subscription, projectID: projectID)
+    try await pubSubService.withClientInUse { clients in
+      for subscription in subscribers.subscriptions {
+        try await waitUntilSubscriptionExists(
+          id: subscription.id(projectID: projectID), client: clients.subscriber)
+      }
     }
     let topics = subscribers.subscriptions.map(\.topic)
     for topic in topics {

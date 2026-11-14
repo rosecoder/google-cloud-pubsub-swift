@@ -68,7 +68,10 @@ struct PullSubscriberShutdownIntegrationTests {
 
     let run = Task { try await serviceGroup.run() }
     defer { run.cancel() }
-    try await pubSubService.create(subscription: handler.subscription, projectID: projectID)
+    try await pubSubService.withClientInUse { clients in
+      try await waitUntilSubscriptionExists(
+        id: handler.subscription.id(projectID: projectID), client: clients.subscriber)
+    }
     _ = try await publisher.publish(to: topic, body: "Hello")
     _ = await started.first { _ in true }
 
