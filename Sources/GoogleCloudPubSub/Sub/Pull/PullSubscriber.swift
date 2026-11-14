@@ -24,25 +24,32 @@ public final class PullSubscriber<Handler: _Handler>: Service {
 
   public let deleteSubscriptionOnShutdown: Bool
 
-  public convenience init(handler: Handler, deleteSubscriptionOnShutdown: Bool = false) async throws
-  {
+  public let options: Options
+
+  public convenience init(
+    handler: Handler,
+    deleteSubscriptionOnShutdown: Bool = false,
+    options: Options = Options()
+  ) async throws {
     guard let projectID = await (ServiceContext.current ?? .topLevel).projectID else {
       throw ConfigurationError.missingProjectID
     }
     try self.init(
       handler: handler, projectID: projectID,
-      deleteSubscriptionOnShutdown: deleteSubscriptionOnShutdown)
+      deleteSubscriptionOnShutdown: deleteSubscriptionOnShutdown, options: options)
   }
 
   public convenience init(
     handler: Handler,
     projectID: String,
-    deleteSubscriptionOnShutdown: Bool = false
+    deleteSubscriptionOnShutdown: Bool = false,
+    options: Options = Options()
   ) throws {
     self.init(
       handler: handler,
       projectID: projectID,
       deleteSubscriptionOnShutdown: deleteSubscriptionOnShutdown,
+      options: options,
       pubSubService: try PubSubService.shared
     )
   }
@@ -51,6 +58,7 @@ public final class PullSubscriber<Handler: _Handler>: Service {
     handler: Handler,
     projectID: String,
     deleteSubscriptionOnShutdown: Bool = false,
+    options: Options = Options(),
     pubSubService: PubSubService
   ) {
     self.projectID = projectID
@@ -60,6 +68,7 @@ public final class PullSubscriber<Handler: _Handler>: Service {
     self.publisherClient = Google_Pubsub_V1_Publisher.Client(wrapping: pubSubService.grpcClient)
     self.pubSubService = pubSubService
     self.deleteSubscriptionOnShutdown = deleteSubscriptionOnShutdown
+    self.options = options
   }
 
   public func run() async throws {
