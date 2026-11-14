@@ -61,15 +61,10 @@ struct GCPPullSubscriberTests {
         streamingPullConnection: connection)
       let publisher = Publisher(projectID: resources.projectID, pubSubService: service)
 
-      let knownIssue: Comment =
-        "Responses over gRPC's default 4 MiB receive limit fail with internalError \"Failed to decode message\", see fix/grpc-message-size-limits"
       try await withRunningSubscribers([subscriber], publishingWith: publisher) {
         let start = ContinuousClock.now
-        // Redeliveries sometimes arrive in responses small enough to decode.
-        await withKnownIssue(knownIssue, isIntermittent: true) {
-          try await poll(timeout: .seconds(90), "Delivery of every large message") {
-            deliveries.distinct == messageCount
-          }
+        try await poll(timeout: .seconds(90), "Delivery of every large message") {
+          deliveries.distinct == messageCount
         }
         GCP.logger.info(
           "Received \(deliveries.distinct) of \(messageCount) large messages in \(start.duration(to: .now))"
@@ -78,9 +73,7 @@ struct GCPPullSubscriberTests {
       let failedStreams = connection.streams.filter { $0.code != nil }
       GCP.logger.info(
         "\(failedStreams.count) streams failed while receiving large messages: \(failedStreams)")
-      withKnownIssue(knownIssue) {
-        #expect(failedStreams.isEmpty)
-      }
+      #expect(failedStreams.isEmpty)
     }
   }
 
