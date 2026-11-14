@@ -3,14 +3,16 @@ import GRPCCore
 import GRPCNIOTransportHTTP2Posix
 import GoogleCloudAuth
 import GoogleCloudAuthGRPC
+import Logging
 import RetryableTask
-import ServiceLifecycle
 import Synchronization
 import Tracing
 
 actor PubSubService {
 
   private static let _shared = Mutex<PubSubService?>(nil)
+
+  private static let logger = Logger(label: "pubsub.service")
 
   static var shared: PubSubService {
     get throws {
@@ -130,79 +132,109 @@ actor PubSubService {
 
   struct ClientUsage: Sendable {
     private(set) var users = 0
-    private(set) var isShutdownRequested = false
     private(set) var hasBegunShutdown = false
 
-    mutating func retain() {
+    mutating func retain() throws {
+      if hasBegunShutdown {
+        throw RuntimeError(
+          code: .clientIsStopped,
+          message: "The Pub/Sub clients shut down when their last user stopped and can't be reused."
+        )
+      }
       users += 1
     }
 
-    /// - Returns: Whether the client should begin shutting down now.
+    /// - Returns: Whether the clients should begin shutting down now.
     mutating func release() -> Bool {
       users -= 1
-      return shouldShutDown()
-    }
-
-    /// - Returns: Whether the client should begin shutting down now.
-    mutating func requestShutdown() -> Bool {
-      isShutdownRequested = true
-      return shouldShutDown()
-    }
-
-    private mutating func shouldShutDown() -> Bool {
-      guard isShutdownRequested, users == 0, !hasBegunShutdown else {
-        return false
-      }
-      hasBegunShutdown = true
-      return true
+      hasBegunShutdown = users == 0
+      return hasBegunShutdown
     }
   }
 
-  private nonisolated let usage = Mutex(ClientUsage())
-
-  var runTask: Task<Void, Error>?
-
-  /// Runs the connections of every pooled client until a caller of `run()` is cancelled or shut
-  /// down gracefully and nothing uses the clients through ``withClientInUse(_:)`` anymore.
-  func run() async throws {
-    if runTask == nil {
-      let task = Task {
-        // Also returns when clients were shut down before their connections started running.
-        try await pool.run()
-        try await authorization?.shutdown()
-      }
-      runTask = task
-    }
-    let task = runTask!
-
-    try await withTaskCancellationOrGracefulShutdownHandler {
-      try await task.value
-    } onCancelOrGracefulShutdown: {
-      self.requestShutdown()
-    }
+  private struct State {
+    var usage = ClientUsage()
+    var run: Task<Void, any Error>?
   }
 
-  /// Keeps the gRPC clients from shutting down while `body` runs.
+  private nonisolated let state = Mutex(State())
+
+  /// Runs the clients' connections while `body` runs, sharing them with concurrent callers.
+  ///
+  /// Returns as soon as `body` has, unless this was the last caller: it then shuts the clients down
+  /// gracefully and waits until they have stopped, at most ``shutdownTimeout``. Cancelling the last
+  /// caller stops them abruptly.
+  ///
+  /// - Throws: `RuntimeError` with code `clientIsStopped` without running `body` if the clients
+  ///   have already shut down.
   nonisolated func withClientInUse<T: Sendable>(
     _ body: @Sendable () async throws -> T
-  ) async rethrows -> T {
-    usage.withLock { $0.retain() }
-    defer {
-      if usage.withLock({ $0.release() }) {
-        pool.beginGracefulShutdown()
+  ) async throws -> T {
+    let run = try state.withLock { state in
+      try state.usage.retain()
+      if state.run == nil {
+        state.run = Task { [pool, authorization] in
+          // Also returns when clients were shut down before their connections started running.
+          try await pool.run()
+          try await authorization?.shutdown()
+        }
+      }
+      return state.run!
+    }
+
+    let result: Result<T, any Error>
+    do {
+      result = .success(try await body())
+    } catch {
+      result = .failure(error)
+    }
+
+    if state.withLock({ $0.usage.release() }) {
+      pool.beginGracefulShutdown()
+      do {
+        try await waitUntilStopped(run)
+      } catch {
+        _ = try result.get()
+        throw error
       }
     }
-    return try await body()
+    return try result.get()
+  }
+
+  static var shutdownTimeout: Duration {
+    .seconds(5)
+  }
+
+  /// Cancels `run` if the clients haven't stopped within ``shutdownTimeout``, since the transport's
+  /// graceful shutdown can hang when it begins while a connection is being established.
+  private nonisolated func waitUntilStopped(_ run: Task<Void, any Error>) async throws {
+    let hasTimedOut = await withTaskGroup(of: Bool.self) { group in
+      group.addTask {
+        _ = await withTaskCancellationHandler {
+          await run.result
+        } onCancel: {
+          run.cancel()
+        }
+        return false
+      }
+      group.addTask {
+        try? await Task.sleep(for: Self.shutdownTimeout)
+        return !Task.isCancelled
+      }
+      defer { group.cancelAll() }
+      return await group.next()!
+    }
+    if hasTimedOut {
+      Self.logger.warning(
+        "The gRPC clients didn't shut down gracefully within \(Self.shutdownTimeout) and were stopped."
+      )
+    } else if !Task.isCancelled {
+      try await run.value
+    }
   }
 
   nonisolated var clientUsage: ClientUsage {
-    usage.withLock { $0 }
-  }
-
-  private nonisolated func requestShutdown() {
-    if usage.withLock({ $0.requestShutdown() }) {
-      pool.beginGracefulShutdown()
-    }
+    state.withLock { $0.usage }
   }
 
   func create(
