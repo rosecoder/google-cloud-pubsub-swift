@@ -138,6 +138,40 @@ import Testing
     #expect(state.held.count == 9)
   }
 
+  // MARK: - Shutdown
+
+  @Test func shouldCloseAllUnclaimedMessagesAndDropTheirLaterResults() {
+    var state = State(flowControl: flowControl(messages: 2))
+    _ = state.add([item("a"), item("b"), item("c")])
+    let claimedBeforeClosing = state.claim(AckID("ack-b"))
+    #expect(claimedBeforeClosing)
+
+    let closed = state.closeAll()
+
+    #expect(Set(closed) == [AckID("ack-a"), AckID("ack-c")])
+    #expect(state.ready.isEmpty)
+    #expect(state.held.isEmpty)
+    #expect(state.outstandingMessages == 1)
+    let claimed = ["a", "b", "c"].map { state.claim(AckID("ack-\($0)")) }
+    #expect(claimed == [false, true, false])
+    let rejected = state.add([item("d")]).rejected
+    #expect(rejected == [AckID("ack-d")])
+
+    state.release(AckID("ack-b"))
+    #expect(state.isEmpty)
+    let closedAgain = state.closeAll()
+    #expect(closedAgain.isEmpty)
+  }
+
+  @Test func shouldLetHandlersClaimMessagesNoLongerLeasedBeforeClosing() {
+    var state = State(flowControl: flowControl(messages: 1), lease: lease(maxSeconds: 60))
+    _ = state.add([item("a")], now: start)
+    _ = state.renewLeases(now: start + .seconds(60))
+
+    let claimed = state.claim(AckID("ack-a"))
+    #expect(claimed)
+  }
+
   // MARK: - Leasing
 
   @Test func shouldAcceptNewMessagesWithCurrentAckDeadline() {
@@ -327,6 +361,30 @@ import Testing
 
     #expect(try await wait.value)
     #expect(try await !inventory.waitUntilNonEmpty())
+  }
+
+  @Test func shouldWaitUntilEmptyUntilLastMessageIsReleased() async throws {
+    let inventory = MessageInventory(flowControl: flowControl(messages: 10))
+    try await inventory.waitUntilEmpty()
+    _ = inventory.add([message("a"), message("b")], now: .now)
+
+    let wait = Task { try await inventory.waitUntilEmpty() }
+    inventory.release(AckID("ack-a"))
+    #expect(inventory.claim(AckID("ack-b")))
+    #expect(inventory.closeAll().isEmpty)
+    inventory.release(AckID("ack-b"))
+
+    try await wait.value
+  }
+
+  @Test func shouldThrowWhenWaitingUntilEmptyIsCancelled() async throws {
+    let inventory = MessageInventory(flowControl: flowControl(messages: 10))
+    _ = inventory.add([message("a")], now: .now)
+    let wait = Task { try await inventory.waitUntilEmpty() }
+
+    wait.cancel()
+
+    await #expect(throws: CancellationError.self) { try await wait.value }
   }
 
   @Test func shouldWaitUntilMessagesAreAcceptedWithShorterDeadline() async throws {

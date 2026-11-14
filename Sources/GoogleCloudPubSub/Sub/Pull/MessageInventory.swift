@@ -217,6 +217,52 @@ final class MessageInventory: Sendable {
     mutate { $0.stopReceiving() }
   }
 
+  /// Marks a message as being acked or nacked by its handler, so ``closeAll()`` leaves it to it.
+  ///
+  /// - Returns: `false` if ``closeAll()`` already took the message, so its handler's result must
+  ///   be dropped.
+  func claim(_ id: AckID) -> Bool {
+    storage.withLock { $0.state.claim(id) }
+  }
+
+  /// Stops receiving and removes every message not claimed by its handler.
+  ///
+  /// - Returns: IDs of the removed messages, which should be nacked.
+  func closeAll() -> [AckID] {
+    mutate { $0.closeAll() }
+  }
+
+  /// Waits until no message is leased.
+  ///
+  /// Must only be called by one task at a time.
+  ///
+  /// - Throws: `CancellationError` if the task is cancelled.
+  func waitUntilEmpty() async throws {
+    try await withTaskCancellationHandler {
+      try await withCheckedThrowingContinuation { continuation in
+        let result: Result<Void, any Error>? = storage.withLock { storage in
+          precondition(storage.emptyWaiter == nil, "Only one task may wait for no messages")
+          if Task.isCancelled {
+            return .failure(CancellationError())
+          }
+          if storage.state.isEmpty {
+            return .success(())
+          }
+          storage.emptyWaiter = continuation
+          return nil
+        }
+        if let result {
+          continuation.resume(with: result)
+        }
+      }
+    } onCancel: {
+      storage.withLock { storage in
+        defer { storage.emptyWaiter = nil }
+        return storage.emptyWaiter
+      }?.resume(throwing: CancellationError())
+    }
+  }
+
   fileprivate func nextDispatched() async -> Item? {
     await withCheckedContinuation { continuation in
       let (resumeNow, item) = storage.withLock { storage -> (Bool, Item?) in
@@ -279,6 +325,9 @@ extension MessageInventory {
       let receivedAt: ContinuousClock.Instant
       var dispatchedAt: ContinuousClock.Instant?
 
+      /// Whether its handler is acking or nacking it.
+      var isClaimed = false
+
       var isDispatched: Bool {
         dispatchedAt != nil
       }
@@ -293,6 +342,9 @@ extension MessageInventory {
     /// Shortest ack deadline messages were accepted with since leases were last renewed.
     private(set) var shortestAcceptedAckDeadline: AckDeadline?
     private(set) var entries: [AckID: Entry] = [:]
+
+    /// IDs removed by ``closeAll()``, whose handler results must be dropped.
+    private(set) var closed: Set<AckID> = []
     private(set) var held: Deque<Item> = []
 
     /// Dispatched messages not yet taken by ``nextReady()``.
@@ -414,6 +466,27 @@ extension MessageInventory {
       return ids
     }
 
+    mutating func claim(_ id: AckID) -> Bool {
+      guard !closed.contains(id) else {
+        return false
+      }
+      entries[id]?.isClaimed = true
+      return true
+    }
+
+    mutating func closeAll() -> [AckID] {
+      var ids = stopReceiving()
+      ready.removeAll()
+      for (id, entry) in entries where !entry.isClaimed {
+        ids.append(id)
+      }
+      for id in ids {
+        remove(id)
+        closed.insert(id)
+      }
+      return ids
+    }
+
     // Limits are checked before dispatching, so a single message larger than the byte limit is
     // still dispatched once nothing else is outstanding.
     private mutating func dispatchHeld(now: ContinuousClock.Instant) {
@@ -446,6 +519,7 @@ extension MessageInventory {
     var receiveWaiter: CheckedContinuation<Int, any Error>?
     var dispatchWaiter: CheckedContinuation<Item?, Never>?
     var leaseWaiter: CheckedContinuation<Void, any Error>?
+    var emptyWaiter: CheckedContinuation<Void, any Error>?
     var acceptWaiter:
       (deadline: AckDeadline, continuation: CheckedContinuation<AckDeadline, any Error>)?
 
@@ -454,6 +528,10 @@ extension MessageInventory {
       if let waiter = leaseWaiter, !state.isEmpty {
         resumptions.lease = waiter
         leaseWaiter = nil
+      }
+      if let waiter = emptyWaiter, state.isEmpty {
+        resumptions.empty = waiter
+        emptyWaiter = nil
       }
       if let waiter = acceptWaiter, let accepted = state.shortestAcceptedAckDeadline,
         accepted < waiter.deadline
@@ -487,10 +565,12 @@ extension MessageInventory {
     var dispatch: (CheckedContinuation<Item?, Never>, Item?)?
     var receive: (CheckedContinuation<Int, any Error>, Result<Int, any Error>)?
     var lease: CheckedContinuation<Void, any Error>?
+    var empty: CheckedContinuation<Void, any Error>?
     var accept: (CheckedContinuation<AckDeadline, any Error>, AckDeadline)?
 
     func resume() {
       lease?.resume()
+      empty?.resume()
       if let (continuation, deadline) = accept {
         continuation.resume(returning: deadline)
       }
