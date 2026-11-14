@@ -117,12 +117,15 @@ final class Sampler: Sendable {
     }
   }
 
-  /// Pending deliveries: published messages each subscription has not yet handled successfully.
+  /// Pending deliveries: published messages each subscription has not yet handled successfully,
+  /// not counting messages whose publish failed.
   func pendingDeliveries() -> Int {
     let allocated = load.allocatedCounts
+    let unconfirmed = load.unconfirmedCounts
     var pending = 0
     for tracker in trackers {
-      pending += Int(allocated[tracker.topicIndex]) - tracker.succeededUnique
+      let expected = Int(allocated[tracker.topicIndex]) - unconfirmed[tracker.topicIndex]
+      pending += max(0, expected - tracker.succeededUnique)
     }
     return pending
   }
