@@ -113,18 +113,51 @@ actor PubSubService {
     }
   }
 
+  struct ClientUsage: Sendable {
+    private(set) var users = 0
+    private(set) var isShutdownRequested = false
+    private(set) var hasBegunShutdown = false
+
+    mutating func retain() {
+      users += 1
+    }
+
+    /// - Returns: Whether the client should begin shutting down now.
+    mutating func release() -> Bool {
+      users -= 1
+      return shouldShutDown()
+    }
+
+    /// - Returns: Whether the client should begin shutting down now.
+    mutating func requestShutdown() -> Bool {
+      isShutdownRequested = true
+      return shouldShutDown()
+    }
+
+    private mutating func shouldShutDown() -> Bool {
+      guard isShutdownRequested, users == 0, !hasBegunShutdown else {
+        return false
+      }
+      hasBegunShutdown = true
+      return true
+    }
+  }
+
+  private nonisolated let usage = Mutex(ClientUsage())
+
   var runTask: Task<Void, Error>?
 
+  /// Runs the gRPC client's connections until a caller of `run()` is cancelled or shut down
+  /// gracefully and nothing uses the client through ``withClientInUse(_:)`` anymore.
   func run() async throws {
     if runTask == nil {
       let task = Task {
-        try await withTaskCancellationOrGracefulShutdownHandler {
+        do {
           try await grpcClient.runConnections()
-        } onCancelOrGracefulShutdown: {
-          Task {
-            await self.waitForBlockingTasks()
-            self.grpcClient.beginGracefulShutdown()
-          }
+        } catch let error as RuntimeError
+          where error.code == .clientIsStopped && clientUsage.hasBegunShutdown
+        {
+          // Shut down before its connections started running.
         }
         try await authorization?.shutdown()
       }
@@ -135,22 +168,30 @@ actor PubSubService {
     try await withTaskCancellationOrGracefulShutdownHandler {
       try await task.value
     } onCancelOrGracefulShutdown: {
-      Task {
-        await self.waitForBlockingTasks()
-        self.grpcClient.beginGracefulShutdown()
-      }
+      self.requestShutdown()
     }
   }
 
-  private var grpcBlockerTasks = [Task<Void, Never>]()
-
-  func registerBlockerForGRPCShutdown(task: Task<Void, Never>) {
-    grpcBlockerTasks.append(task)
+  /// Keeps the gRPC client from shutting down while `body` runs.
+  nonisolated func withClientInUse<T: Sendable>(
+    _ body: @Sendable () async throws -> T
+  ) async rethrows -> T {
+    usage.withLock { $0.retain() }
+    defer {
+      if usage.withLock({ $0.release() }) {
+        grpcClient.beginGracefulShutdown()
+      }
+    }
+    return try await body()
   }
 
-  func waitForBlockingTasks() async {
-    for task in grpcBlockerTasks {
-      await task.value
+  nonisolated var clientUsage: ClientUsage {
+    usage.withLock { $0 }
+  }
+
+  private nonisolated func requestShutdown() {
+    if usage.withLock({ $0.requestShutdown() }) {
+      grpcClient.beginGracefulShutdown()
     }
   }
 

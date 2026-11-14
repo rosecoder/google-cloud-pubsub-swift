@@ -1,0 +1,260 @@
+import ServiceLifecycleTestKit
+import Synchronization
+import Testing
+
+@testable import GoogleCloudPubSub
+
+@Suite struct PullSubscriberShutdownTests {
+
+  let pullTransport = FakePullTransport()
+  let ackTransport = FakeAckTransport()
+  let clock = TestClock()
+  let probe = HandlerProbe()
+
+  // MARK: - Nack immediately
+
+  @Test(.timeLimit(.minutes(1)))
+  func shouldNackHeldAndInFlightMessagesAndCancelHandlers() async throws {
+    pullTransport.deliver([message("a"), message("b")])
+
+    try await withSubscriber(
+      .nackImmediately, handle: { _ in try await Task.sleep(for: .seconds(3_600)) }
+    ) { shutdown in
+      try await waitUntil { probe.started == ["a"] && ackTransport.calls.count == 1 }
+      shutdown()
+    }
+
+    let nacked = ackTransport.ids(of: .modify(.nack))
+    #expect(nacked.count == 2)
+    #expect(Set(nacked) == [AckID("ack-a"), AckID("ack-b")])
+    #expect(ackTransport.ids(of: .acknowledge).isEmpty)
+    #expect(probe.finished == ["a": true])
+  }
+
+  // MARK: - Wait for processing
+
+  @Test(.timeLimit(.minutes(1)))
+  func shouldLetHandlersFinishAndKeepLeasingWhileWaiting() async throws {
+    let gate = Gate()
+    pullTransport.deliver([message("a"), message("b")])
+
+    try await withSubscriber(
+      .waitForProcessing(timeout: .seconds(30)), handle: { _ in await gate.wait() }
+    ) { shutdown in
+      try await waitUntil { probe.started == ["a"] && ackTransport.calls.count == 1 }
+      shutdown()
+      try await waitUntil { ackTransport.ids(of: .modify(.nack)) == [AckID("ack-b")] }
+
+      // The lease and the shutdown timeout are sleeping.
+      try await waitUntil { clock.sleeperCount == 2 }
+      clock.advance(by: .seconds(9))
+      try await waitUntil { extensions.count == 2 }
+      #expect(extensions.last?.ids == [AckID("ack-a")])
+
+      gate.open()
+    }
+
+    #expect(ackTransport.ids(of: .acknowledge) == [AckID("ack-a")])
+    #expect(ackTransport.ids(of: .modify(.nack)) == [AckID("ack-b")])
+    #expect(probe.finished == ["a": false])
+  }
+
+  @Test(.timeLimit(.minutes(1)))
+  func shouldNackRemainingMessagesAndCancelHandlersOneSecondBeforeTimeout() async throws {
+    pullTransport.deliver([message("a")])
+
+    try await withSubscriber(
+      .waitForProcessing(timeout: .seconds(10)), handle: { _ in try? await Task.sleep(for: .seconds(3_600)) }
+    ) { shutdown in
+      try await waitUntil { probe.started == ["a"] && ackTransport.calls.count == 1 }
+      shutdown()
+      try await waitUntil { clock.sleeperCount == 2 }
+      clock.advance(by: .seconds(8))
+      await yieldRepeatedly()
+      #expect(ackTransport.ids(of: .modify(.nack)).isEmpty)
+
+      clock.advance(by: .seconds(1))
+    }
+
+    #expect(ackTransport.ids(of: .modify(.nack)) == [AckID("ack-a")])
+    // The handler returned normally after being cancelled, and its late ack was dropped.
+    #expect(ackTransport.ids(of: .acknowledge).isEmpty)
+    #expect(probe.finished == ["a": true])
+  }
+
+  @Test(.timeLimit(.minutes(1)))
+  func shouldLimitShutdownTimeoutToMaxLeaseDuration() async throws {
+    pullTransport.deliver([message("a")])
+
+    try await withSubscriber(
+      .waitForProcessing(timeout: .seconds(30)),
+      lease: .init(maxLeaseDuration: .seconds(5)),
+      handle: { _ in try await Task.sleep(for: .seconds(3_600)) }
+    ) { shutdown in
+      try await waitUntil { probe.started == ["a"] && ackTransport.calls.count == 1 }
+      shutdown()
+      try await waitUntil { clock.sleeperCount == 2 }
+      clock.advance(by: .seconds(4))
+    }
+
+    #expect(ackTransport.ids(of: .modify(.nack)) == [AckID("ack-a")])
+    #expect(probe.finished == ["a": true])
+  }
+
+  @Test(.timeLimit(.minutes(1)))
+  func shouldNotWaitWhenNothingIsOutstanding() async throws {
+    try await withSubscriber(.waitForProcessing(timeout: .seconds(30))) { shutdown in
+      try await waitUntil { pullTransport.isWaiting }
+      shutdown()
+    }
+
+    #expect(ackTransport.calls.isEmpty)
+  }
+
+  // MARK: - Cancellation
+
+  @Test(.timeLimit(.minutes(1)))
+  func shouldStopWithoutNackingWhenCancelled() async throws {
+    pullTransport.deliver([message("a"), message("b")])
+    let subscriber = makeSubscriber(
+      .waitForProcessing(timeout: .seconds(30)),
+      handle: { _ in try await Task.sleep(for: .seconds(3_600)) })
+
+    let run = Task { await subscriber.receiveAndProcess() }
+    try await waitUntil { probe.started == ["a"] && ackTransport.calls.count == 1 }
+    run.cancel()
+    await run.value
+
+    #expect(ackTransport.ids(of: .modify(.nack)).isEmpty)
+    #expect(ackTransport.ids(of: .acknowledge).isEmpty)
+    #expect(probe.finished == ["a": true])
+  }
+
+  // MARK: - Shared client
+
+  @Test(.timeLimit(.minutes(1)))
+  func shouldShutDownSharedClientOnlyAfterEverySubscriberFinished() async throws {
+    let service = try PubSubService()
+    let gate = Gate()
+    let busy = makeSubscriber(
+      .waitForProcessing(timeout: .seconds(30)), pubSubService: service,
+      handle: { _ in await gate.wait() })
+    let idle = makeSubscriber(
+      .waitForProcessing(timeout: .seconds(30)), pubSubService: service,
+      pullTransport: FakePullTransport(), handle: { _ in })
+    pullTransport.deliver([message("a")])
+
+    try await testGracefulShutdown { shutdownTrigger in
+      let busyRun = Task { try await busy.run() }
+      let idleRun = Task { try await idle.run() }
+      try await waitUntil { probe.started == ["a"] && service.clientUsage.users == 2 }
+
+      shutdownTrigger.triggerGracefulShutdown()
+      try await waitUntil { service.clientUsage.users == 1 }
+      #expect(service.clientUsage.isShutdownRequested)
+      #expect(!service.clientUsage.hasBegunShutdown)
+
+      gate.open()
+      try await busyRun.value
+      try await idleRun.value
+      #expect(service.clientUsage.hasBegunShutdown)
+      #expect(ackTransport.ids(of: .acknowledge) == [AckID("ack-a")])
+    }
+  }
+
+  // MARK: - Helpers
+
+  private var extensions: [FakeAckTransport.Call] {
+    ackTransport.calls.filter { $0.kind == .modify(.extend(.seconds(10))) }
+  }
+
+  private func yieldRepeatedly() async {
+    for _ in 0..<1_000 {
+      await Task.yield()
+    }
+  }
+
+  /// Runs a subscriber that holds all but one message, since each is as large as the byte limit,
+  /// until `body` has triggered shutdown and
+  /// the subscriber has returned.
+  private func withSubscriber(
+    _ shutdownBehavior: PullSubscriberOptions.ShutdownBehavior,
+    lease: PullSubscriberOptions.Lease = .init(),
+    handle: @escaping @Sendable (String) async throws -> Void = { _ in },
+    _ body: (_ shutdown: () -> Void) async throws -> Void
+  ) async throws {
+    let subscriber = makeSubscriber(shutdownBehavior, lease: lease, handle: handle)
+    try await testGracefulShutdown { shutdownTrigger in
+      let run = Task { await subscriber.receiveAndProcess() }
+      do {
+        try await body { shutdownTrigger.triggerGracefulShutdown() }
+      } catch {
+        run.cancel()
+        await run.value
+        throw error
+      }
+      await run.value
+    }
+  }
+
+  private func makeSubscriber(
+    _ shutdownBehavior: PullSubscriberOptions.ShutdownBehavior,
+    lease: PullSubscriberOptions.Lease = .init(),
+    pubSubService: PubSubService? = nil,
+    pullTransport: FakePullTransport? = nil,
+    handle: @escaping @Sendable (String) async throws -> Void
+  ) -> PullSubscriber<CallbackHandler<DataMessage>> {
+    let handler = CallbackHandler(
+      topic: Topic<DataMessage>(name: uniqueName("PullSubscriberShutdownTests"))
+    ) { [probe] message in
+      try await probe.record(message.id) {
+        try await handle(message.id)
+      }
+    }
+    return PullSubscriber(
+      handler: handler,
+      projectID: "pull-subscriber-shutdown-tests",
+      options: PullSubscriberOptions(
+        flowControl: .init(maxOutstandingMessages: 10, maxOutstandingBytes: 10), lease: lease,
+        shutdownBehavior: shutdownBehavior),
+      pubSubService: try! pubSubService ?? PubSubService(),
+      pullTransport: pullTransport ?? self.pullTransport,
+      ackTransport: ackTransport,
+      clock: clock,
+      leaseGenerator: SplitMix64(seed: 1)
+    )
+  }
+
+  private func message(_ id: String) -> Google_Pubsub_V1_ReceivedMessage {
+    FakePullTransport.message(id: id, size: 10)
+  }
+}
+
+/// Records which handlers started and whether they were cancelled when they returned.
+final class HandlerProbe: Sendable {
+
+  private struct State {
+    var started: [String] = []
+    var finished: [String: Bool] = [:]
+  }
+
+  private let state = Mutex(State())
+
+  var started: [String] {
+    state.withLock { $0.started }
+  }
+
+  /// Whether each finished handler was cancelled, by message ID.
+  var finished: [String: Bool] {
+    state.withLock { $0.finished }
+  }
+
+  func record(_ id: String, _ body: () async throws -> Void) async throws {
+    state.withLock { $0.started.append(id) }
+    defer {
+      let isCancelled = Task.isCancelled
+      state.withLock { $0.finished[id] = isCancelled }
+    }
+    try await body()
+  }
+}

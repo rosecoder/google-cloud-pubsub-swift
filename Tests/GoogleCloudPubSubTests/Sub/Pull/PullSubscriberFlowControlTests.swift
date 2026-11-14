@@ -105,21 +105,21 @@ import Testing
   @Test(.timeLimit(.minutes(1)))
   func shouldFreeCapacityOfExpiredMessageWithoutNackingAndStillAckIt() async throws {
     let ackTransport = FakeAckTransport()
-    let leaseClock = TestClock()
+    let clock = TestClock()
     pullTransport.deliver([message("slow", size: 10), message("next", size: 10)])
 
     try await withSubscriber(
       ackTransport: ackTransport,
       flowControl: .init(maxOutstandingMessages: 10, maxOutstandingBytes: 10),
       lease: .init(maxLeaseDuration: .seconds(15)),
-      leaseClock: leaseClock
+      clock: clock
     ) {
       try await waitUntil { recorder.started == ["slow"] && ackTransport.calls.count == 1 }
 
       // Renewals are at most 9 seconds apart, so the second is past the max lease duration.
       for _ in 0..<2 {
-        try await waitUntil { leaseClock.sleeperCount == 1 }
-        leaseClock.advance(by: .seconds(9))
+        try await waitUntil { clock.sleeperCount == 1 }
+        clock.advance(by: .seconds(9))
       }
       try await waitUntil { recorder.started == ["slow", "next"] && ackTransport.calls.count == 3 }
 
@@ -139,12 +139,12 @@ import Testing
 
   // MARK: - Helpers
 
-  /// Leases are only renewed when `leaseClock` is advanced.
+  /// Leases are only renewed, and shutdown timeouts only pass, when `clock` is advanced.
   private func withSubscriber(
     ackTransport: FakeAckTransport,
     flowControl: PullSubscriberOptions.FlowControl = .init(),
     lease: PullSubscriberOptions.Lease = .init(),
-    leaseClock: TestClock = TestClock(),
+    clock: TestClock = TestClock(),
     _ body: () async throws -> Void
   ) async throws {
     let handler = CallbackHandler(
@@ -164,7 +164,7 @@ import Testing
       pubSubService: try PubSubService(),
       pullTransport: pullTransport,
       ackTransport: ackTransport,
-      leaseClock: leaseClock,
+      clock: clock,
       leaseGenerator: SplitMix64(seed: 1)
     )
 

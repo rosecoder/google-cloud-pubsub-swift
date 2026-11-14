@@ -109,22 +109,29 @@ public final class PushSubscriber: Service {
     try await channel.close()
   }
 
-  private let pullRunTasks = Mutex<[Task<Void, Error>]>([])
+  private let pullSubscriberRuns = Mutex<[@Sendable () async throws -> Void]>([])
 
+  /// Runs a pull subscriber for each handler registered so far, which shut down gracefully
+  /// together with this service.
   private func runUsingPull() async throws {
     logger.info(
       "Using pull subscriber instead of push. Push is not supported during local development.")
 
-    let tasks = pullRunTasks.withLock { $0 }
+    let runs = pullSubscriberRuns.withLock { $0 }
 
-    try await withGracefulShutdownHandler {
-      try await pubSubService.run()
-    } onGracefulShutdown: {
-      tasks.forEach { $0.cancel() }
-    }
-
-    for task in tasks {
-      try? await task.value
+    try await withThrowingDiscardingTaskGroup { group in
+      group.addTask {
+        try await self.pubSubService.run()
+      }
+      for run in runs {
+        group.addTask {
+          do {
+            try await run()
+          } catch {
+            self.logger.error("Pull subscriber failed: \(error)")
+          }
+        }
+      }
     }
   }
 
@@ -136,16 +143,13 @@ public final class PushSubscriber: Service {
     if shouldFallbackToPull,
       pubSubService.isUsingEmulator
     {
-      let pullTask = Task {
-        let subscriber = PullSubscriber(
-          handler: handler,
-          projectID: self.projectID,
-          pubSubService: pubSubService
-        )
-        try await subscriber.run()
-      }
-      pullRunTasks.withLock {
-        $0.append(pullTask)
+      let subscriber = PullSubscriber(
+        handler: handler,
+        projectID: projectID,
+        pubSubService: pubSubService
+      )
+      pullSubscriberRuns.withLock {
+        $0.append { try await subscriber.run() }
       }
       return
     }

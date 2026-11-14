@@ -109,15 +109,25 @@ public struct PullSubscriberOptions: Sendable, Hashable {
     }
   }
 
-  /// What happens to messages still being processed when the subscriber shuts down.
+  /// What happens to messages still outstanding when the subscriber shuts down gracefully.
+  ///
+  /// Either way, messages received but not yet handed to a handler are nacked right away, and
+  /// shutdown finishes once pending acks and nacks have been sent. Cancelling
+  /// ``PullSubscriber/run()`` instead skips all of this.
   public enum ShutdownBehavior: Sendable, Hashable {
 
-    /// Nack all outstanding messages right away so Pub/Sub can redeliver them to another
-    /// subscriber.
+    /// Nack all outstanding messages and cancel their handlers right away so Pub/Sub can
+    /// redeliver them to another subscriber. Results of handlers finishing afterwards are
+    /// dropped.
     case nackImmediately
 
-    /// Keep processing and leasing outstanding messages until they finish or `timeout` elapses,
-    /// after which any remaining messages are nacked.
+    /// Let handlers finish without cancelling them while their messages are kept leased. One
+    /// second before `timeout` elapses, remaining messages are nacked and their handlers
+    /// cancelled, leaving that second to send pending acks and nacks.
+    ///
+    /// `timeout` is limited to ``Lease/maxLeaseDuration``. A `ServiceGroup` running the
+    /// subscriber should allow at least `timeout` plus 1 second for graceful shutdown before
+    /// cancelling it.
     case waitForProcessing(timeout: Duration)
   }
 }
