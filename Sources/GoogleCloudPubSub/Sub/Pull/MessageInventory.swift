@@ -10,7 +10,7 @@ import Synchronization
 /// control never nacks a message.
 ///
 /// Receiving pauses once the load (the larger fraction of either limit in use) reaches 1 and
-/// resumes when it drops below 0.8, so pulls are not issued for one free slot at a time.
+/// resumes when it drops below 0.8, so receiving does not resume for one free slot at a time.
 ///
 /// All messages, held and dispatched, are leased: ``renewLeases(now:)`` returns the IDs whose ack
 /// deadline should be extended. A dispatched message stops being leased and frees its capacity
@@ -74,6 +74,22 @@ final class MessageInventory: Sendable {
     storage.withLock { $0.state.ackDeadline }
   }
 
+  var isReceiving: Bool {
+    storage.withLock { $0.state.isReceiving }
+  }
+
+  var exactlyOnceDelivery: Bool {
+    storage.withLock { $0.state.exactlyOnceDelivery }
+  }
+
+  /// - Returns: Whether exactly-once delivery was changed, which changes ``ackDeadline``.
+  func setExactlyOnceDelivery(_ isEnabled: Bool) -> Bool {
+    storage.withLock { storage in
+      defer { storage.state.exactlyOnceDelivery = isEnabled }
+      return storage.state.exactlyOnceDelivery != isEnabled
+    }
+  }
+
   var hasLeaseWaiter: Bool {
     storage.withLock { $0.leaseWaiter != nil }
   }
@@ -87,21 +103,21 @@ final class MessageInventory: Sendable {
     Dispatched(inventory: self)
   }
 
-  /// Waits until messages may be received and returns how many to request at most.
+  /// Waits until more messages may be received.
   ///
   /// Must only be called by one task at a time.
   ///
   /// - Throws: `CancellationError` if the task is cancelled or ``stopReceiving()`` is called.
-  func waitUntilReceivable() async throws -> Int {
+  func waitUntilReceivable() async throws {
     try await withTaskCancellationHandler {
       try await withCheckedThrowingContinuation { continuation in
-        let result: Result<Int, any Error>? = storage.withLock { storage in
+        let result: Result<Void, any Error>? = storage.withLock { storage in
           precondition(storage.receiveWaiter == nil, "Only one task may wait to receive")
           if Task.isCancelled || !storage.state.isReceiving {
             return .failure(CancellationError())
           }
-          if let count = storage.state.receivableCount {
-            return .success(count)
+          if storage.state.isReceivable {
+            return .success(())
           }
           storage.receiveWaiter = continuation
           return nil
@@ -317,7 +333,6 @@ extension MessageInventory {
   /// All flow control decisions, without any concurrency.
   struct State: Sendable {
 
-    static let maxMessagesPerPull = 1_000
     static let resumeLoad = 0.8
 
     struct Entry: Sendable {
@@ -373,16 +388,9 @@ extension MessageInventory {
         basedOn: histogram, initial: initialAckDeadline, exactlyOnceDelivery: exactlyOnceDelivery)
     }
 
-    /// Number of messages to request in the next pull, or `nil` if receiving should wait.
-    ///
-    /// Requesting no more than the free message capacity means the message limit is never
-    /// exceeded. The byte limit cannot be requested, so messages over it are held.
-    var receivableCount: Int? {
-      guard isReceiving, !isPaused, held.isEmpty else {
-        return nil
-      }
-      let capacity = flowControl.maxOutstandingMessages - outstandingMessages
-      return capacity > 0 ? min(capacity, Self.maxMessagesPerPull) : nil
+    /// Whether more messages may be received, which is not until held messages are dispatched.
+    var isReceivable: Bool {
+      isReceiving && !isPaused && held.isEmpty
     }
 
     var load: Double {
@@ -516,7 +524,7 @@ extension MessageInventory {
 
   private struct Storage {
     var state: State
-    var receiveWaiter: CheckedContinuation<Int, any Error>?
+    var receiveWaiter: CheckedContinuation<Void, any Error>?
     var dispatchWaiter: CheckedContinuation<Item?, Never>?
     var leaseWaiter: CheckedContinuation<Void, any Error>?
     var emptyWaiter: CheckedContinuation<Void, any Error>?
@@ -552,8 +560,8 @@ extension MessageInventory {
         if !state.isReceiving {
           resumptions.receive = (waiter, .failure(CancellationError()))
           receiveWaiter = nil
-        } else if let count = state.receivableCount {
-          resumptions.receive = (waiter, .success(count))
+        } else if state.isReceivable {
+          resumptions.receive = (waiter, .success(()))
           receiveWaiter = nil
         }
       }
@@ -563,7 +571,7 @@ extension MessageInventory {
 
   private struct Resumptions: Sendable {
     var dispatch: (CheckedContinuation<Item?, Never>, Item?)?
-    var receive: (CheckedContinuation<Int, any Error>, Result<Int, any Error>)?
+    var receive: (CheckedContinuation<Void, any Error>, Result<Void, any Error>)?
     var lease: CheckedContinuation<Void, any Error>?
     var empty: CheckedContinuation<Void, any Error>?
     var accept: (CheckedContinuation<AckDeadline, any Error>, AckDeadline)?

@@ -7,14 +7,14 @@ import Testing
 
 @Suite struct PullSubscriberFlowControlTests {
 
-  let pullTransport = FakePullTransport()
+  let connection = FakeStreamingPullConnection()
   let handlerGate = Gate()
   let recorder = HandlerRecorder()
 
   @Test(.timeLimit(.minutes(1)))
   func shouldHandleMessagesConcurrently() async throws {
     let ackTransport = FakeAckTransport()
-    pullTransport.deliver([message("a"), message("b")])
+    connection.deliver([message("a"), message("b")])
 
     try await withSubscriber(ackTransport: ackTransport) {
       try await waitUntil { recorder.started.count == 2 }
@@ -30,20 +30,19 @@ import Testing
     let ackGate = Gate()
     let ackTransport = FakeAckTransport { _, _ in await ackGate.wait() }
     handlerGate.open()
-    pullTransport.deliver([message("a"), message("b"), message("c")])
+    connection.deliver([message("a"), message("b"), message("c")])
 
     try await withSubscriber(
       ackTransport: ackTransport, flowControl: .init(maxOutstandingMessages: 2)
     ) {
       try await waitUntil { !ackTransport.ids(of: .acknowledge).isEmpty }
       #expect(Set(recorder.started) == ["a", "b"])
-      #expect(pullTransport.requestedCounts == [2])
+      #expect(try await initialRequest().maxOutstandingMessages == 2)
 
       ackGate.open()
       try await waitUntil { ackTransport.ids(of: .acknowledge).count == 3 }
       #expect(recorder.started.sorted() == ["a", "b", "c"])
       #expect(recorder.peakConcurrency <= 2)
-      #expect(pullTransport.requestedCounts.allSatisfy { $0 <= 2 })
     }
   }
 
@@ -51,7 +50,7 @@ import Testing
   func shouldNackMessageWhenHandlerThrows() async throws {
     let ackTransport = FakeAckTransport()
     handlerGate.open()
-    pullTransport.deliver([message("good"), message("fail")])
+    connection.deliver([message("good"), message("fail")])
 
     try await withSubscriber(ackTransport: ackTransport) {
       try await waitUntil {
@@ -64,14 +63,14 @@ import Testing
   @Test(.timeLimit(.minutes(1)))
   func shouldHoldMessagesOverByteLimitWithoutNacking() async throws {
     let ackTransport = FakeAckTransport()
-    pullTransport.deliver([message("a", size: 8), message("b", size: 8), message("c", size: 8)])
+    connection.deliver([message("a", size: 8), message("b", size: 8), message("c", size: 8)])
 
     try await withSubscriber(
       ackTransport: ackTransport,
       flowControl: .init(maxOutstandingMessages: 10, maxOutstandingBytes: 10)
     ) {
       try await waitUntil { recorder.started.count == 2 }
-      #expect(pullTransport.requestedCounts == [10])
+      #expect(try await initialRequest().maxOutstandingBytes == 10)
 
       handlerGate.open()
       try await waitUntil { ackTransport.ids(of: .acknowledge).count == 3 }
@@ -81,16 +80,39 @@ import Testing
     }
   }
 
+  @Test(.timeLimit(.minutes(1)))
+  func shouldNotReadResponsesWhilePaused() async throws {
+    let ackTransport = FakeAckTransport()
+    connection.deliver([message("a")])
+    connection.deliver([message("b")])
+    connection.deliver([message("c")])
+
+    try await withSubscriber(
+      ackTransport: ackTransport, flowControl: .init(maxOutstandingMessages: 1)
+    ) {
+      try await waitUntil { recorder.started == ["a"] && ackTransport.calls.count == 1 }
+      for _ in 0..<1_000 {
+        await Task.yield()
+      }
+      #expect(connection.pendingCount == 2)
+
+      handlerGate.open()
+      try await waitUntil { ackTransport.ids(of: .acknowledge).count == 3 }
+      #expect(recorder.started == ["a", "b", "c"])
+      #expect(connection.streams.count == 1)
+    }
+  }
+
   // MARK: - Leasing
 
   @Test(.timeLimit(.minutes(1)))
   func shouldExtendDeadlineOfEachReceivedBatchRightAway() async throws {
     let ackTransport = FakeAckTransport()
-    pullTransport.deliver([message("a"), message("b")])
+    connection.deliver([message("a"), message("b")])
 
     try await withSubscriber(ackTransport: ackTransport) {
       try await waitUntil { ackTransport.calls.count == 1 }
-      pullTransport.deliver([message("c")])
+      connection.deliver([message("c")])
       try await waitUntil { ackTransport.calls.count == 2 }
 
       #expect(
@@ -106,7 +128,7 @@ import Testing
   func shouldFreeCapacityOfExpiredMessageWithoutNackingAndStillAckIt() async throws {
     let ackTransport = FakeAckTransport()
     let clock = TestClock()
-    pullTransport.deliver([message("slow", size: 10), message("next", size: 10)])
+    connection.deliver([message("slow", size: 10), message("next", size: 10)])
 
     try await withSubscriber(
       ackTransport: ackTransport,
@@ -116,9 +138,10 @@ import Testing
     ) {
       try await waitUntil { recorder.started == ["slow"] && ackTransport.calls.count == 1 }
 
-      // Renewals are at most 9 seconds apart, so the second is past the max lease duration.
+      // Renewals are at most 9 seconds apart, so the second is past the max lease duration. The
+      // other sleeper is the stream's keepalive.
       for _ in 0..<2 {
-        try await waitUntil { clock.sleeperCount == 1 }
+        try await waitUntil { clock.sleeperCount == 2 }
         clock.advance(by: .seconds(9))
       }
       try await waitUntil { recorder.started == ["slow", "next"] && ackTransport.calls.count == 3 }
@@ -138,6 +161,12 @@ import Testing
   }
 
   // MARK: - Helpers
+
+  /// The stream's requests are written concurrently with its responses being read.
+  private func initialRequest() async throws -> Google_Pubsub_V1_StreamingPullRequest {
+    try await waitUntil { connection.streams.first?.requests.isEmpty == false }
+    return try #require(connection.streams.first?.requests.first)
+  }
 
   /// Leases are only renewed, and shutdown timeouts only pass, when `clock` is advanced.
   private func withSubscriber(
@@ -162,7 +191,7 @@ import Testing
       projectID: "pull-subscriber-flow-control-tests",
       options: PullSubscriberOptions(flowControl: flowControl, lease: lease),
       pubSubService: try PubSubService(),
-      pullTransport: pullTransport,
+      streamingPullConnection: connection,
       ackTransport: ackTransport,
       clock: clock,
       leaseGenerator: SplitMix64(seed: 1)
@@ -184,7 +213,7 @@ import Testing
   }
 
   private func message(_ id: String, size: Int = 0) -> Google_Pubsub_V1_ReceivedMessage {
-    FakePullTransport.message(id: id, size: size)
+    FakeStreamingPullConnection.message(id: id, size: size)
   }
 }
 
