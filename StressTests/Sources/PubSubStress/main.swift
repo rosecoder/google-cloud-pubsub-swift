@@ -15,7 +15,6 @@ do {
 LoggingSystem.bootstrap { label in
   CountingLogHandler(label: label, logLevel: config.logLevel)
 }
-setvbuf(stdout, nil, _IOLBF, 0)
 
 for signalNumber in [SIGINT, SIGTERM] {
   signal(signalNumber, SIG_IGN)

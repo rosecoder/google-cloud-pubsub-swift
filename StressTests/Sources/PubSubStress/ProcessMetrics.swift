@@ -20,7 +20,12 @@ enum ProcessMetrics {
   static func snapshot() -> ProcessSnapshot {
     var snapshot = ProcessSnapshot()
     var usage = rusage()
-    if getrusage(RUSAGE_SELF, &usage) == 0 {
+    #if os(Linux)
+      let who = __rusage_who_t(RUSAGE_SELF.rawValue)
+    #else
+      let who = RUSAGE_SELF
+    #endif
+    if getrusage(who, &usage) == 0 {
       snapshot.cpuSeconds = seconds(usage.ru_utime) + seconds(usage.ru_stime)
     }
     #if os(Linux)

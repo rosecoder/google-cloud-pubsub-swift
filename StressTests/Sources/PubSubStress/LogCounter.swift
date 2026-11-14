@@ -84,3 +84,10 @@ struct CountingLogHandler: LogHandler {
     LogCounter.shared.record(level: level, label: label, message: message.description)
   }
 }
+
+/// Writes straight to standard output, unbuffered even when redirected to a file, so progress can
+/// be followed while a run is in progress.
+func print(_ items: Any..., separator: String = " ", terminator: String = "\n") {
+  let text = items.map { "\($0)" }.joined(separator: separator) + terminator
+  FileHandle.standardOutput.write(Data(text.utf8))
+}
