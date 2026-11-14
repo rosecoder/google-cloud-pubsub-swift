@@ -35,6 +35,11 @@ struct StreamingPullReceiver: Sendable {
   /// Time after which each stream is closed and a new one opened, as in the official clients.
   var streamTimeout: Duration = .seconds(900)
 
+  /// Time a stream must stay open for the backoff to start over once it ends, even if no message
+  /// arrived. Pub/Sub regularly closes idle streams, and the Go client also reconnects right away
+  /// after a stream that lasted 30 seconds.
+  var healthyStreamDuration: Duration = .seconds(30)
+
   /// Runs `body` with a connection to open one stream on, holding a slot of the connection
   /// until `body` returns.
   typealias WithConnection =
@@ -58,6 +63,7 @@ struct StreamingPullReceiver: Sendable {
   func run(into inventory: MessageInventory, ackBatcher: AckBatcher<ContinuousClock>) async {
     let session = Session()
     var backoff = ExponentialBackoff()
+    var outage = Outage(since: now())
     while inventory.isReceiving {
       let attempt = Attempt()
       var failure: (any Error)?
@@ -76,8 +82,13 @@ struct StreamingPullReceiver: Sendable {
       else {
         return
       }
-      if attempt.hasReceivedData {
+      let end = now()
+      if attempt.wasHealthy(at: end, minimumDuration: healthyStreamDuration) {
         backoff.reset()
+        outage = Outage(since: end)
+      }
+      if retry.escalates {
+        outage.failures += 1
       }
       if retry.createsSubscription {
         do {
@@ -96,10 +107,13 @@ struct StreamingPullReceiver: Sendable {
       case .maximum:
         delay = backoff.maximum
       }
+      let logLevel =
+        retry.escalates ? max(retry.logLevel, outage.logLevel(at: end)) : retry.logLevel
+      let context = retry.escalates ? ", \(outage.description(at: end))" : ""
       logger.log(
-        level: retry.logLevel,
+        level: logLevel,
         failure.map {
-          "StreamingPull failed (reconnecting in \(delay)): \($0)\(Self.hint(for: $0))"
+          "StreamingPull failed (reconnecting in \(delay)\(context)): \($0)\(Self.hint(for: $0))"
         } ?? "StreamingPull ended (reconnecting in \(delay))")
 
       do {
@@ -142,6 +156,7 @@ struct StreamingPullReceiver: Sendable {
       metadata: ["x-goog-request-params": "subscription=\(subscriptionID)"],
       options: options,
       requestProducer: { writer in
+        attempt.markEstablished(at: now())
         try await writer.write(initialRequest)
         for await request in requests {
           try await writer.write(request)
@@ -272,14 +287,54 @@ extension StreamingPullReceiver {
 
   private final class Attempt: Sendable {
 
-    private let receivedData = Mutex(false)
+    private struct State {
+      var establishedAt: ContinuousClock.Instant?
+      var hasReceivedData = false
+    }
 
-    var hasReceivedData: Bool {
-      receivedData.withLock { $0 }
+    private let state = Mutex(State())
+
+    /// Called once the stream was opened on a connection. Response headers can't tell, since
+    /// Pub/Sub may only send them with the first response.
+    func markEstablished(at instant: ContinuousClock.Instant) {
+      state.withLock { $0.establishedAt = instant }
     }
 
     func markDataReceived() {
-      receivedData.withLock { $0 = true }
+      state.withLock { $0.hasReceivedData = true }
+    }
+
+    /// Whether the stream received data or stayed open for at least `minimumDuration` before
+    /// ending at `end`.
+    func wasHealthy(at end: ContinuousClock.Instant, minimumDuration: Duration) -> Bool {
+      state.withLock { state in
+        state.hasReceivedData
+          || state.establishedAt.map { $0.duration(to: end) >= minimumDuration } == true
+      }
+    }
+  }
+
+  /// Streams failing since the last healthy one ended, or since receiving started.
+  struct Outage {
+
+    let since: ContinuousClock.Instant
+    var failures = 0
+
+    /// Lowest level failures are logged at: transient failures are routine, so they are only
+    /// reported once they repeat or persist.
+    func logLevel(at now: ContinuousClock.Instant) -> Logger.Level {
+      let duration = since.duration(to: now)
+      if duration >= .seconds(600) {
+        return .error
+      }
+      if failures >= 5 || duration >= .seconds(60) {
+        return .warning
+      }
+      return .trace
+    }
+
+    func description(at now: ContinuousClock.Instant) -> String {
+      "failure \(failures) without a healthy stream for \(since.duration(to: now))"
     }
   }
 }
@@ -294,7 +349,7 @@ struct StreamingPullRetry: Hashable, Sendable {
     /// The initial backoff delay, after which the backoff starts over.
     case initial
 
-    /// The next backoff delay, which grows until data is received.
+    /// The next backoff delay, which grows until a stream is healthy.
     case increasing
 
     /// The maximum backoff delay, for errors that are unlikely to resolve soon.
@@ -303,7 +358,12 @@ struct StreamingPullRetry: Hashable, Sendable {
 
   let delay: Delay
   var createsSubscription = false
+
+  /// Level the retry is logged at, or the lowest one if it `escalates`.
   let logLevel: Logger.Level
+
+  /// Whether the retry counts as a failure whose log level rises while streams keep failing.
+  var escalates = false
 }
 
 enum StreamingPullRetryPolicy {
@@ -321,15 +381,16 @@ enum StreamingPullRetryPolicy {
     if let error = error as? RuntimeError, error.code == .clientIsStopped {
       return nil
     }
-    if error is CancellationError {
-      // The stream's own timeout cancels its response handler.
+    if error is CancellationError || isWrappedCancellation(error) {
+      // The stream's own timeout cancels it, which the transport reports as an unknown error
+      // until response headers arrived.
       return StreamingPullRetry(delay: .initial, logLevel: .debug)
     }
     if case .ioOnClosedChannel? = error as? ChannelError {
-      return StreamingPullRetry(delay: .increasing, logLevel: .debug)
+      return StreamingPullRetry(delay: .increasing, logLevel: .debug, escalates: true)
     }
     guard let error = error as? RPCError else {
-      return StreamingPullRetry(delay: .increasing, logLevel: .warning)
+      return StreamingPullRetry(delay: .increasing, logLevel: .warning, escalates: true)
     }
     switch error.code {
     case .deadlineExceeded:
@@ -337,12 +398,16 @@ enum StreamingPullRetryPolicy {
     case .unavailable:
       #if DEBUG
         // The emulator commonly closes connections with unavailable, so avoid flooding the logs.
-        return StreamingPullRetry(delay: .increasing, logLevel: .trace)
+        return StreamingPullRetry(delay: .increasing, logLevel: .trace, escalates: true)
       #else
-        return StreamingPullRetry(delay: .increasing, logLevel: .debug)
+        return StreamingPullRetry(delay: .increasing, logLevel: .debug, escalates: true)
       #endif
     case .resourceExhausted, .aborted, .internalError, .unknown, .cancelled:
-      return StreamingPullRetry(delay: .increasing, logLevel: .warning)
+      // Including connections closed with GOAWAY or RST_STREAM.
+      return StreamingPullRetry(delay: .increasing, logLevel: .debug, escalates: true)
+    case .unauthenticated:
+      // An access token can expire between being attached and the stream being accepted.
+      return StreamingPullRetry(delay: .increasing, logLevel: .debug, escalates: true)
     case .notFound:
       return StreamingPullRetry(delay: .increasing, createsSubscription: true, logLevel: .warning)
     default:
@@ -350,5 +415,12 @@ enum StreamingPullRetryPolicy {
       // subscription from stopping every other service in its service group.
       return StreamingPullRetry(delay: .maximum, logLevel: .error)
     }
+  }
+
+  private static func isWrappedCancellation(_ error: any Error) -> Bool {
+    guard let error = error as? RPCError, error.code == .unknown else {
+      return false
+    }
+    return error.cause is CancellationError
   }
 }
