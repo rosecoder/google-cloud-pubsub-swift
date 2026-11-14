@@ -1,8 +1,5 @@
 import Foundation
-import Logging
 import Synchronization
-
-@testable import GoogleCloudPubSub
 
 struct Sample: Sendable {
   var time: Double
@@ -13,59 +10,44 @@ struct Sample: Sendable {
   var firstDeliveryRate: Double
   var deliveryRate: Double
   var inFlight: Int
-  /// Handler tasks of the library waiting for the outcome of their ack or nack RPC.
-  var ackWaiters: Int
   var backlog: Int
-  var footprintMB: Double
   var residentMB: Double
   var trackingMB: Double
   var threads: Int
+  var fileDescriptors: Int
+  var tlsConnections: Int
   var cpuCores: Double
-  var ackRPCRate: Double
-  var extendRPCRate: Double
-  var nackRPCRate: Double
-  var idsPerAckRPC: Double
   var p50: UInt64
   var p99: UInt64
   var max: UInt64
   var warnings: Int
-  var tcpConnections: Int
-  var streams: String
-  var serverCPU: Double?
-  var serverMB: Double?
 
   static let csvHeader =
-    "time,phase,published,publish_rate,first_deliveries,first_delivery_rate,delivery_rate,in_flight,ack_waiters,backlog,footprint_mb,resident_mb,tracking_mb,threads,cpu_cores,ack_rpc_rate,extend_rpc_rate,nack_rpc_rate,ids_per_ack_rpc,p50_us,p99_us,max_us,warnings,tcp_connections,streams,server_cpu,server_mb"
+    "time,phase,published,publish_rate,first_deliveries,first_delivery_rate,delivery_rate,in_flight,backlog,resident_mb,tracking_mb,threads,fds,tls_connections,cpu_cores,p50_us,p99_us,max_us,warnings"
 
   var csvLine: String {
     [
       String(format: "%.1f", time), phase, "\(published)", String(format: "%.0f", publishRate),
       "\(firstDeliveries)", String(format: "%.0f", firstDeliveryRate),
-      String(format: "%.0f", deliveryRate), "\(inFlight)", "\(ackWaiters)", "\(backlog)",
-      String(format: "%.1f", footprintMB), String(format: "%.1f", residentMB),
-      String(format: "%.1f", trackingMB), "\(threads)", String(format: "%.2f", cpuCores),
-      String(format: "%.1f", ackRPCRate), String(format: "%.1f", extendRPCRate),
-      String(format: "%.1f", nackRPCRate), String(format: "%.0f", idsPerAckRPC), "\(p50)", "\(p99)",
-      "\(max)", "\(warnings)", "\(tcpConnections)", streams,
-      serverCPU.map { String(format: "%.2f", $0) } ?? "", serverMB.map { String(format: "%.0f", $0) } ?? "",
+      String(format: "%.0f", deliveryRate), "\(inFlight)", "\(backlog)",
+      String(format: "%.1f", residentMB), String(format: "%.1f", trackingMB), "\(threads)",
+      "\(fileDescriptors)", "\(tlsConnections)", String(format: "%.2f", cpuCores),
+      "\(p50)", "\(p99)", "\(max)", "\(warnings)",
     ].joined(separator: ",")
   }
 
   var line: String {
-    var text = String(
-      format: "%6.0fs %-8@ pub %7.0f/s  recv %7.0f/s (all %7.0f/s)  inflight %6d ackwait %6d backlog %8d  mem %6.0fMB (rss %6.0f, track %4.0f)  thr %3d  cpu %5.2f  ack %5.1f/s ext %5.1f/s nack %5.1f/s (%4.0f ids/ack)  lat p50 %@ p99 %@ max %@  warn %d tcp %d streams %@",
-      time, phase as NSString, publishRate, firstDeliveryRate, deliveryRate, inFlight, ackWaiters, backlog,
-      footprintMB, residentMB, trackingMB, threads, cpuCores, ackRPCRate, extendRPCRate,
-      nackRPCRate, idsPerAckRPC, formatMicros(p50) as NSString, formatMicros(p99) as NSString,
-      formatMicros(max) as NSString, warnings, tcpConnections, streams as NSString)
-    if let serverCPU, let serverMB {
-      text += String(format: "  server cpu %.2f mem %.0fMB", serverCPU, serverMB)
-    }
-    return text
+    String(format: "%6.0fs ", time) + phase.padding(toLength: 8, withPad: " ", startingAt: 0)
+      + String(
+        format:
+          " pub %7.0f/s  recv %7.0f/s (all %7.0f/s)  inflight %6d backlog %8d  rss %6.0fMB (track %4.0f)  thr %3d fd %4d tls %3d  cpu %5.2f",
+        publishRate, firstDeliveryRate, deliveryRate, inFlight, backlog, residentMB, trackingMB,
+        threads, fileDescriptors, tlsConnections, cpuCores)
+      + "  lat p50 \(formatMicros(p50)) p99 \(formatMicros(p99)) max \(formatMicros(max))  warn \(warnings)"
   }
 }
 
-/// Periodically records process, library and correctness metrics.
+/// Periodically records process and correctness metrics.
 final class Sampler: Sendable {
 
   private struct State {
@@ -76,21 +58,17 @@ final class Sampler: Sendable {
     var lastFirst = 0
     var lastDeliveries = 0
     var lastCPU = 0.0
-    var lastServerCPU: Double?
-    var lastTransport = TransportStats.Counts()
-    var peakFootprint: UInt64 = 0
     var peakResident: UInt64 = 0
     var peakThreads = 0
+    var peakFileDescriptors = 0
+    var peakTLSConnections = 0
     var peakInFlight = 0
-    var peakAckWaiters = 0
   }
 
   let config: Config
   let trackers: [SubscriptionTracker]
   let load: LoadGenerator
   let startNanos = monotonicNanos()
-  let service = Mutex<PubSubService?>(nil)
-  let subscribers = Mutex<[PullSubscriber<StressHandler>]>([])
   private let state = Mutex(State())
   private let csv: FileHandle?
 
@@ -116,17 +94,18 @@ final class Sampler: Sendable {
     state.withLock { $0.samples }
   }
 
-  var peaks: (footprint: UInt64, resident: UInt64, threads: Int, inFlight: Int, ackWaiters: Int) {
+  var peaks: (resident: UInt64, threads: Int, fileDescriptors: Int, tlsConnections: Int, inFlight: Int) {
     state.withLock {
-      ($0.peakFootprint, $0.peakResident, $0.peakThreads, $0.peakInFlight, $0.peakAckWaiters)
+      ($0.peakResident, $0.peakThreads, $0.peakFileDescriptors, $0.peakTLSConnections, $0.peakInFlight)
     }
   }
 
   func recordPeaks(_ snapshot: ProcessSnapshot) {
     state.withLock { state in
-      state.peakFootprint = max(state.peakFootprint, snapshot.footprintBytes)
       state.peakResident = max(state.peakResident, snapshot.residentBytes)
       state.peakThreads = max(state.peakThreads, snapshot.threads)
+      state.peakFileDescriptors = max(state.peakFileDescriptors, snapshot.fileDescriptors)
+      state.peakTLSConnections = max(state.peakTLSConnections, snapshot.tlsConnections)
     }
   }
 
@@ -161,49 +140,34 @@ final class Sampler: Sendable {
       tracking += tracker.trackingBytes
     }
     let published = load.snapshot.publishedMessages
-    let transport = TransportStats.shared.snapshot
     let warnings = LogCounter.shared.total(atLeast: .warning)
-    let streams = service.withLock { $0?.pool.activeStreamCounts.map(String.init).joined(separator: "+") } ?? "-"
-    let server = config.serverPID.flatMap(ProcessMetrics.otherProcess)
     let backlog = pendingDeliveries()
-    let ackWaiters = subscribers.withLock { $0 }.reduce(0) { $0 + $1.ackBatcher.waiterCount }
 
     let sample = state.withLock { state in
       let interval = max(time - state.lastTime, 0.001)
-      let ackRPCs = transport.ackRPCs - state.lastTransport.ackRPCs
-      let ackIDs = transport.ackIDs - state.lastTransport.ackIDs
       let sample = Sample(
         time: time, phase: state.phase, published: published,
         publishRate: Double(published - state.lastPublished) / interval,
         firstDeliveries: counts.firstDeliveries,
         firstDeliveryRate: Double(counts.firstDeliveries - state.lastFirst) / interval,
         deliveryRate: Double(counts.deliveries - state.lastDeliveries) / interval,
-        inFlight: counts.inFlight, ackWaiters: ackWaiters, backlog: backlog,
-        footprintMB: megabytes(process.footprintBytes), residentMB: megabytes(process.residentBytes),
+        inFlight: counts.inFlight, backlog: backlog,
+        residentMB: megabytes(process.residentBytes),
         trackingMB: Double(tracking) / 1_048_576, threads: process.threads,
+        fileDescriptors: process.fileDescriptors, tlsConnections: process.tlsConnections,
         cpuCores: (process.cpuSeconds - state.lastCPU) / interval,
-        ackRPCRate: Double(ackRPCs) / interval,
-        extendRPCRate: Double(transport.extendRPCs - state.lastTransport.extendRPCs) / interval,
-        nackRPCRate: Double(transport.nackRPCs - state.lastTransport.nackRPCs) / interval,
-        idsPerAckRPC: ackRPCs > 0 ? Double(ackIDs) / Double(ackRPCs) : 0,
         p50: latency.percentile(50), p99: latency.percentile(99), max: latency.maximum,
-        warnings: warnings, tcpConnections: transport.tcpConnections, streams: streams,
-        serverCPU: server.flatMap { server in
-          state.lastServerCPU.map { (server.cpuSeconds - $0) / interval }
-        },
-        serverMB: server.map { megabytes($0.residentBytes) })
+        warnings: warnings)
       state.lastTime = time
       state.lastPublished = published
       state.lastFirst = counts.firstDeliveries
       state.lastDeliveries = counts.deliveries
       state.lastCPU = process.cpuSeconds
-      state.lastServerCPU = server?.cpuSeconds
-      state.lastTransport = transport
-      state.peakFootprint = max(state.peakFootprint, process.footprintBytes)
       state.peakResident = max(state.peakResident, process.residentBytes)
       state.peakThreads = max(state.peakThreads, process.threads)
+      state.peakFileDescriptors = max(state.peakFileDescriptors, process.fileDescriptors)
+      state.peakTLSConnections = max(state.peakTLSConnections, process.tlsConnections)
       state.peakInFlight = max(state.peakInFlight, counts.inFlight)
-      state.peakAckWaiters = max(state.peakAckWaiters, ackWaiters)
       state.samples.append(sample)
       return sample
     }

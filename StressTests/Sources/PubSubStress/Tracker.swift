@@ -62,11 +62,6 @@ func formatMicros(_ micros: UInt64) -> String {
   return String(format: "%.2fs", Double(micros) / 1_000_000)
 }
 
-/// Monotonic nanoseconds shared by publisher and handlers in this process.
-func monotonicNanos() -> UInt64 {
-  clock_gettime_nsec_np(CLOCK_MONOTONIC_RAW)
-}
-
 /// What one subscription received, keyed by the per-topic sequence number in each message body.
 ///
 /// Success is kept as one bit per sequence number, so tracking millions of messages costs little
@@ -138,7 +133,7 @@ final class SubscriptionTracker: Sendable {
   }
 
   func begin(_ seq: UInt64, publishedAtNanos: UInt64) {
-    let now = monotonicNanos()
+    let now = wallClockNanos()
     state.withLock { state in
       state.counts.deliveries += 1
       state.counts.inFlight += 1

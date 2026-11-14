@@ -1,14 +1,20 @@
 import Foundation
-import GRPCCore
+import GoogleCloudAuth
+import GoogleCloudPubSub
+import NIOPosix
 import Synchronization
 
-@testable import GoogleCloudPubSub
+#if canImport(FoundationNetworking)
+  import FoundationNetworking
+#endif
 
 /// Topics and subscriptions of one run. Subscription `i` subscribes to topic `i % topics.count`.
 struct Resources: Sendable {
 
   let topics: [Topic<DataMessage>]
   let subscriptions: [Subscription<DataMessage>]
+  let ackDeadline: Int
+  let retention: Int
 
   init(config: Config) {
     let topics = (0..<config.topicCount).map {
@@ -24,6 +30,8 @@ struct Resources: Sendable {
         expirationPolicyDuration: 24 * 3600,
         messageRetentionDuration: config.retention)
     }
+    self.ackDeadline = Int(config.ackDeadline)
+    self.retention = Int(config.retention)
   }
 
   func topicIndex(ofSubscription index: Int) -> Int {
@@ -31,74 +39,127 @@ struct Resources: Sendable {
   }
 }
 
-/// Creates and deletes resources over its own connections, independent of the services under test.
+struct AdminError: Error, CustomStringConvertible {
+  let status: Int
+  let body: String
+  var description: String { "HTTP \(status): \(body.prefix(300))" }
+}
+
+/// Creates, lists and deletes resources through Pub/Sub's REST API, since the library has no public
+/// admin API. Independent of the connections under test.
 struct Admin: Sendable {
 
-  let service: PubSubService
   let projectID: String
+  private let baseURL: String
+  private let authorization: Authorization?
 
-  var subscriberClient: Google_Pubsub_V1_Subscriber.Client<some ClientTransport> {
-    Google_Pubsub_V1_Subscriber.Client(wrapping: service.grpcClient)
+  init(projectID: String) {
+    self.projectID = projectID
+    if let host = ProcessInfo.processInfo.environment["PUBSUB_EMULATOR_HOST"] {
+      baseURL = "http://\(host)/v1"
+      authorization = nil
+    } else {
+      baseURL = "https://pubsub.googleapis.com/v1"
+      authorization = Authorization(
+        scopes: ["https://www.googleapis.com/auth/pubsub"],
+        eventLoopGroup: MultiThreadedEventLoopGroup.singleton)
+    }
   }
 
-  var publisherClient: Google_Pubsub_V1_Publisher.Client<some ClientTransport> {
-    Google_Pubsub_V1_Publisher.Client(wrapping: service.grpcClient)
+  private func request(
+    _ method: String, _ path: String, body: [String: Any]? = nil
+  ) async throws -> (status: Int, json: [String: Any]) {
+    var request = URLRequest(url: URL(string: baseURL + "/" + path)!)
+    request.httpMethod = method
+    request.timeoutInterval = 60
+    if let authorization {
+      request.setValue(
+        "Bearer \(try await authorization.accessToken())", forHTTPHeaderField: "Authorization")
+    }
+    if let body {
+      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+      request.httpBody = try JSONSerialization.data(withJSONObject: body)
+    }
+    let (data, response) = try await URLSession.shared.data(for: request)
+    let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+    let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
+    if status >= 300 {
+      throw AdminError(status: status, body: String(decoding: data, as: UTF8.self))
+    }
+    return (status, json)
+  }
+
+  private func withRetries(_ body: () async throws -> Void) async throws {
+    for attempt in 1...5 {
+      do {
+        try await body()
+        return
+      } catch let error as AdminError where error.status == 409 || error.status == 404 {
+        return  // Already exists, or already deleted.
+      } catch {
+        if attempt == 5 { throw error }
+        print("Admin request failed (attempt \(attempt)): \(error)")
+        try? await Task.sleep(for: .seconds(attempt))
+      }
+    }
   }
 
   func create(_ resources: Resources) async throws {
     try await forEachConcurrently(resources.topics) { topic in
-      try await service.create(topic: topic, publisherClient: publisherClient, projectID: projectID)
+      try await withRetries {
+        _ = try await request(
+          "PUT", "projects/\(projectID)/topics/\(topic.name)", body: ["labels": topic.labels])
+      }
     }
     try await forEachConcurrently(resources.subscriptions) { subscription in
-      try await service.create(
-        subscription: subscription, createTopicIfNeeded: false, subscriberClient: subscriberClient,
-        publisherClient: publisherClient, projectID: projectID)
+      try await withRetries {
+        _ = try await request(
+          "PUT", "projects/\(projectID)/subscriptions/\(subscription.name)",
+          body: [
+            "topic": subscription.topic.id(projectID: projectID),
+            "labels": subscription.labels,
+            "ackDeadlineSeconds": resources.ackDeadline,
+            "messageRetentionDuration": "\(resources.retention)s",
+            "expirationPolicy": ["ttl": "86400s"],
+          ])
+      }
     }
   }
 
   /// Deletes the run's resources, ignoring ones that don't exist.
   func delete(_ resources: Resources) async {
-    await deleteSubscriptions(resources.subscriptions.map { $0.id(projectID: projectID) })
-    await deleteTopics(resources.topics.map { $0.id(projectID: projectID) })
+    await deleteAll(
+      resources.subscriptions.map { "projects/\(projectID)/subscriptions/\($0.name)" })
+    await deleteAll(resources.topics.map { "projects/\(projectID)/topics/\($0.name)" })
   }
 
   /// Deletes every topic and subscription of any stress run in the project.
   func deleteAllStressResources() async throws -> (topics: [String], subscriptions: [String]) {
     let subscriptions = try await listSubscriptions()
-    await deleteSubscriptions(subscriptions)
+    await deleteAll(subscriptions)
     let topics = try await listTopics()
-    await deleteTopics(topics)
+    await deleteAll(topics)
     return (topics, subscriptions)
   }
 
   func listTopics() async throws -> [String] {
-    var names: [String] = []
-    var pageToken = ""
-    repeat {
-      let response = try await publisherClient.listTopics(
-        .with {
-          $0.project = "projects/\(projectID)"
-          $0.pageSize = 1000
-          $0.pageToken = pageToken
-        })
-      names += response.topics.map(\.name).filter { Self.isStressResource($0) }
-      pageToken = response.nextPageToken
-    } while !pageToken.isEmpty
-    return names
+    try await list("topics")
   }
 
   func listSubscriptions() async throws -> [String] {
+    try await list("subscriptions")
+  }
+
+  private func list(_ kind: String) async throws -> [String] {
     var names: [String] = []
     var pageToken = ""
     repeat {
-      let response = try await subscriberClient.listSubscriptions(
-        .with {
-          $0.project = "projects/\(projectID)"
-          $0.pageSize = 1000
-          $0.pageToken = pageToken
-        })
-      names += response.subscriptions.map(\.name).filter { Self.isStressResource($0) }
-      pageToken = response.nextPageToken
+      let response = try await request(
+        "GET", "projects/\(projectID)/\(kind)?pageSize=1000&pageToken=\(pageToken)")
+      let items = response.json[kind] as? [Any] ?? []
+      names += items.compactMap { ($0 as? [String: Any])?["name"] as? String }
+        .filter(Self.isStressResource)
+      pageToken = response.json["nextPageToken"] as? String ?? ""
     } while !pageToken.isEmpty
     return names
   }
@@ -107,32 +168,12 @@ struct Admin: Sendable {
     name.split(separator: "/").last?.hasPrefix(Config.namePrefix) == true
   }
 
-  private func deleteSubscriptions(_ ids: [String]) async {
-    await forEachConcurrentlyLogging(ids) { id in
-      _ = try await subscriberClient.deleteSubscription(.with { $0.subscription = id })
-    }
-  }
-
-  private func deleteTopics(_ ids: [String]) async {
-    await forEachConcurrentlyLogging(ids) { id in
-      _ = try await publisherClient.deleteTopic(.with { $0.topic = id })
-    }
-  }
-
-  private func forEachConcurrentlyLogging(
-    _ ids: [String], _ body: @escaping @Sendable (String) async throws -> Void
-  ) async {
+  private func deleteAll(_ ids: [String]) async {
     try? await forEachConcurrently(ids) { id in
-      for attempt in 1...5 {
-        do {
-          try await body(id)
-          return
-        } catch let error as RPCError where error.code == .notFound {
-          return
-        } catch {
-          print("Failed to delete \(id) (attempt \(attempt)): \(error)")
-          try? await Task.sleep(for: .seconds(attempt))
-        }
+      do {
+        try await withRetries { _ = try await request("DELETE", id) }
+      } catch {
+        print("Failed to delete \(id): \(error)")
       }
     }
   }

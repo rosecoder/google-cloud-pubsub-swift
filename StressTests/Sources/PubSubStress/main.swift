@@ -1,7 +1,6 @@
+import Dispatch
 import Foundation
 import Logging
-
-@testable import GoogleCloudPubSub
 
 let config: Config
 do {
@@ -34,9 +33,7 @@ let signalSources = [SIGINT, SIGTERM].map { signalNumber in
   return source
 }
 
-let adminService = try makePubSubService()
-let adminRun = Task { try await adminService.run() }
-let admin = Admin(service: adminService, projectID: config.projectID)
+let admin = Admin(projectID: config.projectID)
 
 if config.mode == .cleanup {
   let deleted = try await admin.deleteAllStressResources()
@@ -45,7 +42,6 @@ if config.mode == .cleanup {
   let leftTopics = try await admin.listTopics()
   let leftSubscriptions = try await admin.listSubscriptions()
   print("Remaining stress topics: \(leftTopics.count), subscriptions: \(leftSubscriptions.count)")
-  adminRun.cancel()
   exit(leftTopics.isEmpty && leftSubscriptions.isEmpty ? 0 : 1)
 }
 
@@ -74,9 +70,9 @@ let leftovers =
   ((try? await admin.listTopics()) ?? []) + ((try? await admin.listSubscriptions()) ?? [])
 let ownLeftovers = leftovers.filter { $0.contains("/" + prefix) }
 print(ownLeftovers.isEmpty ? "All resources of run \(config.runID) deleted." : "LEFTOVERS: \(ownLeftovers)")
-adminRun.cancel()
 
-let lost = summary.contains("LOST 0,") ? 0 : 1
+let lost = summary.contains("LOST 0,") || runner.trackers.isEmpty ? 0 : 1
+_ = signalSources
 if case .shutdownHung? = runError as? StressFailure {
   exit(3)
 }

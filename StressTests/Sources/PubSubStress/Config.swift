@@ -9,6 +9,8 @@ struct Config: Sendable, CustomStringConvertible {
     /// Like `run`, but the subscriber ServiceGroup is gracefully shut down and restarted
     /// `cycles` times while publishing continues.
     case churn
+    /// Only publishes for the configured duration, without subscribers.
+    case publish
     /// Deletes every topic and subscription named `pubsub-swift-stress-*` in the project.
     case cleanup
   }
@@ -38,9 +40,10 @@ struct Config: Sendable, CustomStringConvertible {
   var backlog = 0
   var duration = 60.0
   var drainTimeout = 120.0
-  /// Whether the load generator gets its own gRPC connections instead of sharing the
-  /// subscribers' PubSubService.
-  var separatePublisherService = true
+  /// Whether a `Publisher` service runs for the whole run, keeping the shared clients running.
+  /// Without it publishes are ad-hoc calls and the clients stop once subscribers and publishes
+  /// pause for longer than their linger.
+  var publisherService = true
 
   // Handler behaviour
   var sleepMs = 0.0
@@ -59,7 +62,6 @@ struct Config: Sendable, CustomStringConvertible {
   var retention = 3600.0
   var shutdownTimeout = 30.0
   var nackImmediately = false
-  var maxStreamsPerConnection = 80
 
   // Churn
   var cycles = 20
@@ -67,16 +69,18 @@ struct Config: Sendable, CustomStringConvertible {
   var cycleMax = 10.0
   /// Seconds a churn cycle's graceful shutdown may take before it counts as hung.
   var hangTimeout = 90.0
+  /// Publishing pauses for a random time up to this many seconds after each churn cycle, with a
+  /// single ad-hoc publish in the middle.
+  var gapMax = 0.0
 
   // Reporting
   var sampleInterval = 5.0
   var logLevel = Logger.Level.warning
   var outputDirectory = "/tmp/pubsub-stress-results"
-  var serverPID: Int32?
   var label = ""
 
   var topicCount: Int {
-    max(1, min(topics ?? subscriptions, max(subscriptions, 1)))
+    max(1, topics ?? subscriptions)
   }
 
   var namePrefix: String {
@@ -94,15 +98,15 @@ struct Config: Sendable, CustomStringConvertible {
     Targets the emulator when PUBSUB_EMULATOR_HOST is set, otherwise Pub/Sub with Application
     Default Credentials. The project comes from --project or STRESS_PROJECT_ID.
 
-      mode=run|churn|cleanup    subs=10 topics=<subs> publishers=16 batch=100
+      mode=run|churn|publish|cleanup  subs=10 topics=<subs> publishers=16 batch=100
       rate=0 (msgs/s, 0 = max)  rate-steps=10000:180,30000:180   max-backlog=100000
       size=1024 backlog=0 (per topic, before subscribers start) duration=60 drain=120
-      separate-publisher=true
+      publisher-service=true
       sleep-ms=0 sleep-jitter=0 cpu-ms=0 fail-rate=0 slow-rate=0 slow-ms=30000
       max-outstanding=1000 max-outstanding-bytes=104857600 ack-deadline=10 retention=3600
-      shutdown-timeout=30 nack-immediately=false max-streams-per-connection=80
-      cycles=20 cycle-min=3 cycle-max=10 hang-timeout=90
-      sample=5 log-level=warning out=/tmp/pubsub-stress-results server-pid=<pid> label=<name>
+      shutdown-timeout=30 nack-immediately=false
+      cycles=20 cycle-min=3 cycle-max=10 hang-timeout=90 gap-max=0
+      sample=5 log-level=warning out=/tmp/pubsub-stress-results label=<name>
     """
 
   static func parse(arguments: [String], environment: [String: String]) throws -> Config {
@@ -166,7 +170,7 @@ struct Config: Sendable, CustomStringConvertible {
     case "backlog": backlog = try int()
     case "duration": duration = try double()
     case "drain": drainTimeout = try double()
-    case "separate-publisher": separatePublisherService = bool()
+    case "publisher-service": publisherService = bool()
     case "sleep-ms": sleepMs = try double()
     case "sleep-jitter": sleepJitter = try double()
     case "cpu-ms": cpuMs = try double()
@@ -179,11 +183,11 @@ struct Config: Sendable, CustomStringConvertible {
     case "retention": retention = try double()
     case "shutdown-timeout": shutdownTimeout = try double()
     case "nack-immediately": nackImmediately = bool()
-    case "max-streams-per-connection": maxStreamsPerConnection = try int()
     case "cycles": cycles = try int()
     case "cycle-min": cycleMin = try double()
     case "cycle-max": cycleMax = try double()
     case "hang-timeout": hangTimeout = try double()
+    case "gap-max": gapMax = try double()
     case "sample": sampleInterval = try double()
     case "log-level":
       guard let level = Logger.Level(rawValue: value) else {
@@ -191,7 +195,6 @@ struct Config: Sendable, CustomStringConvertible {
       }
       logLevel = level
     case "out": outputDirectory = value
-    case "server-pid": serverPID = Int32(try int())
     case "label": label = value
     case "emulator-host":
       break  // Read by the library from PUBSUB_EMULATOR_HOST.
@@ -217,10 +220,10 @@ struct Config: Sendable, CustomStringConvertible {
       "fail-rate=\(failRate)", "slow-rate=\(slowRate)", "slow-ms=\(slowMs)",
       "max-outstanding=\(maxOutstandingMessages)", "max-outstanding-bytes=\(maxOutstandingBytes)",
       "ack-deadline=\(Int(ackDeadline))", "shutdown=\(nackImmediately ? "nackImmediately" : "wait(\(Int(shutdownTimeout))s)")",
-      "streams/conn=\(maxStreamsPerConnection)", "separate-publisher=\(separatePublisherService)",
+      "publisher-service=\(publisherService)",
     ]
     if mode == .churn {
-      parts += ["cycles=\(cycles)", "cycle=\(cycleMin)-\(cycleMax)s"]
+      parts += ["cycles=\(cycles)", "cycle=\(cycleMin)-\(cycleMax)s", "gap-max=\(gapMax)s"]
     }
     return parts.joined(separator: " ")
   }
