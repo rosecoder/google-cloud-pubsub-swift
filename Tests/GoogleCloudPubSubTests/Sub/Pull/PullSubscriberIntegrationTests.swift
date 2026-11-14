@@ -24,24 +24,17 @@ struct PullSubscriberIntegrationTests {
       let publisherRunTask = Task {
         try await publisher.run()
       }
+      defer { publisherRunTask.cancel() }
 
       // Setup callback handler
-      let callbackContinuation = Mutex<CheckedContinuation<PlainTextMessage.Incoming, Never>?>(nil)
-      let callbackTask = Task<PlainTextMessage.Incoming, Never> {
-        await withCheckedContinuation { continuation in
-          callbackContinuation.withLock {
-            $0 = continuation
-          }
-        }
-      }
+      let (messageStream, messageContinuation) = AsyncStream.makeStream(
+        of: PlainTextMessage.Incoming.self)
 
       // Setup subscriber
       let handler = CallbackHandler(
         topic: topic,
         callback: { message in
-          callbackContinuation.withLock {
-            $0?.resume(returning: message)
-          }
+          messageContinuation.yield(message)
         }
       )
       let subscriber = PullSubscriber(
@@ -52,6 +45,7 @@ struct PullSubscriberIntegrationTests {
       let subscriberRunTask = Task {
         try await subscriber.run()
       }
+      defer { subscriberRunTask.cancel() }
       try await pubSubService.create(
         subscription: handler.subscription,
         subscriberClient: subscriber.client,
@@ -63,22 +57,23 @@ struct PullSubscriberIntegrationTests {
       let publishedMessage = try await publisher.publish(to: topic, body: "Hello")
 
       // Wait
-      let receivedMessage = await callbackTask.value
+      let receivedMessage = try #require(await messageStream.first(where: { _ in true }))
 
       // Assert
       #expect(publishedMessage.id == receivedMessage.id)
       #expect(receivedMessage.body == "Hello")
 
       // Teardown
+      messageContinuation.finish()
       shutdownTrigger.triggerGracefulShutdown()
       try await withThrowingDiscardingTaskGroup { group in
         group.addTask {
           publisherRunTask.cancel()
-          try await publisherRunTask.value
+          try await publisherRunTask.cancellableValue
         }
         group.addTask {
           subscriberRunTask.cancel()
-          try await subscriberRunTask.value
+          try await subscriberRunTask.cancellableValue
         }
       }
     }
@@ -111,6 +106,7 @@ struct PullSubscriberIntegrationTests {
       let subscriberRunTask = Task {
         try await subscriber.run()
       }
+      defer { subscriberRunTask.cancel() }
 
       // Wait for the subscriber to create topic and subscription
       try await waitUntilSubscriptionExists(
@@ -140,7 +136,7 @@ struct PullSubscriberIntegrationTests {
       messageContinuation.finish()
       shutdownTrigger.triggerGracefulShutdown()
       subscriberRunTask.cancel()
-      try await subscriberRunTask.value
+      try await subscriberRunTask.cancellableValue
     }
   }
 
@@ -169,6 +165,7 @@ struct PullSubscriberIntegrationTests {
       let publisherRunTask = Task {
         try await publisher.run()
       }
+      defer { publisherRunTask.cancel() }
       try await pubSubService.create(
         subscription: handler.subscription,
         subscriberClient: subscriber.client,
@@ -178,6 +175,7 @@ struct PullSubscriberIntegrationTests {
       let subscriberRunTask = Task {
         try await subscriber.run()
       }
+      defer { subscriberRunTask.cancel() }
 
       let published = try await publisher.publish(
         to: topic, bodies: (0..<messageCount).map { "Message \($0)" })
@@ -195,9 +193,9 @@ struct PullSubscriberIntegrationTests {
       #expect(recorder.peakConcurrency > 1)
 
       shutdownTrigger.triggerGracefulShutdown()
-      try await subscriberRunTask.value
+      try await subscriberRunTask.cancellableValue
       publisherRunTask.cancel()
-      try await publisherRunTask.value
+      try await publisherRunTask.cancellableValue
     }
   }
 
@@ -229,6 +227,7 @@ struct PullSubscriberIntegrationTests {
       let publisherRunTask = Task {
         try await publisher.run()
       }
+      defer { publisherRunTask.cancel() }
       try await pubSubService.create(
         subscription: handler.subscription,
         subscriberClient: subscriber.client,
@@ -238,6 +237,7 @@ struct PullSubscriberIntegrationTests {
       let subscriberRunTask = Task {
         try await subscriber.run()
       }
+      defer { subscriberRunTask.cancel() }
 
       _ = try await publisher.publish(to: topic, body: "Slow")
       _ = await handledStream.first { _ in true }
@@ -248,23 +248,9 @@ struct PullSubscriberIntegrationTests {
 
       handledContinuation.finish()
       shutdownTrigger.triggerGracefulShutdown()
-      try await subscriberRunTask.value
+      try await subscriberRunTask.cancellableValue
       publisherRunTask.cancel()
-      try await publisherRunTask.value
-    }
-  }
-
-  private func waitUntilSubscriptionExists(
-    id: String,
-    client: Google_Pubsub_V1_Subscriber.ClientProtocol
-  ) async throws {
-    while true {
-      do {
-        _ = try await client.getSubscription(.with { $0.subscription = id })
-        return
-      } catch let error as RPCError where error.code == .notFound {
-        try await Task.sleep(for: .milliseconds(50))
-      }
+      try await publisherRunTask.cancellableValue
     }
   }
 }

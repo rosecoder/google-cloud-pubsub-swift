@@ -75,9 +75,11 @@ struct ConnectionPoolIntegrationTests {
 
     return try await testGracefulShutdown { shutdownTrigger in
       let publisherRun = Task { try await publisher.run() }
+      defer { publisherRun.cancel() }
       let subscriberRuns = subscribers.map { subscriber in
         Task { try await subscriber.run() }
       }
+      defer { for run in subscriberRuns { run.cancel() } }
       for (handler, subscriber) in zip(handlers, subscribers) {
         try await pubSubService.create(
           subscription: handler.subscription,
@@ -105,10 +107,10 @@ struct ConnectionPoolIntegrationTests {
 
       shutdownTrigger.triggerGracefulShutdown()
       for run in subscriberRuns {
-        try await run.value
+        try await run.cancellableValue
       }
       publisherRun.cancel()
-      try await publisherRun.value
+      try await publisherRun.cancellableValue
       return Result(activeStreamCounts: activeStreamCounts, openConnections: openConnectionCount)
     }
   }

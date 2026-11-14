@@ -31,22 +31,14 @@ struct PushSubscriberIntegrationTests {
 
     try await testGracefulShutdown { shutdownTrigger in
       // Setup callback handler
-      let callbackContinuation = Mutex<CheckedContinuation<PlainTextMessage.Incoming, Never>?>(nil)
-      let callbackTask = Task<PlainTextMessage.Incoming, Never> {
-        await withCheckedContinuation { continuation in
-          callbackContinuation.withLock {
-            $0 = continuation
-          }
-        }
-      }
+      let (messageStream, messageContinuation) = AsyncStream.makeStream(
+        of: PlainTextMessage.Incoming.self)
 
       // Setup subscriber
       let handler = CallbackHandler(
         topic: topic,
         callback: { message in
-          callbackContinuation.withLock {
-            $0?.resume(returning: message)
-          }
+          messageContinuation.yield(message)
         }
       )
       let subscriber = PushSubscriber(
@@ -59,6 +51,7 @@ struct PushSubscriberIntegrationTests {
       let subscriberRunTask = Task {
         try await subscriber.run()
       }
+      defer { subscriberRunTask.cancel() }
 
       // Publish message
       let publishedMessage = FakePushMessage(
@@ -84,15 +77,16 @@ struct PushSubscriberIntegrationTests {
       }
 
       // Wait
-      let receivedMessage = await callbackTask.value
+      let receivedMessage = try #require(await messageStream.first(where: { _ in true }))
 
       // Assert
       #expect(publishedMessage.message.messageId == receivedMessage.id)
       #expect(receivedMessage.body == "Hello")
 
       // Teardown
+      messageContinuation.finish()
       shutdownTrigger.triggerGracefulShutdown()
-      try await subscriberRunTask.value
+      try await subscriberRunTask.cancellableValue
     }
   }
 
@@ -112,27 +106,20 @@ struct PushSubscriberIntegrationTests {
       let subscriberRunTask = Task {
         try await subscriber.run()
       }
+      defer { subscriberRunTask.cancel() }
       try await Task.sleep(for: .milliseconds(100))
       subscriber.register(handler: handler)
 
       let publisher = Publisher(projectID: projectID, pubSubService: pubSubService)
-      let subscriberClient = Google_Pubsub_V1_Subscriber.Client(
-        wrapping: pubSubService.grpcClient)
-      while true {
-        do {
-          _ = try await subscriberClient.getSubscription(
-            .with { $0.subscription = handler.subscription.id(projectID: projectID) })
-          break
-        } catch {
-          try await Task.sleep(for: .milliseconds(50))
-        }
-      }
+      try await waitUntilSubscriptionExists(
+        id: handler.subscription.id(projectID: projectID),
+        client: Google_Pubsub_V1_Subscriber.Client(wrapping: pubSubService.grpcClient))
       _ = try await publisher.publish(to: topic, body: "Hello")
 
       #expect(await messages.first { _ in true } == "Hello")
 
       shutdownTrigger.triggerGracefulShutdown()
-      try await subscriberRunTask.value
+      try await subscriberRunTask.cancellableValue
     }
   }
 }

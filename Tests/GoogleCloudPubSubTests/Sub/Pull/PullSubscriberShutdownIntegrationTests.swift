@@ -67,6 +67,7 @@ struct PullSubscriberShutdownIntegrationTests {
       logger: Logger(label: "test.pull-subscriber-shutdown"))
 
     let run = Task { try await serviceGroup.run() }
+    defer { run.cancel() }
     try await pubSubService.create(
       subscription: handler.subscription,
       subscriberClient: subscriber.client,
@@ -77,7 +78,7 @@ struct PullSubscriberShutdownIntegrationTests {
     _ = await started.first { _ in true }
 
     await serviceGroup.triggerGracefulShutdown()
-    try await run.value
+    try await run.cancellableValue
     return handler.subscription
   }
 
@@ -97,6 +98,7 @@ struct PullSubscriberShutdownIntegrationTests {
 
     return try await testGracefulShutdown { shutdownTrigger in
       let run = Task { try await subscriber.run() }
+      defer { run.cancel() }
       let timeout = Task {
         try await Task.sleep(for: limit)
         deliveryContinuation.finish()
@@ -104,7 +106,7 @@ struct PullSubscriberShutdownIntegrationTests {
       let delay = await deliveries.first { _ in true }
       timeout.cancel()
       shutdownTrigger.triggerGracefulShutdown()
-      try await run.value
+      try await run.cancellableValue
       return delay
     }
   }
