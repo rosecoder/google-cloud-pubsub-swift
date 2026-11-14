@@ -53,24 +53,23 @@ extension Trait where Self == ConditionTrait {
 /// Runs `body` with resources in the GCP project, deleting every topic and subscription it
 /// created or tracked afterwards, also when `body` throws.
 func withGCPResources<T: Sendable>(
-  _ body: (GCPResources) async throws -> T
+  _ body: @Sendable (GCPResources) async throws -> T
 ) async throws -> T {
   let projectID = try #require(GCP.projectID)
   let service = try PubSubService()
-  let serviceRun = Task { try await service.run() }
   let resources = GCPResources(projectID: projectID, service: service)
 
-  let result: Result<T, any Error>
-  do {
-    result = .success(try await body(resources))
-  } catch {
-    result = .failure(error)
+  return try await service.withClientInUse {
+    let result: Result<T, any Error>
+    do {
+      result = .success(try await body(resources))
+    } catch {
+      result = .failure(error)
+    }
+    // Unstructured so a test cancelled by its time limit still deletes its resources.
+    await Task { await resources.deleteAll() }.value
+    return try result.get()
   }
-  // Unstructured so a test cancelled by its time limit still deletes its resources.
-  await Task { await resources.deleteAll() }.value
-  serviceRun.cancel()
-  try? await serviceRun.value
-  return try result.get()
 }
 
 /// Creates topics and subscriptions over its own connection, which stays usable while the
