@@ -140,7 +140,7 @@ import Testing
   @Test func shouldCloseAllUnclaimedMessagesAndDropTheirLaterResults() {
     var state = State(flowControl: flowControl(messages: 2))
     _ = state.add([item("a"), item("b"), item("c")])
-    let claimedBeforeClosing = state.claim(AckID("ack-b"))
+    let claimedBeforeClosing = state.claim(AckID("ack-b"), for: .ack)
     #expect(claimedBeforeClosing)
 
     let closed = state.closeAll()
@@ -149,7 +149,7 @@ import Testing
     #expect(state.ready.isEmpty)
     #expect(state.held.isEmpty)
     #expect(state.outstandingMessages == 1)
-    let claimed = ["a", "b", "c"].map { state.claim(AckID("ack-\($0)")) }
+    let claimed = ["a", "b", "c"].map { state.claim(AckID("ack-\($0)"), for: .ack) }
     #expect(claimed == [false, true, false])
     let rejected = state.add([item("d")]).rejected
     #expect(rejected == [AckID("ack-d")])
@@ -165,7 +165,7 @@ import Testing
     _ = state.add([item("a")], now: start)
     _ = state.renewLeases(now: start + .seconds(60))
 
-    let claimed = state.claim(AckID("ack-a"))
+    let claimed = state.claim(AckID("ack-a"), for: .ack)
     #expect(claimed)
   }
 
@@ -203,6 +203,34 @@ import Testing
     #expect(renewal.ackDeadline == .seconds(20))
     #expect(Set(renewal.ids) == [AckID("ack-a"), AckID("ack-b")])
     #expect(renewal.expired.isEmpty)
+  }
+
+  @Test func shouldNotRenewLeasesOfClaimedOrReleasedMessagesButKeepRenewingHeldOnes() {
+    var state = State(flowControl: flowControl(messages: 3))
+    _ = state.add(
+      [item("acked"), item("nacked"), item("released"), item("held")], now: start)
+    _ = state.claim(AckID("ack-acked"), for: .ack)
+    _ = state.claim(AckID("ack-nacked"), for: .nack)
+    state.release(AckID("ack-released"), now: start)
+
+    let renewal = state.renewLeases(now: start + .seconds(5))
+
+    #expect(renewal.ids == [AckID("ack-held")])
+    #expect(renewal.expired.isEmpty)
+    #expect(state.outstandingMessages == 3)
+  }
+
+  @Test func shouldRenewLeasesOfAckedMessagesUntilReleasedWithExactlyOnceDelivery() {
+    var state = State(flowControl: flowControl(messages: 2))
+    state.exactlyOnceDelivery = true
+    _ = state.add([item("acked"), item("nacked")], now: start)
+    _ = state.claim(AckID("ack-acked"), for: .ack)
+    _ = state.claim(AckID("ack-nacked"), for: .nack)
+
+    #expect(state.renewLeases(now: start + .seconds(5)).ids == [AckID("ack-acked")])
+
+    state.release(AckID("ack-acked"), now: start + .seconds(5))
+    #expect(state.renewLeases(now: start + .seconds(10)).ids.isEmpty)
   }
 
   @Test func shouldStopLeasingMessagesDispatchedForMaxLeaseDurationAndFreeTheirCapacity() {
@@ -377,7 +405,7 @@ import Testing
 
     let wait = Task { try await inventory.waitUntilEmpty() }
     inventory.release(AckID("ack-a"))
-    #expect(inventory.claim(AckID("ack-b")))
+    #expect(inventory.claim(AckID("ack-b"), for: .ack))
     #expect(inventory.closeAll().isEmpty)
     inventory.release(AckID("ack-b"))
 
