@@ -154,6 +154,14 @@ let fakePublisher = FakePublisher()
 
 Integration tests run against the [Pub/Sub emulator](https://cloud.google.com/pubsub/docs/emulator) with `PUBSUB_EMULATOR_HOST=localhost:8085 swift test`; skip them with `swift test --skip IntegrationTests`.
 
+Tests tagged `gcp` run against real Google Cloud Pub/Sub instead, which shows behaviour the emulator can't, such as server limits and error messages. They only run when `PUBSUB_GCP_PROJECT_ID` is set and `PUBSUB_EMULATOR_HOST` is not, and authenticate with [Application Default Credentials](https://cloud.google.com/docs/authentication/application-default-credentials):
+
+```sh
+PUBSUB_GCP_PROJECT_ID=<project> swift test --filter GCP
+```
+
+Every topic and subscription they create starts with `pubsub-swift-test-` and is deleted when its test finishes. Set `PUBSUB_RUN_LONG_TESTS=1` to also run tests that take longer, such as keeping a stream open past its 15 minute lifetime.
+
 In CI, pass `--event-stream-output-path events.jsonl` as well. The event stream is written as tests run, so if a run is killed, the tests with a `testStarted` but no `testEnded` event are the ones that hung. `--xunit-output results.xml` is only written once the run finishes.
 
 ## License

@@ -14,6 +14,14 @@ struct CallbackHandler<Message: GoogleCloudPubSub.Message>: Handler {
     self.callback = callback
   }
 
+  init(
+    subscription: Subscription<Message>,
+    callback: @escaping @Sendable (Incoming) async throws -> Void
+  ) {
+    self.subscription = subscription
+    self.callback = callback
+  }
+
   func handle(message: Incoming, context: Context) async throws {
     try await callback(message)
   }
