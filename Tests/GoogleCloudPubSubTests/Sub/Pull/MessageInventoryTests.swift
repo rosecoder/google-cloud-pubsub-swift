@@ -125,20 +125,100 @@ import Testing
 
     #expect(state.stopReceiving() == [AckID("ack-b")])
     #expect(state.receivableCount == nil)
-    #expect(state.add([item("c")]) == [AckID("ack-c")])
+    #expect(state.add([item("c")]).rejected == [AckID("ack-c")])
     #expect(state.entries.keys.sorted { $0.rawValue < $1.rawValue } == [AckID("ack-a")])
   }
 
   @Test func shouldNeverNackWhileReceiving() {
     var state = State(flowControl: flowControl(messages: 1, bytes: 1))
 
-    let nacks = state.add((0..<10).map { item("\($0)", size: 100) })
+    let received = state.add((0..<10).map { item("\($0)", size: 100) })
 
-    #expect(nacks.isEmpty)
+    #expect(received.rejected.isEmpty)
     #expect(state.held.count == 9)
   }
 
+  // MARK: - Leasing
+
+  @Test func shouldAcceptNewMessagesWithCurrentAckDeadline() {
+    var state = State(flowControl: flowControl(messages: 1), initialAckDeadline: .seconds(30))
+    _ = state.add([item("a")])
+
+    let received = state.add([item("a"), item("b")])
+
+    #expect(
+      received
+        == MessageInventory.Received(
+          accepted: [AckID("ack-b")], rejected: [], ackDeadline: .seconds(30)))
+  }
+
+  @Test func shouldBaseAckDeadlineOnRecordedLatencies() {
+    var state = State(flowControl: flowControl(messages: 1), initialAckDeadline: .seconds(30))
+    #expect(state.ackDeadline == .seconds(30))
+
+    state.recordAckLatency(.seconds(12))
+    #expect(state.ackDeadline == .seconds(12))
+
+    state.exactlyOnceDelivery = true
+    #expect(state.ackDeadline == .seconds(60))
+  }
+
+  @Test func shouldRenewLeasesOfHeldAndDispatchedMessages() {
+    var state = State(flowControl: flowControl(messages: 1), initialAckDeadline: .seconds(20))
+    _ = state.add([item("a"), item("b")], now: start)
+
+    let renewal = state.renewLeases(now: start + .seconds(5))
+
+    #expect(renewal.ackDeadline == .seconds(20))
+    #expect(Set(renewal.ids) == [AckID("ack-a"), AckID("ack-b")])
+    #expect(renewal.expired.isEmpty)
+  }
+
+  @Test func shouldStopLeasingMessagesDispatchedForMaxLeaseDurationAndFreeTheirCapacity() {
+    var state = State(flowControl: flowControl(messages: 1), lease: lease(maxSeconds: 60))
+    _ = state.add([item("a"), item("b")], now: start)
+    #expect(drain(&state) == [AckID("ack-a")])
+
+    #expect(state.renewLeases(now: start + .seconds(59)).expired.isEmpty)
+    let renewal = state.renewLeases(now: start + .seconds(60))
+
+    #expect(renewal.expired == [AckID("ack-a")])
+    #expect(renewal.ids == [AckID("ack-b")])
+    #expect(drain(&state) == [AckID("ack-b")])
+    #expect(state.outstandingMessages == 1)
+
+    state.release(AckID("ack-a"))
+    #expect(state.outstandingMessages == 1)
+  }
+
+  @Test func shouldMeasureMaxLeaseDurationFromDispatchNotReceipt() {
+    var state = State(flowControl: flowControl(messages: 1), lease: lease(maxSeconds: 60))
+    _ = state.add([item("a"), item("b")], now: start)
+
+    state.release(AckID("ack-a"), now: start + .seconds(50))
+    let renewal = state.renewLeases(now: start + .seconds(100))
+
+    #expect(renewal.ids == [AckID("ack-b")])
+    #expect(renewal.expired.isEmpty)
+  }
+
+  @Test func shouldNeverExpireHeldMessages() {
+    var state = State(flowControl: flowControl(messages: 1), lease: lease(maxSeconds: 60))
+    _ = state.add([item("a"), item("b")], now: start)
+
+    let renewal = state.renewLeases(now: start + .seconds(3_600))
+
+    #expect(renewal.expired == [AckID("ack-a")])
+    #expect(renewal.ids == [AckID("ack-b")])
+  }
+
   // MARK: - Helpers
+
+  private let start = ContinuousClock.now
+
+  private func lease(maxSeconds: Int) -> PullSubscriberOptions.Lease {
+    .init(maxLeaseDuration: .seconds(maxSeconds))
+  }
 
   private func drain(_ state: inout State) -> [AckID] {
     var ids: [AckID] = []
@@ -236,6 +316,39 @@ import Testing
 
     inventory.release(AckID("ack-b"))
     #expect(inventory.isEmpty)
+  }
+
+  @Test func shouldWaitUntilNonEmptyUntilMessagesAreAdded() async throws {
+    let inventory = MessageInventory(flowControl: flowControl(messages: 1))
+    let wait = Task { try await inventory.waitUntilNonEmpty() }
+    for _ in 0..<100 {
+      await Task.yield()
+    }
+
+    _ = inventory.add([message("a")], now: .now)
+
+    try await wait.value
+    try await inventory.waitUntilNonEmpty()
+  }
+
+  @Test func shouldThrowWhenWaitingUntilNonEmptyIsCancelled() async throws {
+    let inventory = MessageInventory(flowControl: flowControl(messages: 1))
+    let wait = Task { try await inventory.waitUntilNonEmpty() }
+
+    wait.cancel()
+
+    await #expect(throws: CancellationError.self) { try await wait.value }
+  }
+}
+
+extension MessageInventory.State {
+
+  fileprivate mutating func add(_ items: [MessageInventory.Item]) -> MessageInventory.Received {
+    add(items, now: .now)
+  }
+
+  fileprivate mutating func release(_ id: AckID) {
+    release(id, now: .now)
   }
 }
 

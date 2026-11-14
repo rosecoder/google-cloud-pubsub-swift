@@ -201,6 +201,59 @@ struct PullSubscriberIntegrationTests {
     }
   }
 
+  @Test(.tags(.slow), .timeLimit(.minutes(1)))
+  func shouldLeaseMessageWhileHandlerRunsPastAckDeadline() async throws {
+    let pubSubService = try PubSubService()
+    let topic = Topic<PlainTextMessage>(name: uniqueName("PullSubscriberIntegrationTests"))
+    let deliveries = Mutex(0)
+    let (handledStream, handledContinuation) = AsyncStream.makeStream(of: Void.self)
+
+    try await testGracefulShutdown { shutdownTrigger in
+      let handler = CallbackHandler(topic: topic) { _ in
+        let delivery = deliveries.withLock {
+          $0 += 1
+          return $0
+        }
+        if delivery == 1 {
+          try await Task.sleep(for: .seconds(25))
+        }
+        handledContinuation.yield()
+      }
+      #expect(handler.subscription.acknowledgeDeadline == 10)
+      let subscriber = PullSubscriber(
+        handler: handler,
+        projectID: projectID,
+        pubSubService: pubSubService
+      )
+      let publisher = Publisher(projectID: projectID, pubSubService: pubSubService)
+      let publisherRunTask = Task {
+        try await publisher.run()
+      }
+      try await pubSubService.create(
+        subscription: handler.subscription,
+        subscriberClient: subscriber.client,
+        publisherClient: subscriber.publisherClient,
+        projectID: projectID
+      )
+      let subscriberRunTask = Task {
+        try await subscriber.run()
+      }
+
+      _ = try await publisher.publish(to: topic, body: "Slow")
+      _ = await handledStream.first { _ in true }
+
+      // A message whose lease lapsed or whose ack was lost is redelivered within one deadline.
+      try await Task.sleep(for: .seconds(11))
+      #expect(deliveries.withLock { $0 } == 1)
+
+      handledContinuation.finish()
+      shutdownTrigger.triggerGracefulShutdown()
+      try await subscriberRunTask.value
+      publisherRunTask.cancel()
+      try await publisherRunTask.value
+    }
+  }
+
   private func waitUntilSubscriptionExists(
     id: String,
     client: Google_Pubsub_V1_Subscriber.ClientProtocol

@@ -16,6 +16,12 @@ public final class PullSubscriber<Handler: _Handler>: Service {
   let pubSubService: PubSubService
   let pullTransport: any PullTransport
   let ackBatcher: AckBatcher<ContinuousClock>
+  private let now: @Sendable () -> ContinuousClock.Instant
+  private let runLeases:
+    @Sendable (
+      _ inventory: MessageInventory, _ logger: Logger,
+      _ extendDeadlines: @escaping @Sendable (_ ids: [AckID], _ deadline: AckDeadline) async -> Void
+    ) async -> Void
 
   public enum ConfigurationError: Error {
     case missingProjectID
@@ -55,7 +61,7 @@ public final class PullSubscriber<Handler: _Handler>: Service {
     )
   }
 
-  init(
+  convenience init(
     handler: Handler,
     projectID: String,
     deleteSubscriptionOnShutdown: Bool = false,
@@ -64,6 +70,41 @@ public final class PullSubscriber<Handler: _Handler>: Service {
     pullTransport: (any PullTransport)? = nil,
     ackTransport: (any AckTransport)? = nil
   ) {
+    self.init(
+      handler: handler,
+      projectID: projectID,
+      deleteSubscriptionOnShutdown: deleteSubscriptionOnShutdown,
+      options: options,
+      pubSubService: pubSubService,
+      pullTransport: pullTransport,
+      ackTransport: ackTransport,
+      leaseClock: ContinuousClock(),
+      leaseGenerator: SystemRandomNumberGenerator())
+  }
+
+  /// - Parameter leaseClock: Times lease renewals and is the time messages are received and
+  ///   released at.
+  init<LeaseClock: Clock>(
+    handler: Handler,
+    projectID: String,
+    deleteSubscriptionOnShutdown: Bool = false,
+    options: PullSubscriberOptions = PullSubscriberOptions(),
+    pubSubService: PubSubService,
+    pullTransport: (any PullTransport)? = nil,
+    ackTransport: (any AckTransport)? = nil,
+    leaseClock: LeaseClock,
+    leaseGenerator: some RandomNumberGenerator & Sendable
+  ) where LeaseClock.Duration == Duration, LeaseClock.Instant == ContinuousClock.Instant {
+    self.now = { leaseClock.now }
+    self.runLeases = { inventory, logger, extendDeadlines in
+      await LeaseManager(
+        inventory: inventory,
+        clock: leaseClock,
+        generator: leaseGenerator,
+        logger: logger,
+        extendDeadlines: extendDeadlines
+      ).run()
+    }
     let logger = Logger(label: "pubsub.subscriber." + handler.subscription.name)
     let client = Google_Pubsub_V1_Subscriber.Client(wrapping: pubSubService.grpcClient)
     let subscriptionID = handler.subscription.id(projectID: projectID)
@@ -120,24 +161,36 @@ public final class PullSubscriber<Handler: _Handler>: Service {
   /// Returns once every received message has been handled and its ack or nack has been sent, so
   /// the gRPC client is not shut down before.
   func receiveAndProcess() async {
-    let inventory = MessageInventory(flowControl: options.flowControl)
+    let inventory = MessageInventory(
+      flowControl: options.flowControl,
+      lease: options.lease,
+      initialAckDeadline: AckDeadline(.seconds(handler.subscription.acknowledgeDeadline)))
 
+    // Handlers finish before leasing stops, and both before the remaining acks are flushed.
     await withDiscardingTaskGroup { ackGroup in
       ackGroup.addTask {
         await self.ackBatcher.run()
       }
-      await withDiscardingTaskGroup { handlerGroup in
-        handlerGroup.addTask {
-          await cancelWhenGracefulShutdown {
-            await self.receive(into: inventory)
+      await withDiscardingTaskGroup { leaseGroup in
+        leaseGroup.addTask {
+          await self.runLeases(inventory, self.logger) { [ackBatcher = self.ackBatcher] ids, deadline in
+            await ackBatcher.modifyDeadlines(ids, to: deadline)
           }
-          self.ackBatcher.enqueueNacks(inventory.stopReceiving())
         }
-        for await item in inventory.dispatched {
+        await withDiscardingTaskGroup { handlerGroup in
           handlerGroup.addTask {
-            await self.process(item, inventory: inventory)
+            await cancelWhenGracefulShutdown {
+              await self.receive(into: inventory)
+            }
+            self.ackBatcher.enqueueNacks(inventory.stopReceiving())
+          }
+          for await item in inventory.dispatched {
+            handlerGroup.addTask {
+              await self.process(item, inventory: inventory)
+            }
           }
         }
+        leaseGroup.cancelAll()
       }
       ackBatcher.finish()
     }
@@ -155,7 +208,10 @@ public final class PullSubscriber<Handler: _Handler>: Service {
 
       do {
         let messages = try await pullTransport.pull(maxMessages: maxMessages)
-        ackBatcher.enqueueNacks(inventory.add(messages, now: .now))
+        let received = inventory.add(messages, now: now())
+        // Tells Pub/Sub the messages arrived and aligns its deadline with the one leased here.
+        ackBatcher.enqueueModifyDeadlines(received.accepted, to: received.ackDeadline)
+        ackBatcher.enqueueNacks(received.rejected)
         backoff.reset()
       } catch {
         if Task.isCancelled {
@@ -215,11 +271,12 @@ public final class PullSubscriber<Handler: _Handler>: Service {
   // MARK: - Handling
 
   private func process(_ item: MessageInventory.Item, inventory: MessageInventory) async {
-    await handle(message: item.message)
-    inventory.release(item.ackID)
+    await handle(item, inventory: inventory)
+    inventory.release(item.ackID, now: now())
   }
 
-  private func handle(message: Google_Pubsub_V1_ReceivedMessage) async {
+  private func handle(_ item: MessageInventory.Item, inventory: MessageInventory) async {
+    let message = item.message
     await withSpan(handler.subscription.name, ofKind: .consumer) { span in
       span.attributes["message"] = message.message.messageID
 
@@ -260,9 +317,10 @@ public final class PullSubscriber<Handler: _Handler>: Service {
 
       logger.debug("Handling successful.")
       span.setStatus(SpanStatus(code: .ok))
+      inventory.recordAckLatency(item.receivedAt.duration(to: now()))
 
       do {
-        try await ackBatcher.ack(AckID(message.ackID))
+        try await ackBatcher.ack(item.ackID)
       } catch is CancellationError {
         logger.debug("Cancelled while waiting for acknowledgement, which is still sent.")
       } catch {

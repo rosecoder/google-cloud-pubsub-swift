@@ -35,7 +35,7 @@ import Testing
     try await withSubscriber(
       ackTransport: ackTransport, flowControl: .init(maxOutstandingMessages: 2)
     ) {
-      try await waitUntil { ackTransport.calls.count == 1 }
+      try await waitUntil { !ackTransport.ids(of: .acknowledge).isEmpty }
       #expect(Set(recorder.started) == ["a", "b"])
       #expect(pullTransport.requestedCounts == [2])
 
@@ -81,11 +81,70 @@ import Testing
     }
   }
 
+  // MARK: - Leasing
+
+  @Test(.timeLimit(.minutes(1)))
+  func shouldExtendDeadlineOfEachReceivedBatchRightAway() async throws {
+    let ackTransport = FakeAckTransport()
+    pullTransport.deliver([message("a"), message("b")])
+
+    try await withSubscriber(ackTransport: ackTransport) {
+      try await waitUntil { ackTransport.calls.count == 1 }
+      pullTransport.deliver([message("c")])
+      try await waitUntil { ackTransport.calls.count == 2 }
+
+      #expect(
+        ackTransport.calls == [
+          .init(.modify(.extend(.seconds(10))), [AckID("ack-a"), AckID("ack-b")]),
+          .init(.modify(.extend(.seconds(10))), [AckID("ack-c")]),
+        ])
+      handlerGate.open()
+    }
+  }
+
+  @Test(.timeLimit(.minutes(1)))
+  func shouldFreeCapacityOfExpiredMessageWithoutNackingAndStillAckIt() async throws {
+    let ackTransport = FakeAckTransport()
+    let leaseClock = TestClock()
+    pullTransport.deliver([message("slow", size: 10), message("next", size: 10)])
+
+    try await withSubscriber(
+      ackTransport: ackTransport,
+      flowControl: .init(maxOutstandingMessages: 10, maxOutstandingBytes: 10),
+      lease: .init(maxLeaseDuration: .seconds(15)),
+      leaseClock: leaseClock
+    ) {
+      try await waitUntil { recorder.started == ["slow"] && ackTransport.calls.count == 1 }
+
+      // Renewals are at most 9 seconds apart, so the second is past the max lease duration.
+      for _ in 0..<2 {
+        try await waitUntil { leaseClock.sleeperCount == 1 }
+        leaseClock.advance(by: .seconds(9))
+      }
+      try await waitUntil { recorder.started == ["slow", "next"] && ackTransport.calls.count == 3 }
+
+      handlerGate.open()
+      try await waitUntil { ackTransport.ids(of: .acknowledge).count == 2 }
+      #expect(Set(ackTransport.ids(of: .acknowledge)) == [AckID("ack-slow"), AckID("ack-next")])
+      #expect(ackTransport.ids(of: .modify(.nack)).isEmpty)
+      let extensions = ackTransport.calls.filter { $0.kind == .modify(.extend(.seconds(10))) }
+      #expect(
+        extensions.map { Set($0.ids) } == [
+          [AckID("ack-slow"), AckID("ack-next")],
+          [AckID("ack-slow"), AckID("ack-next")],
+          [AckID("ack-next")],
+        ])
+    }
+  }
+
   // MARK: - Helpers
 
+  /// Leases are only renewed when `leaseClock` is advanced.
   private func withSubscriber(
     ackTransport: FakeAckTransport,
     flowControl: PullSubscriberOptions.FlowControl = .init(),
+    lease: PullSubscriberOptions.Lease = .init(),
+    leaseClock: TestClock = TestClock(),
     _ body: () async throws -> Void
   ) async throws {
     let handler = CallbackHandler(
@@ -101,10 +160,12 @@ import Testing
     let subscriber = PullSubscriber(
       handler: handler,
       projectID: "pull-subscriber-flow-control-tests",
-      options: PullSubscriberOptions(flowControl: flowControl),
+      options: PullSubscriberOptions(flowControl: flowControl, lease: lease),
       pubSubService: try PubSubService(),
       pullTransport: pullTransport,
-      ackTransport: ackTransport
+      ackTransport: ackTransport,
+      leaseClock: leaseClock,
+      leaseGenerator: SplitMix64(seed: 1)
     )
 
     try await testGracefulShutdown { shutdownTrigger in
