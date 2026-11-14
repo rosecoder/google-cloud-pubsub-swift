@@ -21,6 +21,7 @@ let package = Package(
       url: "https://github.com/rosecoder/google-cloud-service-context.git", from: "0.0.2"),
     .package(url: "https://github.com/apple/swift-nio.git", from: "2.54.0"),
     .package(url: "https://github.com/swift-server/swift-service-lifecycle.git", from: "2.3.0"),
+    .package(url: "https://github.com/apple/swift-collections.git", from: "1.1.0"),
   ],
   targets: [
     .target(
@@ -36,6 +37,7 @@ let package = Package(
         .product(name: "NIOHTTP1", package: "swift-nio"),
         .product(name: "GRPCProtobuf", package: "grpc-swift-protobuf"),
         .product(name: "GRPCNIOTransportHTTP2", package: "grpc-swift-nio-transport"),
+        .product(name: "DequeModule", package: "swift-collections"),
       ]
     ),
     .testTarget(
