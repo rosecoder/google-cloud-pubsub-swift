@@ -53,7 +53,7 @@ import Testing
       return clients
     }
 
-    #expect(restarted.primary !== stopped.primary)
+    #expect(restarted.unary !== stopped.unary)
     #expect(service.clientUsage.startedGenerations == 2)
     #expect(service.clientUsage.users == 0)
     #expect(service.clientUsage.hasBegunShutdown)
@@ -81,22 +81,24 @@ import Testing
     }
     #expect(service.activeStreamCounts == [])
 
-    let counts = try await service.withClientInUse(.service) { $0.pool.activeStreamCounts }
-    #expect(counts == [0])
+    let counts = try await service.withClientInUse(.service) { clients in
+      try await clients.pool.withStreamSlot { _ in clients.pool.activeStreamCounts }
+    }
+    #expect(counts == [1])
   }
 
   @Test(.timeLimit(.minutes(1)))
   func shouldStartGenerationForEachSequentialUse() async throws {
     let service = try PubSubService()
     // Holds the clients so that their identifiers aren't reused.
-    var primaries: [GRPCClient<HTTP2ClientTransport.Posix>] = []
+    var streamingClients: [GRPCClient<HTTP2ClientTransport.Posix>] = []
     for _ in 0..<5 {
-      let primary = try await service.withClientInUse(.service) { clients in
+      let streaming = try await service.withClientInUse(.service) { clients in
         try await clients.pool.withStreamSlot { $0 }
       }
-      primaries.append(primary)
+      streamingClients.append(streaming)
     }
-    #expect(Set(primaries.map(ObjectIdentifier.init)).count == 5)
+    #expect(Set(streamingClients.map(ObjectIdentifier.init)).count == 5)
     #expect(service.clientUsage.startedGenerations == 5)
     #expect(service.clientUsage.users == 0)
   }
@@ -137,15 +139,15 @@ import Testing
   }
 
   @Test(.timeLimit(.minutes(1)))
-  func shouldOpenAnotherConnectionForStreamsBeyondMaxStreamsPerConnection() async throws {
+  func shouldSpreadStreamsOverConnectionsOtherThanUnaryOneAndStopThemAll() async throws {
     let service = try PubSubService(maxStreamsPerConnection: 2)
     let gate = Gate()
-    let clients = Mutex<[ObjectIdentifier]>([])
+    let streamingClients = Mutex<[GRPCClient<HTTP2ClientTransport.Posix>]>([])
     let streams = (0..<3).map { _ in
       Task {
         try await service.withClientInUse(.service) { pooled in
           try await pooled.pool.withStreamSlot { client in
-            clients.withLock { $0.append(ObjectIdentifier(client)) }
+            streamingClients.withLock { $0.append(client) }
             try await gate.wait()
           }
           return pooled
@@ -155,9 +157,10 @@ import Testing
     defer { for stream in streams { stream.cancel() } }
     try await waitUntil { service.activeStreamCounts == [2, 1] }
 
-    let primary = ObjectIdentifier(try #require(service.clientUsage.current).primary)
-    #expect(clients.withLock { $0 }.count { $0 == primary } == 2)
-    #expect(Set(clients.withLock { $0 }).count == 2)
+    let unary = try #require(service.clientUsage.current).unary
+    let streaming = streamingClients.withLock { $0 }
+    #expect(!streaming.contains { $0 === unary })
+    #expect(Set(streaming.map(ObjectIdentifier.init)).count == 2)
 
     gate.open()
     var stopped: [PubSubService.Clients] = []
@@ -167,8 +170,14 @@ import Testing
     await #expect(throws: RuntimeError.self) {
       try await stopped[0].pool.withStreamSlot { _ in }
     }
+    for client in [unary] + streaming {
+      let error = await #expect(throws: RuntimeError.self) {
+        _ = try await Google_Pubsub_V1_Publisher.Client(wrapping: client)
+          .getTopic(.with { $0.topic = "projects/p/topics/t" })
+      }
+      #expect(error?.code == .clientIsStopped)
+    }
   }
-
   // MARK: - Stopping
 
   /// A server that accepts the TCP connection but never completes the HTTP/2 handshake keeps the
@@ -262,7 +271,7 @@ import Testing
       #expect(!service.clientUsage.isLingering)
       return clients
     }
-    #expect(second.primary === first.primary)
+    #expect(second.unary === first.unary)
     #expect(service.clientUsage.startedGenerations == 1)
     #expect(service.clientUsage.isLingering)
 
@@ -277,7 +286,7 @@ import Testing
 
     try await waitUntil { service.clientUsage.hasBegunShutdown }
     let restarted = try await service.withClientInUse { $0 }
-    #expect(restarted.primary !== lingered.primary)
+    #expect(restarted.unary !== lingered.unary)
     #expect(service.clientUsage.startedGenerations == 2)
 
     // Also waits until the lingered generation has stopped in the background.
@@ -322,7 +331,7 @@ import Testing
       return clients
     }
     #expect(start.duration(to: .now) < .seconds(1))
-    #expect(used.primary === lingered.primary)
+    #expect(used.unary === lingered.unary)
     #expect(service.clientUsage.startedGenerations == 1)
     #expect(service.clientUsage.hasBegunShutdown)
     await #expect(throws: RuntimeError.self) {

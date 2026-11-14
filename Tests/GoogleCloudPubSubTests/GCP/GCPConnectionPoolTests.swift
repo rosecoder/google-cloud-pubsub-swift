@@ -69,7 +69,7 @@ struct GCPConnectionPoolTests {
           "\(subscribers.count) subscriptions received in \(start.duration(to: .now)) with streams \(activeStreamCounts) over \(connectionCount) connections"
         )
         #expect(activeStreamCounts == [80, 55])
-        #expect(connectionCount == 2)
+        #expect(connectionCount == 3)
       }
     }
   }
