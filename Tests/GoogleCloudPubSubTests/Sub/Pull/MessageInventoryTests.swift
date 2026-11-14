@@ -288,7 +288,8 @@ import Testing
   }
 }
 
-@Suite struct MessageInventoryTests {
+@Suite(.timeLimit(.minutes(1)))
+struct MessageInventoryTests {
 
   @Test func shouldReturnRightAwayWhenNotPaused() async throws {
     let inventory = MessageInventory(flowControl: flowControl(messages: 3))
