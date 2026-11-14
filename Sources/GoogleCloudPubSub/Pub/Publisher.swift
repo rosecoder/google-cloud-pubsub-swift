@@ -48,20 +48,13 @@ public final class Publisher: PublisherProtocol, Service {
     self.pubSubService = pubSubService
   }
 
+  /// Keeps the client running until graceful shutdown or cancellation. Subscribers sharing the
+  /// client keep it running for publishing from their handlers after this has returned.
   public func run() async throws {
-    let pubSubServiceRun = Task {
-      try await pubSubService.run()
-    }
-
-    await cancelWhenGracefulShutdown {
-      while !Task.isCancelled {
-        try? await Task.sleep(nanoseconds: .max / 2)
-      }
-    }
-
-    pubSubServiceRun.cancel()
     do {
-      try await pubSubServiceRun.value
+      try await pubSubService.withClientInUse {
+        try? await gracefulShutdown()
+      }
     } catch is CancellationError {}
   }
 
