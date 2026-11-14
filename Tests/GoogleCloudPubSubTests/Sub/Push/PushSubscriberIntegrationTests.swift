@@ -22,7 +22,8 @@ private struct FakePushMessage: Encodable {
 @Suite(.tags(.integration))
 struct PushSubscriberIntegrationTests {
 
-  let port = 45678
+  /// Random, so that concurrent test runs don't compete for it.
+  let port = Int.random(in: 20_000..<60_000)
 
   @Test(.timeLimit(.minutes(1)))
   func shouldReceiveMessage() async throws {
