@@ -109,28 +109,31 @@ public final class PushSubscriber: Service {
     try await channel.close()
   }
 
-  private let pullSubscriberRuns = Mutex<[@Sendable () async throws -> Void]>([])
+  private let pullSubscriberRuns = AsyncStream.makeStream(
+    of: (@Sendable () async throws -> Void).self)
 
-  /// Runs a pull subscriber for each handler registered so far, which shut down gracefully
-  /// together with this service.
+  /// Runs a pull subscriber for each handler registered before or while running, which shut down
+  /// gracefully together with this service.
   private func runUsingPull() async throws {
     logger.info(
       "Using pull subscriber instead of push. Push is not supported during local development.")
-
-    let runs = pullSubscriberRuns.withLock { $0 }
 
     try await withThrowingDiscardingTaskGroup { group in
       group.addTask {
         try await self.pubSubService.run()
       }
-      for run in runs {
-        group.addTask {
-          do {
-            try await run()
-          } catch {
-            self.logger.error("Pull subscriber failed: \(error)")
+      await withGracefulShutdownHandler {
+        for await run in pullSubscriberRuns.stream {
+          group.addTask {
+            do {
+              try await run()
+            } catch {
+              self.logger.error("Pull subscriber failed: \(error)")
+            }
           }
         }
+      } onGracefulShutdown: {
+        self.pullSubscriberRuns.continuation.finish()
       }
     }
   }
@@ -148,9 +151,7 @@ public final class PushSubscriber: Service {
         projectID: projectID,
         pubSubService: pubSubService
       )
-      pullSubscriberRuns.withLock {
-        $0.append { try await subscriber.run() }
-      }
+      pullSubscriberRuns.continuation.yield { try await subscriber.run() }
       return
     }
 

@@ -95,4 +95,44 @@ struct PushSubscriberIntegrationTests {
       try await subscriberRunTask.value
     }
   }
+
+  @Test(.timeLimit(.minutes(1)))
+  func shouldPullForHandlerRegisteredWhileRunningUsingPull() async throws {
+    let projectID = "push-subscriber-integration-tests"
+    let pubSubService = try PubSubService()
+    let topic = Topic<PlainTextMessage>(name: uniqueName("PushSubscriberIntegrationTests"))
+    let (messages, messageContinuation) = AsyncStream.makeStream(of: String.self)
+    let handler = CallbackHandler(topic: topic) { message in
+      messageContinuation.yield(message.body)
+    }
+
+    try await testGracefulShutdown { shutdownTrigger in
+      let subscriber = PushSubscriber(
+        projectID: projectID, shouldFallbackToPull: true, pubSubService: pubSubService)
+      let subscriberRunTask = Task {
+        try await subscriber.run()
+      }
+      try await Task.sleep(for: .milliseconds(100))
+      subscriber.register(handler: handler)
+
+      let publisher = Publisher(projectID: projectID, pubSubService: pubSubService)
+      let subscriberClient = Google_Pubsub_V1_Subscriber.Client(
+        wrapping: pubSubService.grpcClient)
+      while true {
+        do {
+          _ = try await subscriberClient.getSubscription(
+            .with { $0.subscription = handler.subscription.id(projectID: projectID) })
+          break
+        } catch {
+          try await Task.sleep(for: .milliseconds(50))
+        }
+      }
+      _ = try await publisher.publish(to: topic, body: "Hello")
+
+      #expect(await messages.first { _ in true } == "Hello")
+
+      shutdownTrigger.triggerGracefulShutdown()
+      try await subscriberRunTask.value
+    }
+  }
 }
