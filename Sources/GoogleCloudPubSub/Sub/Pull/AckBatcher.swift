@@ -70,16 +70,63 @@ final class AckBatcher<C: Clock>: Sendable where C.Duration == Duration {
     try await submit(id, .modifyAckDeadline(.extend(deadline)))
   }
 
+  /// Extends the deadline of all `ids` and waits until every RPC carrying them has completed or
+  /// the task is cancelled. Failures are only logged.
+  ///
+  /// Waiting costs one continuation for the whole set rather than one per ID.
+  func modifyDeadlines(_ ids: some Collection<AckID>, to deadline: AckDeadline) async {
+    guard !ids.isEmpty else {
+      return
+    }
+    let group: Token
+    do {
+      group = try enqueueGroup(ids, .modifyAckDeadline(.extend(deadline)))
+    } catch {
+      logger.debug("Dropped deadline extension of \(ids.count) messages: \(error)")
+      return
+    }
+
+    await withTaskCancellationHandler {
+      await withCheckedContinuation { continuation in
+        let resumeNow = state.withLock { state in
+          guard var waiter = state.groups[group], waiter.remaining > 0, !waiter.isCancelled else {
+            state.groups[group] = nil
+            return true
+          }
+          waiter.continuation = continuation
+          state.groups[group] = waiter
+          return false
+        }
+        if resumeNow {
+          continuation.resume()
+        }
+      }
+    } onCancel: {
+      state.withLock { state -> CheckedContinuation<Void, Never>? in
+        guard var waiter = state.groups[group] else {
+          return nil
+        }
+        if let continuation = waiter.continuation {
+          state.groups[group] = nil
+          return continuation
+        }
+        waiter.isCancelled = true
+        state.groups[group] = waiter
+        return nil
+      }?.resume()
+    }
+  }
+
   /// Queues nacks without waiting for their outcome. Failures are only logged, and IDs submitted
   /// after ``run()`` returned are dropped.
   func enqueueNacks(_ ids: some Sequence<AckID>) {
-    for id in ids {
-      do {
-        _ = try enqueue(id, .modifyAckDeadline(.nack), awaitsResult: false)
-      } catch {
-        logger.debug("Dropped nack of \(id): \(error)")
-      }
-    }
+    enqueueWithoutWaiting(ids, .modifyAckDeadline(.nack))
+  }
+
+  /// Queues deadline extensions without waiting for their outcome. Failures are only logged, and
+  /// IDs submitted after ``run()`` returned are dropped.
+  func enqueueModifyDeadlines(_ ids: some Sequence<AckID>, to deadline: AckDeadline) {
+    enqueueWithoutWaiting(ids, .modifyAckDeadline(.extend(deadline)))
   }
 
   /// Number of submitted IDs that have not yet been handed to an RPC.
@@ -91,13 +138,15 @@ final class AckBatcher<C: Clock>: Sendable where C.Duration == Duration {
 
   /// Number of callers that have not yet received their result.
   var waiterCount: Int {
-    state.withLock { $0.waiters.count }
+    state.withLock { state in
+      state.waiters.count { $0.value.isCaller } + state.groups.count
+    }
   }
 
   // MARK: - Submitting
 
   private func submit(_ id: AckID, _ operation: Operation) async throws {
-    let token = try enqueue(id, operation, awaitsResult: true)
+    let token = try enqueue(id, operation)
     try await withTaskCancellationHandler {
       try await withCheckedThrowingContinuation { continuation in
         let result: Result<Void, any Error>? = state.withLock { state in
@@ -108,7 +157,7 @@ final class AckBatcher<C: Clock>: Sendable where C.Duration == Duration {
           case .completed(let result):
             state.waiters[token] = nil
             return result
-          case .cancelled, .waiting, nil:
+          case .cancelled, .waiting, .member, nil:
             state.waiters[token] = nil
             return .failure(CancellationError())
           }
@@ -126,7 +175,7 @@ final class AckBatcher<C: Clock>: Sendable where C.Duration == Duration {
         case .queued:
           state.waiters[token] = .cancelled
           return nil
-        case .cancelled, .completed, nil:
+        case .cancelled, .completed, .member, nil:
           return nil
         }
       }
@@ -134,41 +183,82 @@ final class AckBatcher<C: Clock>: Sendable where C.Duration == Duration {
     }
   }
 
-  private func enqueue(
-    _ id: AckID, _ operation: Operation, awaitsResult: Bool
-  ) throws(AckBatcherError) -> Token {
-    let size = id.encodedSize
+  private func enqueue(_ id: AckID, _ operation: Operation) throws(AckBatcherError) -> Token {
     let (token, wakeup) = try state.withLock {
       state throws(AckBatcherError) -> (Token, CheckedContinuation<Void, Never>?) in
       guard state.lifecycle != .finished else {
         throw .shutDown
       }
-
-      var shouldWake = false
-      if !state.open.isEmpty && state.open.bytes + size > configuration.maxRequestBytes {
-        state.sealOpen()
-        shouldWake = true
-      }
-      if state.open.isEmpty {
-        state.openedAt = clock.now
-        shouldWake = true
-      }
-
-      let token = state.nextToken
-      state.nextToken &+= 1
-      if awaitsResult {
-        state.waiters[token] = .queued
-      }
-      state.open.append(Entry(id: id, token: token), for: operation, size: size)
-
-      if state.open.count >= configuration.maxBatchSize {
-        state.sealOpen()
-        shouldWake = true
-      }
+      let (token, shouldWake) = append(id, operation, waiter: .queued, to: &state)
       return (token, shouldWake ? state.wake() : nil)
     }
     wakeup?.resume()
     return token
+  }
+
+  private func enqueueGroup(
+    _ ids: some Collection<AckID>, _ operation: Operation
+  ) throws(AckBatcherError) -> Token {
+    let (group, wakeup) = try state.withLock {
+      state throws(AckBatcherError) -> (Token, CheckedContinuation<Void, Never>?) in
+      guard state.lifecycle != .finished else {
+        throw .shutDown
+      }
+      let group = state.nextToken
+      state.nextToken &+= 1
+      state.groups[group] = GroupWaiter(remaining: ids.count)
+      var shouldWake = false
+      for id in ids {
+        shouldWake = append(id, operation, waiter: .member(group), to: &state).shouldWake
+          || shouldWake
+      }
+      return (group, shouldWake ? state.wake() : nil)
+    }
+    wakeup?.resume()
+    return group
+  }
+
+  private func enqueueWithoutWaiting(_ ids: some Sequence<AckID>, _ operation: Operation) {
+    let wakeup = state.withLock { state -> CheckedContinuation<Void, Never>? in
+      guard state.lifecycle != .finished else {
+        logger.debug("Dropped \(operation) after shutdown")
+        return nil
+      }
+      var shouldWake = false
+      for id in ids {
+        shouldWake = append(id, operation, waiter: nil, to: &state).shouldWake || shouldWake
+      }
+      return shouldWake ? state.wake() : nil
+    }
+    wakeup?.resume()
+  }
+
+  private func append(
+    _ id: AckID, _ operation: Operation, waiter: Waiter?, to state: inout State
+  ) -> (token: Token, shouldWake: Bool) {
+    let size = id.encodedSize
+    var shouldWake = false
+    if !state.open.isEmpty && state.open.bytes + size > configuration.maxRequestBytes {
+      state.sealOpen()
+      shouldWake = true
+    }
+    if state.open.isEmpty {
+      state.openedAt = clock.now
+      shouldWake = true
+    }
+
+    let token = state.nextToken
+    state.nextToken &+= 1
+    if let waiter {
+      state.waiters[token] = waiter
+    }
+    state.open.append(Entry(id: id, token: token), for: operation, size: size)
+
+    if state.open.count >= configuration.maxBatchSize {
+      state.sealOpen()
+      shouldWake = true
+    }
+    return (token, shouldWake)
   }
 
   // MARK: - Running
@@ -191,7 +281,10 @@ final class AckBatcher<C: Clock>: Sendable where C.Duration == Duration {
       await withDiscardingTaskGroup { group in
         while let batches = await nextBatches() {
           for batch in batches {
-            for (operation, entries) in batch.requests {
+            let (requests, superseded) = batch.deduplicated()
+            complete(superseded, with: .success(()), finishesRequest: false)
+            state.withLock { $0.inFlightCount += requests.count }
+            for (operation, entries) in requests {
               group.addTask {
                 await self.send(entries, operation)
               }
@@ -229,7 +322,6 @@ final class AckBatcher<C: Clock>: Sendable where C.Duration == Duration {
         }
         if !state.sealed.isEmpty {
           defer { state.sealed = [] }
-          state.inFlightCount += state.sealed.reduce(0) { $0 + $1.requests.count }
           return .flush(state.sealed)
         }
         if state.lifecycle != .running {
@@ -307,7 +399,7 @@ final class AckBatcher<C: Clock>: Sendable where C.Duration == Duration {
       logger.debug("Failed to send \(operation) of \(ids.count) messages: \(error)")
       result = .failure(error)
     }
-    complete(entries, with: result)
+    complete(entries, with: result, finishesRequest: true)
   }
 
   private func withRetries(
@@ -343,13 +435,25 @@ final class AckBatcher<C: Clock>: Sendable where C.Duration == Duration {
     }
   }
 
-  private func complete(_ entries: [Entry], with result: Result<Void, any Error>) {
-    let (continuations, wakeup) = state.withLock { state in
-      state.inFlightCount -= 1
-      let wakeup = state.lifecycle == .finishing && state.inFlightCount == 0 ? state.wake() : nil
+  /// - Parameter finishesRequest: Whether `entries` were sent in an RPC counted as in flight,
+  ///   rather than superseded by other requests for the same IDs.
+  private func complete(
+    _ entries: [Entry], with result: Result<Void, any Error>, finishesRequest: Bool
+  ) {
+    guard !entries.isEmpty || finishesRequest else {
+      return
+    }
+    let (continuations, groupContinuations, wakeup) = state.withLock { state in
+      var wakeup: CheckedContinuation<Void, Never>?
+      if finishesRequest {
+        state.inFlightCount -= 1
+        if state.lifecycle == .finishing && state.inFlightCount == 0 {
+          wakeup = state.wake()
+        }
+      }
 
       var continuations: [CheckedContinuation<Void, any Error>] = []
-      continuations.reserveCapacity(entries.count)
+      var groupContinuations: [CheckedContinuation<Void, Never>] = []
       for entry in entries {
         switch state.waiters[entry.token] {
         case .waiting(let continuation):
@@ -359,14 +463,22 @@ final class AckBatcher<C: Clock>: Sendable where C.Duration == Duration {
           state.waiters[entry.token] = .completed(result)
         case .cancelled:
           state.waiters[entry.token] = nil
+        case .member(let group):
+          state.waiters[entry.token] = nil
+          if let continuation = state.completeMember(of: group) {
+            groupContinuations.append(continuation)
+          }
         case .completed, nil:
           break
         }
       }
-      return (continuations, wakeup)
+      return (continuations, groupContinuations, wakeup)
     }
     for continuation in continuations {
       continuation.resume(with: result)
+    }
+    for continuation in groupContinuations {
+      continuation.resume()
     }
     wakeup?.resume()
   }
@@ -400,6 +512,20 @@ extension AckBatcher {
       case .modifyAckDeadline(let modification): modification.description
       }
     }
+
+    /// Whether this request makes `other` for the same ID pointless: an ack wins over everything,
+    /// a nack wins over extensions and a longer extension wins over a shorter one.
+    func supersedes(_ other: Operation) -> Bool {
+      precedence > other.precedence
+    }
+
+    private var precedence: (Int, Int32) {
+      switch self {
+      case .acknowledge: (2, 0)
+      case .modifyAckDeadline(.nack): (1, 0)
+      case .modifyAckDeadline(.extend(let deadline)): (0, deadline.seconds)
+      }
+    }
   }
 
   fileprivate struct Entry: Sendable {
@@ -421,6 +547,41 @@ extension AckBatcher {
       count += 1
       bytes += size
     }
+
+    /// Requests to send, with each ID only once: in the superseding request, and there only its
+    /// first entry.
+    func deduplicated() -> (requests: [(Operation, [Entry])], superseded: [Entry]) {
+      var winners: [AckID: (operation: Operation, token: Token)] = [:]
+      winners.reserveCapacity(count)
+      for (operation, entries) in requests {
+        for entry in entries {
+          if let current = winners[entry.id], !operation.supersedes(current.operation) {
+            continue
+          }
+          winners[entry.id] = (operation, entry.token)
+        }
+      }
+
+      var deduplicated: [(Operation, [Entry])] = []
+      var superseded: [Entry] = []
+      for (operation, entries) in requests {
+        var kept: [Entry] = []
+        kept.reserveCapacity(entries.count)
+        for entry in entries {
+          if let winner = winners[entry.id], winner.operation == operation,
+            winner.token == entry.token
+          {
+            kept.append(entry)
+          } else {
+            superseded.append(entry)
+          }
+        }
+        if !kept.isEmpty {
+          deduplicated.append((operation, kept))
+        }
+      }
+      return (deduplicated, superseded)
+    }
   }
 
   fileprivate enum Waiter {
@@ -428,6 +589,22 @@ extension AckBatcher {
     case waiting(CheckedContinuation<Void, any Error>)
     case cancelled
     case completed(Result<Void, any Error>)
+    case member(Token)
+
+    var isCaller: Bool {
+      if case .member = self {
+        return false
+      }
+      return true
+    }
+  }
+
+  /// One waiter for a set of IDs submitted together. `continuation` is set once the caller
+  /// waits, which may happen after all of them have completed.
+  fileprivate struct GroupWaiter {
+    var remaining: Int
+    var continuation: CheckedContinuation<Void, Never>?
+    var isCancelled = false
   }
 
   fileprivate enum Lifecycle {
@@ -448,6 +625,7 @@ extension AckBatcher {
     var openedAt: C.Instant?
     var sealed: [Batch] = []
     var waiters: [Token: Waiter] = [:]
+    var groups: [Token: GroupWaiter] = [:]
     var inFlightCount = 0
     var nextToken: Token = 0
     var wakeup: CheckedContinuation<Void, Never>?
@@ -462,6 +640,20 @@ extension AckBatcher {
       sealed.append(open)
       open = Batch()
       openedAt = nil
+    }
+
+    /// Returns the group's continuation once its last member has completed.
+    mutating func completeMember(of group: Token) -> CheckedContinuation<Void, Never>? {
+      guard var waiter = groups[group] else {
+        return nil
+      }
+      waiter.remaining -= 1
+      if waiter.remaining == 0 && (waiter.continuation != nil || waiter.isCancelled) {
+        groups[group] = nil
+        return waiter.continuation
+      }
+      groups[group] = waiter
+      return nil
     }
 
     mutating func wake() -> CheckedContinuation<Void, Never>? {

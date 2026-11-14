@@ -119,6 +119,134 @@ import Testing
     }
   }
 
+  @Test func shouldSendEachAckIDOnlyOnceWithItsStrongestRequestInABatch() async throws {
+    let transport = FakeAckTransport()
+
+    try await withBatcher(transport: transport) { batcher in
+      async let a1: Void = batcher.modifyDeadline(AckID("a"), to: .seconds(30))
+      async let a2: Void = batcher.ack(AckID("a"))
+      async let a3: Void = batcher.nack(AckID("a"))
+      async let b1: Void = batcher.modifyDeadline(AckID("b"), to: .seconds(30))
+      async let b2: Void = batcher.nack(AckID("b"))
+      async let c1: Void = batcher.modifyDeadline(AckID("c"), to: .seconds(60))
+      async let c2: Void = batcher.modifyDeadline(AckID("c"), to: .seconds(30))
+      async let c3: Void = batcher.modifyDeadline(AckID("c"), to: .seconds(60))
+      try await waitUntil { batcher.queuedCount == 8 }
+
+      clock.advance(by: .milliseconds(100))
+      _ = try await (a1, a2, a3, b1, b2, c1, c2, c3)
+
+      #expect(transport.calls.map(\.ids.count) == [1, 1, 1])
+      #expect(
+        transport.normalizedCalls == [
+          .init(.acknowledge, ["a"]),
+          .init(.modify(.nack), ["b"]),
+          .init(.modify(.extend(.seconds(60))), ["c"]),
+        ])
+      #expect(batcher.waiterCount == 0)
+    }
+  }
+
+  @Test func shouldNotDeduplicateAcrossBatches() async throws {
+    let transport = FakeAckTransport()
+
+    try await withBatcher(transport: transport) { batcher in
+      async let extend: Void = batcher.modifyDeadline(AckID("a"), to: .seconds(30))
+      try await waitUntil { batcher.queuedCount == 1 }
+      clock.advance(by: .milliseconds(100))
+      try await extend
+
+      async let ack: Void = batcher.ack(AckID("a"))
+      try await waitUntil { batcher.queuedCount == 1 }
+      clock.advance(by: .milliseconds(100))
+      try await ack
+
+      #expect(
+        transport.calls == [
+          .init(.modify(.extend(.seconds(30))), [AckID("a")]),
+          .init(.acknowledge, [AckID("a")]),
+        ])
+    }
+  }
+
+  // MARK: - Fire-and-forget and batched requests
+
+  @Test func shouldReturnFromBatchedModifyOnceAllItsRPCsCompleted() async throws {
+    let transport = FakeAckTransport()
+    var configuration = Configuration.testing
+    configuration.maxBatchSize = 2
+
+    try await withBatcher(transport: transport, configuration: configuration) { batcher in
+      let modify = Task {
+        await batcher.modifyDeadlines(["a", "b", "c"].map(AckID.init(rawValue:)), to: .seconds(30))
+      }
+      try await waitUntil { transport.calls.count == 1 && batcher.queuedCount == 1 }
+      #expect(batcher.waiterCount == 1)
+
+      clock.advance(by: .milliseconds(100))
+      await modify.value
+
+      #expect(transport.calls.map(\.ids.count) == [2, 1])
+      #expect(batcher.waiterCount == 0)
+    }
+  }
+
+  @Test func shouldReturnFromBatchedModifyWhenCancelledAndStillSendIt() async throws {
+    let transport = FakeAckTransport()
+
+    try await withBatcher(transport: transport) { batcher in
+      let modify = Task {
+        await batcher.modifyDeadlines([AckID("a"), AckID("b")], to: .seconds(30))
+      }
+      try await waitUntil { batcher.queuedCount == 2 }
+
+      modify.cancel()
+      await modify.value
+      #expect(batcher.waiterCount == 0)
+
+      clock.advance(by: .milliseconds(100))
+      try await waitUntil { transport.calls.count == 1 }
+      #expect(transport.normalizedCalls == [.init(.modify(.extend(.seconds(30))), ["a", "b"])])
+      #expect(batcher.waiterCount == 0)
+    }
+  }
+
+  @Test func shouldReturnFromBatchedModifyWhenRPCFails() async throws {
+    let transport = FakeAckTransport { _, _ in
+      throw RPCError(code: .invalidArgument, message: "Invalid ack ID")
+    }
+
+    try await withBatcher(transport: transport) { batcher in
+      let modify = Task { await batcher.modifyDeadlines([AckID("a")], to: .seconds(30)) }
+      try await waitUntil { batcher.queuedCount == 1 }
+
+      clock.advance(by: .milliseconds(100))
+      await modify.value
+
+      #expect(batcher.waiterCount == 0)
+    }
+  }
+
+  @Test func shouldSendEnqueuedRequestsWithoutWaiters() async throws {
+    let transport = FakeAckTransport()
+
+    try await withBatcher(transport: transport) { batcher in
+      batcher.enqueueModifyDeadlines([AckID("a"), AckID("b")], to: .seconds(20))
+      batcher.enqueueNacks([AckID("c")])
+      #expect(batcher.queuedCount == 3)
+      #expect(batcher.waiterCount == 0)
+
+      clock.advance(by: .milliseconds(100))
+      try await waitUntil { transport.calls.count == 2 }
+
+      #expect(
+        transport.normalizedCalls == [
+          .init(.modify(.extend(.seconds(20))), ["a", "b"]),
+          .init(.modify(.nack), ["c"]),
+        ])
+    }
+  }
+
   // MARK: - Errors and retries
 
   @Test func shouldDeliverErrorsOnlyToCallersOfFailedRPC() async throws {
