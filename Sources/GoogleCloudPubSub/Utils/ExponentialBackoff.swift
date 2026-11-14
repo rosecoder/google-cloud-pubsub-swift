@@ -34,19 +34,23 @@ struct ExponentialBackoff: Sendable, Equatable {
   }
 
   mutating func next() -> Duration {
-    var generator = SystemRandomNumberGenerator()
-    return next(using: &generator)
+    // Not `next(using:)` with a local `SystemRandomNumberGenerator`: being zero-sized, all such
+    // locals share one address, which ThreadSanitizer reports as a race between tasks.
+    next { Double.random(in: $0) }
   }
 
   mutating func next(using generator: inout some RandomNumberGenerator) -> Duration {
+    next { Double.random(in: $0, using: &generator) }
+  }
+
+  private mutating func next(randomFactor: (ClosedRange<Double>) -> Double) -> Duration {
     let base = current
     current = min(base * multiplier, maximum)
 
     guard jitter > 0 else {
       return base
     }
-    let factor = Double.random(in: (1 - jitter)...(1 + jitter), using: &generator)
-    return min(base * factor, maximum)
+    return min(base * randomFactor((1 - jitter)...(1 + jitter)), maximum)
   }
 
   mutating func reset() {
