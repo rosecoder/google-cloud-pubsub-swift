@@ -82,10 +82,7 @@ public final class Publisher: PublisherProtocol, Service {
           let response: Google_Pubsub_V1_PublishResponse
           do {
             response = try await publish(to: topic, messages: messages, client: clients.publisher)
-          } catch let error as RPCError
-            where error.code == .notFound && error.message == "Topic not found"
-            && createTopicsIfNeeded
-          {
+          } catch let error as RPCError where createTopicsIfNeeded && Self.isMissingTopic(error) {
             logger.info("Topic not found, creating it...")
             try await pubSubService.create(
               topic: topic,
@@ -101,6 +98,12 @@ public final class Publisher: PublisherProtocol, Service {
             .map { PublishedMessage(id: $0) }
         }, file: file, function: function, line: line)
     }
+  }
+
+  /// Only the code is stable: the emulator says "Topic not found", while Pub/Sub says
+  /// "Resource not found (resource=…)".
+  static func isMissingTopic(_ error: RPCError) -> Bool {
+    error.code == .notFound
   }
 
   private func publish<Message>(

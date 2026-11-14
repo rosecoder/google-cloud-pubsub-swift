@@ -1,3 +1,4 @@
+import GRPCCore
 import ServiceLifecycleTestKit
 import Testing
 
@@ -28,6 +29,32 @@ struct PublisherIntegrationTests {
       #expect(message.id.isEmpty == false)
 
       // Teardown
+      publisherRunTask.cancel()
+      shutdownTrigger.triggerGracefulShutdown()
+      try await publisherRunTask.cancellableValue
+    }
+  }
+
+  @Test func shouldFailPublishToMissingTopicWhenNotCreatingTopics() async throws {
+    let pubSubService = try PubSubService()
+    let topic = Topic<PlainTextMessage>(name: uniqueName("PublisherIntegrationTests"))
+
+    try await testGracefulShutdown { shutdownTrigger in
+      let publisher = Publisher(
+        projectID: "publisher-integration-tests",
+        createTopicsIfNeeded: false,
+        pubSubService: pubSubService
+      )
+      let publisherRunTask = Task {
+        try await publisher.run()
+      }
+      defer { publisherRunTask.cancel() }
+
+      let error = await #expect(throws: RPCError.self) {
+        try await publisher.publish(to: topic, body: "Hello")
+      }
+      #expect(error?.code == .notFound)
+
       publisherRunTask.cancel()
       shutdownTrigger.triggerGracefulShutdown()
       try await publisherRunTask.cancellableValue
