@@ -6,7 +6,7 @@ import Testing
 
 @Suite struct PullSubscriberShutdownTests {
 
-  let pullTransport = FakePullTransport()
+  let connection = FakeStreamingPullConnection()
   let ackTransport = FakeAckTransport()
   let clock = TestClock()
   let probe = HandlerProbe()
@@ -15,7 +15,7 @@ import Testing
 
   @Test(.timeLimit(.minutes(1)))
   func shouldNackHeldAndInFlightMessagesAndCancelHandlers() async throws {
-    pullTransport.deliver([message("a"), message("b")])
+    connection.deliver([message("a"), message("b")])
 
     try await withSubscriber(
       .nackImmediately, handle: { _ in try await Task.sleep(for: .seconds(3_600)) }
@@ -36,7 +36,7 @@ import Testing
   @Test(.timeLimit(.minutes(1)))
   func shouldLetHandlersFinishAndKeepLeasingWhileWaiting() async throws {
     let gate = Gate()
-    pullTransport.deliver([message("a"), message("b")])
+    connection.deliver([message("a"), message("b")])
 
     try await withSubscriber(
       .waitForProcessing(timeout: .seconds(30)), handle: { _ in await gate.wait() }
@@ -45,8 +45,8 @@ import Testing
       shutdown()
       try await waitUntil { ackTransport.ids(of: .modify(.nack)) == [AckID("ack-b")] }
 
-      // The lease and the shutdown timeout are sleeping.
-      try await waitUntil { clock.sleeperCount == 2 }
+      // The lease and the shutdown timeout are sleeping, and the stream's keepalive has stopped.
+      try await waitUntil { !connection.isStreaming && clock.sleeperCount == 2 }
       clock.advance(by: .seconds(9))
       try await waitUntil { extensions.count == 2 }
       #expect(extensions.last?.ids == [AckID("ack-a")])
@@ -61,14 +61,14 @@ import Testing
 
   @Test(.timeLimit(.minutes(1)))
   func shouldNackRemainingMessagesAndCancelHandlersOneSecondBeforeTimeout() async throws {
-    pullTransport.deliver([message("a")])
+    connection.deliver([message("a")])
 
     try await withSubscriber(
       .waitForProcessing(timeout: .seconds(10)), handle: { _ in try? await Task.sleep(for: .seconds(3_600)) }
     ) { shutdown in
       try await waitUntil { probe.started == ["a"] && ackTransport.calls.count == 1 }
       shutdown()
-      try await waitUntil { clock.sleeperCount == 2 }
+      try await waitUntil { !connection.isStreaming && clock.sleeperCount == 2 }
       clock.advance(by: .seconds(8))
       await yieldRepeatedly()
       #expect(ackTransport.ids(of: .modify(.nack)).isEmpty)
@@ -84,7 +84,7 @@ import Testing
 
   @Test(.timeLimit(.minutes(1)))
   func shouldLimitShutdownTimeoutToMaxLeaseDuration() async throws {
-    pullTransport.deliver([message("a")])
+    connection.deliver([message("a")])
 
     try await withSubscriber(
       .waitForProcessing(timeout: .seconds(30)),
@@ -93,7 +93,7 @@ import Testing
     ) { shutdown in
       try await waitUntil { probe.started == ["a"] && ackTransport.calls.count == 1 }
       shutdown()
-      try await waitUntil { clock.sleeperCount == 2 }
+      try await waitUntil { !connection.isStreaming && clock.sleeperCount == 2 }
       clock.advance(by: .seconds(4))
     }
 
@@ -104,7 +104,7 @@ import Testing
   @Test(.timeLimit(.minutes(1)))
   func shouldNotWaitWhenNothingIsOutstanding() async throws {
     try await withSubscriber(.waitForProcessing(timeout: .seconds(30))) { shutdown in
-      try await waitUntil { pullTransport.isWaiting }
+      try await waitUntil { connection.isReading }
       shutdown()
     }
 
@@ -115,7 +115,7 @@ import Testing
 
   @Test(.timeLimit(.minutes(1)))
   func shouldStopWithoutNackingWhenCancelled() async throws {
-    pullTransport.deliver([message("a"), message("b")])
+    connection.deliver([message("a"), message("b")])
     let subscriber = makeSubscriber(
       .waitForProcessing(timeout: .seconds(30)),
       handle: { _ in try await Task.sleep(for: .seconds(3_600)) })
@@ -141,8 +141,8 @@ import Testing
       handle: { _ in await gate.wait() })
     let idle = makeSubscriber(
       .waitForProcessing(timeout: .seconds(30)), pubSubService: service,
-      pullTransport: FakePullTransport(), handle: { _ in })
-    pullTransport.deliver([message("a")])
+      connection: FakeStreamingPullConnection(), handle: { _ in })
+    connection.deliver([message("a")])
 
     try await testGracefulShutdown { shutdownTrigger in
       let busyRun = Task { try await busy.run() }
@@ -201,7 +201,7 @@ import Testing
     _ shutdownBehavior: PullSubscriberOptions.ShutdownBehavior,
     lease: PullSubscriberOptions.Lease = .init(),
     pubSubService: PubSubService? = nil,
-    pullTransport: FakePullTransport? = nil,
+    connection: FakeStreamingPullConnection? = nil,
     handle: @escaping @Sendable (String) async throws -> Void
   ) -> PullSubscriber<CallbackHandler<DataMessage>> {
     let handler = CallbackHandler(
@@ -218,7 +218,7 @@ import Testing
         flowControl: .init(maxOutstandingMessages: 10, maxOutstandingBytes: 10), lease: lease,
         shutdownBehavior: shutdownBehavior),
       pubSubService: try! pubSubService ?? PubSubService(),
-      pullTransport: pullTransport ?? self.pullTransport,
+      streamingPullConnection: connection ?? self.connection,
       ackTransport: ackTransport,
       clock: clock,
       leaseGenerator: SplitMix64(seed: 1)
@@ -226,7 +226,7 @@ import Testing
   }
 
   private func message(_ id: String) -> Google_Pubsub_V1_ReceivedMessage {
-    FakePullTransport.message(id: id, size: 10)
+    FakeStreamingPullConnection.message(id: id, size: 10)
   }
 }
 

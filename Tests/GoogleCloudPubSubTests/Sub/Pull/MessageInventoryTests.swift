@@ -6,15 +6,12 @@ import Testing
 
   typealias State = MessageInventory.State
 
-  @Test func shouldRequestFreeMessageCapacityCappedPerPull() {
+  @Test func shouldReceiveWhileBelowLimits() {
     var state = State(flowControl: flowControl(messages: 10))
-    #expect(state.receivableCount == 10)
+    #expect(state.isReceivable)
 
     _ = state.add([item("a"), item("b"), item("c")])
-    #expect(state.receivableCount == 7)
-
-    let large = State(flowControl: flowControl(messages: 5_000))
-    #expect(large.receivableCount == State.maxMessagesPerPull)
+    #expect(state.isReceivable)
   }
 
   @Test func shouldHoldMessagesOverMessageLimitAndNeverExceedIt() {
@@ -41,27 +38,27 @@ import Testing
     var state = State(flowControl: flowControl(messages: 10, bytes: 10))
     _ = state.add([item("a", size: 10), item("b", size: 1)])
     #expect(!state.held.isEmpty)
-    #expect(state.receivableCount == nil)
+    #expect(!state.isReceivable)
 
     state.release(AckID("ack-a"))
     #expect(state.held.isEmpty)
-    #expect(state.receivableCount == 9)
+    #expect(state.isReceivable)
   }
 
   @Test func shouldPauseAtFullLoadAndResumeBelowEightyPercent() {
     var state = State(flowControl: flowControl(messages: 5))
     _ = state.add((0..<5).map { item("\($0)") })
     #expect(state.isPaused)
-    #expect(state.receivableCount == nil)
+    #expect(!state.isReceivable)
 
     state.release(AckID("ack-0"))
     #expect(state.load == 0.8)
     #expect(state.isPaused)
-    #expect(state.receivableCount == nil)
+    #expect(!state.isReceivable)
 
     state.release(AckID("ack-1"))
     #expect(!state.isPaused)
-    #expect(state.receivableCount == 2)
+    #expect(state.isReceivable)
   }
 
   @Test func shouldApplyHysteresisToByteLoad() {
@@ -124,7 +121,7 @@ import Testing
     _ = state.add([item("a"), item("b")])
 
     #expect(state.stopReceiving() == [AckID("ack-b")])
-    #expect(state.receivableCount == nil)
+    #expect(!state.isReceivable)
     #expect(state.add([item("c")]).rejected == [AckID("ack-c")])
     #expect(state.entries.keys.sorted { $0.rawValue < $1.rawValue } == [AckID("ack-a")])
   }
@@ -265,10 +262,10 @@ import Testing
 
 @Suite struct MessageInventoryTests {
 
-  @Test func shouldReturnReceivableCountRightAwayWhenNotPaused() async throws {
+  @Test func shouldReturnRightAwayWhenNotPaused() async throws {
     let inventory = MessageInventory(flowControl: flowControl(messages: 3))
 
-    #expect(try await inventory.waitUntilReceivable() == 3)
+    try await inventory.waitUntilReceivable()
   }
 
   @Test func shouldWaitUntilEnoughCapacityIsReleased() async throws {
@@ -278,7 +275,17 @@ import Testing
     let wait = Task { try await inventory.waitUntilReceivable() }
     inventory.release(AckID("ack-a"))
 
-    #expect(try await wait.value == 1)
+    try await wait.value
+  }
+
+  @Test func shouldReportWhetherExactlyOnceDeliveryChanged() {
+    let inventory = MessageInventory(flowControl: flowControl(messages: 1))
+
+    #expect(!inventory.setExactlyOnceDelivery(false))
+    #expect(inventory.setExactlyOnceDelivery(true))
+    #expect(inventory.exactlyOnceDelivery)
+    #expect(inventory.ackDeadline == .seconds(60))
+    #expect(!inventory.setExactlyOnceDelivery(true))
   }
 
   @Test func shouldThrowWhenWaitingTaskIsCancelled() async throws {
@@ -445,7 +452,7 @@ private func flowControl(messages: Int, bytes: Int = 1_000_000)
 }
 
 private func message(_ id: String, size: Int = 0) -> Google_Pubsub_V1_ReceivedMessage {
-  FakePullTransport.message(id: id, size: size)
+  FakeStreamingPullConnection.message(id: id, size: size)
 }
 
 private func item(_ id: String, size: Int = 0) -> MessageInventory.Item {

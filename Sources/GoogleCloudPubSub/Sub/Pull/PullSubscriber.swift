@@ -2,7 +2,6 @@ import Foundation
 import GRPCCore
 import GoogleCloudAuth
 import Logging
-import NIO
 import ServiceLifecycle
 import Tracing
 
@@ -14,7 +13,7 @@ public final class PullSubscriber<Handler: _Handler>: Service {
   let client: Google_Pubsub_V1_Subscriber.ClientProtocol
   let publisherClient: Google_Pubsub_V1_Publisher.ClientProtocol
   let pubSubService: PubSubService
-  let pullTransport: any PullTransport
+  let receiver: StreamingPullReceiver
   let ackBatcher: AckBatcher<ContinuousClock>
   private let now: @Sendable () -> ContinuousClock.Instant
   private let sleep: @Sendable (_ deadline: ContinuousClock.Instant) async throws -> Void
@@ -68,7 +67,7 @@ public final class PullSubscriber<Handler: _Handler>: Service {
     deleteSubscriptionOnShutdown: Bool = false,
     options: PullSubscriberOptions = PullSubscriberOptions(),
     pubSubService: PubSubService,
-    pullTransport: (any PullTransport)? = nil,
+    streamingPullConnection: (any StreamingPullConnection)? = nil,
     ackTransport: (any AckTransport)? = nil
   ) {
     self.init(
@@ -77,21 +76,22 @@ public final class PullSubscriber<Handler: _Handler>: Service {
       deleteSubscriptionOnShutdown: deleteSubscriptionOnShutdown,
       options: options,
       pubSubService: pubSubService,
-      pullTransport: pullTransport,
+      streamingPullConnection: streamingPullConnection,
       ackTransport: ackTransport,
       clock: ContinuousClock(),
       leaseGenerator: SystemRandomNumberGenerator())
   }
 
-  /// - Parameter clock: Times lease renewals and shutdown, and is the time messages are received
-  ///   and released at. Acks and nacks are batched with a `ContinuousClock` regardless.
+  /// - Parameter clock: Times lease renewals, keepalives, reconnects and shutdown, and is the time
+  ///   messages are received and released at. Acks and nacks are batched with a `ContinuousClock`
+  ///   regardless.
   init<SubscriberClock: Clock>(
     handler: Handler,
     projectID: String,
     deleteSubscriptionOnShutdown: Bool = false,
     options: PullSubscriberOptions = PullSubscriberOptions(),
     pubSubService: PubSubService,
-    pullTransport: (any PullTransport)? = nil,
+    streamingPullConnection: (any StreamingPullConnection)? = nil,
     ackTransport: (any AckTransport)? = nil,
     clock: SubscriberClock,
     leaseGenerator: some RandomNumberGenerator & Sendable
@@ -99,8 +99,12 @@ public final class PullSubscriber<Handler: _Handler>: Service {
   where
     SubscriberClock.Duration == Duration, SubscriberClock.Instant == ContinuousClock.Instant
   {
-    self.now = { clock.now }
-    self.sleep = { try await clock.sleep(until: $0, tolerance: nil) }
+    let now: @Sendable () -> ContinuousClock.Instant = { clock.now }
+    let sleep: @Sendable (ContinuousClock.Instant) async throws -> Void = {
+      try await clock.sleep(until: $0, tolerance: nil)
+    }
+    self.now = now
+    self.sleep = sleep
     self.runLeases = { inventory, logger, extendDeadlines in
       await LeaseManager(
         inventory: inventory,
@@ -116,11 +120,25 @@ public final class PullSubscriber<Handler: _Handler>: Service {
     self.projectID = projectID
     self.logger = logger
     self.handler = handler
+    let publisherClient = Google_Pubsub_V1_Publisher.Client(wrapping: pubSubService.grpcClient)
     self.client = client
-    self.publisherClient = Google_Pubsub_V1_Publisher.Client(wrapping: pubSubService.grpcClient)
+    self.publisherClient = publisherClient
     self.pubSubService = pubSubService
-    self.pullTransport =
-      pullTransport ?? GRPCPullTransport(client: client, subscriptionID: subscriptionID)
+    self.receiver = StreamingPullReceiver(
+      connection: streamingPullConnection ?? client,
+      subscriptionID: subscriptionID,
+      clientID: UUID().uuidString,
+      flowControl: options.flowControl,
+      logger: logger,
+      now: now,
+      sleep: sleep,
+      createSubscription: { [subscription = handler.subscription] in
+        try await pubSubService.create(
+          subscription: subscription,
+          subscriberClient: client,
+          publisherClient: publisherClient,
+          projectID: projectID)
+      })
     self.ackBatcher = AckBatcher(
       transport: ackTransport ?? GRPCAckTransport(client: client, subscriptionID: subscriptionID),
       logger: logger)
@@ -198,7 +216,7 @@ public final class PullSubscriber<Handler: _Handler>: Service {
         let flushDeadline = await withDiscardingTaskGroup { handlerGroup in
           handlerGroup.addTask {
             await cancelWhenGracefulShutdown {
-              await self.receive(into: inventory)
+              await self.receiver.run(into: inventory, ackBatcher: self.ackBatcher)
             }
             let held = inventory.stopReceiving()
             if !Task.isCancelled {
@@ -293,78 +311,6 @@ public final class PullSubscriber<Handler: _Handler>: Service {
       }
       defer { group.cancelAll() }
       return await group.next()!
-    }
-  }
-
-  private func receive(into inventory: MessageInventory) async {
-    var backoff = ExponentialBackoff()
-    while true {
-      let maxMessages: Int
-      do {
-        maxMessages = try await inventory.waitUntilReceivable()
-      } catch {
-        return
-      }
-
-      do {
-        let messages = try await pullTransport.pull(maxMessages: maxMessages)
-        let received = inventory.add(messages, now: now())
-        // Tells Pub/Sub the messages arrived and aligns its deadline with the one leased here.
-        ackBatcher.enqueueModifyDeadlines(received.accepted, to: received.ackDeadline)
-        ackBatcher.enqueueNacks(received.rejected)
-        backoff.reset()
-      } catch {
-        if Task.isCancelled {
-          break
-        }
-
-        if let error = error as? RPCError, error.code == .notFound {
-          do {
-            try await pubSubService.create(
-              subscription: handler.subscription,
-              subscriberClient: client,
-              publisherClient: publisherClient,
-              projectID: projectID
-            )
-          } catch {
-            logger.error("Failed to create subscription: \(error)")
-          }
-        }
-
-        let log:
-          (
-            @autoclosure () -> Logger.Message, @autoclosure () -> Logger.Metadata?, String, String,
-            UInt
-          ) -> Void
-        switch error as? ChannelError {
-        case .ioOnClosedChannel:
-          log = logger.debug
-        default:
-          switch (error as? RPCError)?.code ?? .unknown {
-          case .unavailable:
-            #if DEBUG
-              // Common issue with emulator that connections are closed with unavailable.
-              // Log as trace to avoid flooding the logs.
-              log = logger.trace
-            #else
-              log = logger.debug
-            #endif
-          case .deadlineExceeded:
-            log = logger.debug
-            // Idle pulls can end with deadline exceeded, so it must not escalate the backoff.
-            backoff.reset()
-          default:
-            log = logger.warning
-          }
-        }
-        let delay = backoff.next()
-
-        log(
-          "Pull failed for \(handler.subscription.name) (retry in \(delay)): \(error)",
-          nil, #file, #function, #line)
-
-        try? await Task.sleep(for: delay)
-      }
     }
   }
 

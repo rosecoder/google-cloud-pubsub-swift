@@ -218,7 +218,7 @@ import Testing
   }
 
   private func message(_ id: String) -> Google_Pubsub_V1_ReceivedMessage {
-    FakePullTransport.message(id: id, size: 0)
+    FakeStreamingPullConnection.message(id: id, size: 0)
   }
 }
 
