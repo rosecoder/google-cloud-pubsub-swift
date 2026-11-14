@@ -3,7 +3,7 @@ import Testing
 
 @testable import GoogleCloudPubSub
 
-@Suite(.tags(.integration))
+@Suite(.tags(.integration), .timeLimit(.minutes(1)))
 struct PublisherIntegrationTests {
 
   @Test func shouldPublish() async throws {

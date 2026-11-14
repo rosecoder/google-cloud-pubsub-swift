@@ -5,7 +5,8 @@ import Testing
 
 @testable import GoogleCloudPubSub
 
-@Suite struct AckBatcherTests {
+@Suite(.timeLimit(.minutes(1)))
+struct AckBatcherTests {
 
   typealias Configuration = AckBatcher<TestClock>.Configuration
 
@@ -447,8 +448,7 @@ import Testing
     }
   }
 
-  @Test(.timeLimit(.minutes(1)))
-  func shouldCancelInFlightRPCsAtFlushDeadline() async throws {
+  @Test func shouldCancelInFlightRPCsAtFlushDeadline() async throws {
     let transport = FakeAckTransport { _, _ in
       try await Task.sleep(for: .seconds(3_600))
     }
