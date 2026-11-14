@@ -203,14 +203,19 @@ public final class PullSubscriber<Handler: _Handler>: Service {
       }
       let flushDeadline = await withDiscardingTaskGroup { leaseGroup in
         leaseGroup.addTask {
-          await self.runLeases(inventory, self.logger) { [ackBatcher = self.ackBatcher] ids, deadline in
-            await ackBatcher.modifyDeadlines(ids, to: deadline)
+          await self.withHighPriority {
+            await self.runLeases(inventory, self.logger) {
+              [ackBatcher = self.ackBatcher] ids, deadline in
+              await ackBatcher.modifyDeadlines(ids, to: deadline)
+            }
           }
         }
         let flushDeadline = await withDiscardingTaskGroup { handlerGroup in
           handlerGroup.addTask {
-            await cancelWhenGracefulShutdown {
-              await self.receiver.run(into: inventory, ackBatcher: self.ackBatcher)
+            await self.withHighPriority {
+              await cancelWhenGracefulShutdown {
+                await self.receiver.run(into: inventory, ackBatcher: self.ackBatcher)
+              }
             }
             let held = inventory.stopReceiving()
             if !Task.isCancelled {
@@ -232,6 +237,23 @@ public final class PullSubscriber<Handler: _Handler>: Service {
         return flushDeadline
       }
       ackBatcher.finish(flushBy: .now.advanced(by: now().duration(to: flushDeadline)))
+    }
+  }
+
+  /// Runs `body` at high priority, so that leases and the stream are kept up while handlers keep
+  /// every thread busy, forwarding cancellation to it.
+  ///
+  /// Task group children run at their parent's priority even when added with a higher one, so
+  /// this takes an unstructured task. It inherits task-local values, such as the graceful shutdown
+  /// handler.
+  private func withHighPriority(_ body: @escaping @Sendable () async -> Void) async {
+    let task = Task(priority: .high) {
+      await body()
+    }
+    await withTaskCancellationHandler {
+      await task.value
+    } onCancel: {
+      task.cancel()
     }
   }
 

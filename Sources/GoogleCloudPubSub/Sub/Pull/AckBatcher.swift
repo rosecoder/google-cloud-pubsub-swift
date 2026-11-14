@@ -332,8 +332,9 @@ final class AckBatcher<C: Clock>: Sendable where C.Duration == Duration {
     precondition(!alreadyStarted, "run() must only be called once")
 
     // Awaited right away, so its lifetime is still bound to run(); it only exists to keep
-    // cancellation from reaching the RPCs.
-    let loop = Task {
+    // cancellation from reaching the RPCs, and to send them at high priority while handlers keep
+    // every thread busy, which a task group child added with a higher priority would not.
+    let loop = Task(priority: .high) {
       await withDiscardingTaskGroup { group in
         while true {
           switch await nextBatches() {
