@@ -67,14 +67,14 @@ import Testing
     let ackGate = Gate()
     let ackTransport = FakeAckTransport { call, _ in
       if call.kind == .acknowledge {
-        await ackGate.wait()
+        try await ackGate.wait()
       }
     }
     let returned = Flag()
     connection.deliver([message("a")])
     let subscriber = makeSubscriber(
       .waitForProcessing(timeout: .seconds(30)), ackTransport: ackTransport,
-      handle: { _ in await handlerGate.wait() })
+      handle: { _ in try await handlerGate.wait() })
 
     try await testGracefulShutdown { shutdownTrigger in
       let run = Task {
@@ -92,7 +92,7 @@ import Testing
       #expect(!returned.isSet)
 
       ackGate.open()
-      await run.value
+      await run.cancellableValue
     }
 
     #expect(probe.finished == ["a": false])

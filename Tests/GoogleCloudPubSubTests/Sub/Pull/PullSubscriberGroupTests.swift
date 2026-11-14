@@ -58,10 +58,11 @@ import Testing
       gracefulShutdownSignals: [], logger: Logger(label: "test.pull-subscriber-group"))
 
     let run = Task { try await serviceGroup.run() }
+    defer { run.cancel() }
     try await waitUntil { probe.started.count == 3 }
     failure.open()
 
-    await #expect(throws: SubscriberFailure.self) { try await run.value }
+    await #expect(throws: SubscriberFailure.self) { try await run.cancellableValue }
     #expect(probe.finished == ["0": false, "1": false, "2": false])
     #expect(Set(ackTransport.ids(of: .acknowledge)) == ackIDs(count: 3))
     #expect(service.clientUsage.users == 0)
@@ -141,6 +142,7 @@ import Testing
       services: services, gracefulShutdownSignals: [],
       logger: Logger(label: "test.pull-subscriber-group"))
     let run = Task { try await serviceGroup.run() }
+    defer { run.cancel() }
     try await waitUntil { probe.started.count == Self.subscriberCount }
 
     let start = ContinuousClock.now
@@ -201,7 +203,7 @@ private struct FailingService: Service {
   let gate: Gate?
 
   func run() async throws {
-    await gate?.wait()
+    try await gate?.wait()
     throw SubscriberFailure()
   }
 }

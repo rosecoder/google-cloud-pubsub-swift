@@ -128,12 +128,13 @@ import Testing
         onCreateHTTP2Stream: nil),
       emulatorHost: "127.0.0.1:\(server.port)")
     let gate = Gate()
-    let user = Task { try await service.withClientInUse { await gate.wait() } }
+    let user = Task { try await service.withClientInUse { try await gate.wait() } }
+    defer { user.cancel() }
     try await waitUntil { connections.withLock { $0 } > 0 }
 
     let start = ContinuousClock.now
     gate.open()
-    try await user.value
+    try await user.cancellableValue
     #expect(start.duration(to: .now) < .seconds(1))
   }
 
@@ -142,8 +143,10 @@ import Testing
     let service = try PubSubService()
     let userGate = Gate()
     let rpcGate = Gate()
-    let user = Task { try await service.withClientInUse { await userGate.wait() } }
-    let rpc = Task { await service.withRPC { await rpcGate.wait() } }
+    let user = Task { try await service.withClientInUse { try await userGate.wait() } }
+    defer { user.cancel() }
+    let rpc = Task { try await service.withRPC { try await rpcGate.wait() } }
+    defer { rpc.cancel() }
     try await waitUntil { service.clientUsage.users == 1 && service.rpcsInFlight == 1 }
     let hasReturned = Mutex(false)
     let returned = Task {
@@ -157,8 +160,8 @@ import Testing
     #expect(!hasReturned.withLock { $0 })
 
     rpcGate.open()
-    await rpc.value
-    try await returned.value
+    try await rpc.cancellableValue
+    try await returned.cancellableValue
     #expect(service.rpcsInFlight == 0)
   }
 
@@ -166,19 +169,21 @@ import Testing
   func shouldStopClientsRightAwayWhenLastUserIsCancelled() async throws {
     let service = try PubSubService()
     let rpcGate = Gate()
-    let rpc = Task { await service.withRPC { await rpcGate.wait() } }
+    let rpc = Task { try await service.withRPC { try await rpcGate.wait() } }
+    defer { rpc.cancel() }
     try await waitUntil { service.rpcsInFlight == 1 }
     let user = Task {
       try await service.withClientInUse { try? await Task.sleep(for: .seconds(3_600)) }
     }
+    defer { user.cancel() }
     try await waitUntil { service.clientUsage.users == 1 }
 
     let start = ContinuousClock.now
     user.cancel()
-    try await user.value
+    try await user.cancellableValue
     #expect(start.duration(to: .now) < .seconds(1))
     rpcGate.open()
-    await rpc.value
+    try await rpc.cancellableValue
   }
 }
 
