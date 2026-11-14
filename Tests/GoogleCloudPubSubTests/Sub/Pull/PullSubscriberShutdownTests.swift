@@ -62,6 +62,44 @@ import Testing
   }
 
   @Test(.timeLimit(.minutes(1)))
+  func shouldNotReturnBeforeAcksQueuedDuringShutdownAreSent() async throws {
+    let handlerGate = Gate()
+    let ackGate = Gate()
+    let ackTransport = FakeAckTransport { call, _ in
+      if call.kind == .acknowledge {
+        await ackGate.wait()
+      }
+    }
+    let returned = Flag()
+    connection.deliver([message("a")])
+    let subscriber = makeSubscriber(
+      .waitForProcessing(timeout: .seconds(30)), ackTransport: ackTransport,
+      handle: { _ in await handlerGate.wait() })
+
+    try await testGracefulShutdown { shutdownTrigger in
+      let run = Task {
+        await subscriber.receiveAndProcess()
+        returned.set()
+      }
+      defer { ackGate.open() }
+      try await waitUntil { probe.started == ["a"] && ackTransport.calls.count == 1 }
+      shutdownTrigger.triggerGracefulShutdown()
+      try await waitUntil { !connection.isStreaming }
+      handlerGate.open()
+
+      try await waitUntil { ackTransport.ids(of: .acknowledge) == [AckID("ack-a")] }
+      await yieldRepeatedly()
+      #expect(!returned.isSet)
+
+      ackGate.open()
+      await run.value
+    }
+
+    #expect(probe.finished == ["a": false])
+    #expect(ackTransport.ids(of: .modify(.nack)).isEmpty)
+  }
+
+  @Test(.timeLimit(.minutes(1)))
   func shouldNackRemainingMessagesAndCancelHandlersOneSecondBeforeTimeout() async throws {
     connection.deliver([message("a")])
 
@@ -237,6 +275,7 @@ import Testing
     lease: PullSubscriberOptions.Lease = .init(),
     pubSubService: PubSubService? = nil,
     connection: FakeStreamingPullConnection? = nil,
+    ackTransport: FakeAckTransport? = nil,
     handle: @escaping @Sendable (String) async throws -> Void
   ) -> PullSubscriber<CallbackHandler<DataMessage>> {
     let handler = CallbackHandler(
@@ -254,7 +293,7 @@ import Testing
         shutdownBehavior: shutdownBehavior),
       pubSubService: try! pubSubService ?? PubSubService(),
       streamingPullConnection: connection ?? self.connection,
-      ackTransport: ackTransport,
+      ackTransport: ackTransport ?? self.ackTransport,
       clock: clock,
       leaseGenerator: SplitMix64(seed: 1)
     )
@@ -291,5 +330,18 @@ final class HandlerProbe: Sendable {
       state.withLock { $0.finished[id] = isCancelled }
     }
     try await body()
+  }
+}
+
+private final class Flag: Sendable {
+
+  private let value = Mutex(false)
+
+  var isSet: Bool {
+    value.withLock { $0 }
+  }
+
+  func set() {
+    value.withLock { $0 = true }
   }
 }

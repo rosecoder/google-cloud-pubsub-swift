@@ -150,7 +150,8 @@ final class MessageInventory: Sendable {
     return mutate { $0.add(items, now: now) }
   }
 
-  /// Frees the capacity of a message once it has been acked or nacked. Unknown IDs are ignored.
+  /// Frees the capacity of a message once its ack or nack has been queued, or with exactly-once
+  /// delivery once it has been sent. Unknown IDs are ignored.
   func release(_ id: AckID, now: ContinuousClock.Instant = .now) {
     mutate { $0.release(id, now: now) }
   }

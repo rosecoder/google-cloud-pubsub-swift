@@ -233,16 +233,18 @@ import Testing
     try await withBatcher(transport: transport) { batcher in
       batcher.enqueueModifyDeadlines([AckID("a"), AckID("b")], to: .seconds(20))
       batcher.enqueueNacks([AckID("c")])
-      #expect(batcher.queuedCount == 3)
+      batcher.enqueueAcks([AckID("d")])
+      #expect(batcher.queuedCount == 4)
       #expect(batcher.waiterCount == 0)
 
       clock.advance(by: .milliseconds(100))
-      try await waitUntil { transport.calls.count == 2 }
+      try await waitUntil { transport.calls.count == 3 }
 
       #expect(
         transport.normalizedCalls == [
           .init(.modify(.extend(.seconds(20))), ["a", "b"]),
           .init(.modify(.nack), ["c"]),
+          .init(.acknowledge, ["d"]),
         ])
     }
   }

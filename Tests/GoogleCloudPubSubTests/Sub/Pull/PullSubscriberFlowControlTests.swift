@@ -26,23 +26,95 @@ import Testing
   }
 
   @Test(.timeLimit(.minutes(1)))
-  func shouldNotStartMoreHandlersThanMaxOutstandingMessagesUntilAcked() async throws {
-    let ackGate = Gate()
-    let ackTransport = FakeAckTransport { _, _ in await ackGate.wait() }
-    handlerGate.open()
+  func shouldNotStartMoreHandlersThanMaxOutstandingMessages() async throws {
+    let ackTransport = FakeAckTransport()
     connection.deliver([message("a"), message("b"), message("c")])
 
     try await withSubscriber(
       ackTransport: ackTransport, flowControl: .init(maxOutstandingMessages: 2)
     ) {
-      try await waitUntil { !ackTransport.ids(of: .acknowledge).isEmpty }
+      try await waitUntil { recorder.started.count == 2 }
+      await yieldRepeatedly()
       #expect(Set(recorder.started) == ["a", "b"])
       #expect(try await initialRequest().maxOutstandingMessages == 2)
 
-      ackGate.open()
+      handlerGate.open()
       try await waitUntil { ackTransport.ids(of: .acknowledge).count == 3 }
       #expect(recorder.started.sorted() == ["a", "b", "c"])
       #expect(recorder.peakConcurrency <= 2)
+    }
+  }
+
+  @Test(.timeLimit(.minutes(1)))
+  func shouldKeepStartingHandlersWhileAcksAreInFlight() async throws {
+    let ackGate = Gate()
+    let ackTransport = FakeAckTransport { call, _ in
+      if call.kind == .acknowledge {
+        await ackGate.wait()
+      }
+    }
+    handlerGate.open()
+    connection.deliver(["a", "b", "c", "d", "e"].map { message($0) })
+
+    try await withSubscriber(
+      ackTransport: ackTransport, flowControl: .init(maxOutstandingMessages: 2)
+    ) {
+      defer { ackGate.open() }
+      try await waitUntil { Set(ackTransport.ids(of: .acknowledge)).count == 5 }
+      #expect(recorder.started.sorted() == ["a", "b", "c", "d", "e"])
+      #expect(recorder.peakConcurrency <= 2)
+    }
+  }
+
+  @Test(.timeLimit(.minutes(1)))
+  func shouldNotStartMoreHandlersUntilAcksAreSentWithExactlyOnceDelivery() async throws {
+    let ackGate = Gate()
+    let ackTransport = FakeAckTransport { call, _ in
+      if call.kind == .acknowledge {
+        await ackGate.wait()
+      }
+    }
+    handlerGate.open()
+    connection.send(
+      .with {
+        $0.subscriptionProperties.exactlyOnceDeliveryEnabled = true
+        $0.receivedMessages = [message("a"), message("b")]
+      })
+
+    try await withSubscriber(
+      ackTransport: ackTransport, flowControl: .init(maxOutstandingMessages: 1)
+    ) {
+      defer { ackGate.open() }
+      try await waitUntil { ackTransport.ids(of: .acknowledge) == [AckID("ack-a")] }
+      await yieldRepeatedly()
+      #expect(recorder.started == ["a"])
+
+      ackGate.open()
+      try await waitUntil { ackTransport.ids(of: .acknowledge).count == 2 }
+      #expect(recorder.started == ["a", "b"])
+    }
+  }
+
+  @Test(.timeLimit(.minutes(1)))
+  func shouldHandleAtTheRateOfHandlersRegardlessOfAckLatency() async throws {
+    let ackTransport = FakeAckTransport { call, _ in
+      if call.kind == .acknowledge {
+        try await Task.sleep(for: .milliseconds(100))
+      }
+    }
+    let count = 200
+    handlerGate.open()
+    connection.deliver((0..<count).map { message("\($0)") })
+
+    try await withSubscriber(
+      ackTransport: ackTransport, flowControl: .init(maxOutstandingMessages: 10),
+      handle: { _ in try await Task.sleep(for: .milliseconds(50)) }
+    ) {
+      let start = ContinuousClock.now
+      try await waitUntil(timeout: .seconds(20)) { recorder.finishedCount == count }
+      let rate = Double(count) / (start.duration(to: .now) / .seconds(1))
+      // 10 handlers taking 50 ms each handle at most 200 messages per second.
+      #expect(rate > 150, "Handled \(rate) messages per second")
     }
   }
 
@@ -168,12 +240,19 @@ import Testing
     return try #require(connection.streams.first?.requests.first)
   }
 
+  private func yieldRepeatedly() async {
+    for _ in 0..<1_000 {
+      await Task.yield()
+    }
+  }
+
   /// Leases are only renewed, and shutdown timeouts only pass, when `clock` is advanced.
   private func withSubscriber(
     ackTransport: FakeAckTransport,
     flowControl: PullSubscriberOptions.FlowControl = .init(),
     lease: PullSubscriberOptions.Lease = .init(),
     clock: TestClock = TestClock(),
+    handle: @escaping @Sendable (String) async throws -> Void = { _ in },
     _ body: () async throws -> Void
   ) async throws {
     let handler = CallbackHandler(
@@ -181,6 +260,7 @@ import Testing
     ) { [recorder, handlerGate] message in
       try await recorder.record(message.id) {
         await handlerGate.wait()
+        try await handle(message.id)
         if message.id == "fail" {
           throw HandlerError()
         }
@@ -225,6 +305,7 @@ final class HandlerRecorder: Sendable {
     var started: [String] = []
     var running = 0
     var peakConcurrency = 0
+    var finishedCount = 0
   }
 
   private let state = Mutex(State())
@@ -237,6 +318,10 @@ final class HandlerRecorder: Sendable {
     state.withLock { $0.peakConcurrency }
   }
 
+  var finishedCount: Int {
+    state.withLock { $0.finishedCount }
+  }
+
   func record(_ id: String, _ body: () async throws -> Void) async rethrows {
     state.withLock { state in
       state.started.append(id)
@@ -244,7 +329,10 @@ final class HandlerRecorder: Sendable {
       state.peakConcurrency = max(state.peakConcurrency, state.running)
     }
     defer {
-      state.withLock { $0.running -= 1 }
+      state.withLock { state in
+        state.running -= 1
+        state.finishedCount += 1
+      }
     }
     try await body()
   }
