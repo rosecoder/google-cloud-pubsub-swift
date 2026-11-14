@@ -41,7 +41,7 @@ import Testing
     connection.deliver([message("a"), message("b")])
 
     try await withSubscriber(
-      .waitForProcessing(timeout: .seconds(30)), handle: { _ in await gate.wait() }
+      .waitForProcessing(timeout: .seconds(30)), handle: { _ in try await gate.wait() }
     ) { shutdown in
       try await waitUntil { probe.started == ["a"] && ackTransport.calls.count == 1 }
       shutdown()
@@ -161,9 +161,10 @@ import Testing
       handle: { _ in try await Task.sleep(for: .seconds(3_600)) })
 
     let run = Task { await subscriber.receiveAndProcess() }
+    defer { run.cancel() }
     try await waitUntil { probe.started == ["a"] && ackTransport.calls.count == 1 }
     run.cancel()
-    await run.value
+    await run.cancellableValue
 
     #expect(ackTransport.ids(of: .modify(.nack)).isEmpty)
     #expect(ackTransport.ids(of: .acknowledge).isEmpty)
@@ -178,7 +179,7 @@ import Testing
     let gate = Gate()
     let busy = makeSubscriber(
       .waitForProcessing(timeout: .seconds(30)), pubSubService: service,
-      handle: { _ in await gate.wait() })
+      handle: { _ in try await gate.wait() })
     let idle = makeSubscriber(
       .waitForProcessing(timeout: .seconds(30)), pubSubService: service,
       connection: FakeStreamingPullConnection(), handle: { _ in })
@@ -186,16 +187,18 @@ import Testing
 
     try await testGracefulShutdown { shutdownTrigger in
       let busyRun = Task { try await busy.run() }
+      defer { busyRun.cancel() }
       let idleRun = Task { try await idle.run() }
+      defer { idleRun.cancel() }
       try await waitUntil { probe.started == ["a"] && service.clientUsage.users == 2 }
 
       shutdownTrigger.triggerGracefulShutdown()
-      try await idleRun.value
+      try await idleRun.cancellableValue
       #expect(service.clientUsage.users == 1)
       #expect(!service.clientUsage.hasBegunShutdown)
 
       gate.open()
-      try await busyRun.value
+      try await busyRun.cancellableValue
       #expect(service.clientUsage.hasBegunShutdown)
       #expect(ackTransport.ids(of: .acknowledge) == [AckID("ack-a")])
     }
@@ -213,7 +216,7 @@ import Testing
     let subscribers = connections.map { connection in
       makeSubscriber(
         .waitForProcessing(timeout: .seconds(30)), pubSubService: service, connection: connection,
-        handle: { _ in await gate.wait() })
+        handle: { _ in try await gate.wait() })
     }
     for (index, connection) in connections.enumerated() {
       connection.deliver([message("\(index)")])
@@ -223,6 +226,7 @@ import Testing
       logger: Logger(label: "test.pull-subscriber-shutdown"))
 
     let run = Task { try await serviceGroup.run() }
+    defer { run.cancel() }
     try await waitUntil { probe.started.count == subscriberCount }
     await serviceGroup.triggerGracefulShutdown()
     gate.open()
@@ -263,10 +267,10 @@ import Testing
         try await body { shutdownTrigger.triggerGracefulShutdown() }
       } catch {
         run.cancel()
-        await run.value
+        await run.cancellableValue
         throw error
       }
-      await run.value
+      await run.cancellableValue
     }
   }
 
