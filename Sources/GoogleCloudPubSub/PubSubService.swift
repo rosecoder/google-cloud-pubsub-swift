@@ -49,14 +49,16 @@ actor PubSubService {
 
   /// - Parameter maxStreamsPerConnection: Streaming pulls per HTTP/2 connection, below the
   ///   ~100 concurrent streams Google front ends allow to leave room for unary RPCs.
+  /// - Parameter emulatorHost: `host:port` of a Pub/Sub emulator to use instead of Google Cloud.
   init(
     maxStreamsPerConnection: Int = 80,
-    channelDebuggingCallbacks: HTTP2ClientTransport.Config.ChannelDebuggingCallbacks = .defaults
+    channelDebuggingCallbacks: HTTP2ClientTransport.Config.ChannelDebuggingCallbacks = .defaults,
+    emulatorHost: String? = ProcessInfo.processInfo.environment["PUBSUB_EMULATOR_HOST"]
   ) throws {
     let target: ResolvableTargets.DNS
     let transportSecurity: HTTP2ClientTransport.Posix.TransportSecurity
     let interceptors: [any ClientInterceptor]
-    if let host = ProcessInfo.processInfo.environment["PUBSUB_EMULATOR_HOST"] {
+    if let host = emulatorHost {
       let components = host.components(separatedBy: ":")
       let port = Int(components[1])!
 
@@ -155,15 +157,17 @@ actor PubSubService {
   private struct State {
     var usage = ClientUsage()
     var run: Task<Void, any Error>?
+    var rpcsInFlight = 0
+    var rpcsFinished: CheckedContinuation<Void, Never>?
   }
 
   private nonisolated let state = Mutex(State())
 
   /// Runs the clients' connections while `body` runs, sharing them with concurrent callers.
   ///
-  /// Returns as soon as `body` has, unless this was the last caller: it then shuts the clients down
-  /// gracefully and waits until they have stopped, at most ``shutdownTimeout``. Cancelling the last
-  /// caller stops them abruptly.
+  /// Returns as soon as `body` has, unless this was the last caller: it then lets RPCs in flight
+  /// finish, for at most ``shutdownTimeout``, and stops the clients before returning. Cancelling
+  /// the last caller stops them right away.
   ///
   /// - Throws: `RuntimeError` with code `clientIsStopped` without running `body` if the clients
   ///   have already shut down.
@@ -190,9 +194,8 @@ actor PubSubService {
     }
 
     if state.withLock({ $0.usage.release() }) {
-      pool.beginGracefulShutdown()
       do {
-        try await waitUntilStopped(run)
+        try await stopClients(run)
       } catch {
         _ = try result.get()
         throw error
@@ -205,16 +208,14 @@ actor PubSubService {
     .seconds(5)
   }
 
-  /// Cancels `run` if the clients haven't stopped within ``shutdownTimeout``, since the transport's
-  /// graceful shutdown can hang when it begins while a connection is being established.
-  private nonisolated func waitUntilStopped(_ run: Task<Void, any Error>) async throws {
+  /// Rejects new RPCs, waits for the ones in flight and then cancels `run` rather than waiting for
+  /// the transport's graceful shutdown, which also waits for connection attempts in progress: up to
+  /// the connect timeout, or indefinitely if the server never completes the HTTP/2 handshake.
+  private nonisolated func stopClients(_ run: Task<Void, any Error>) async throws {
+    pool.beginGracefulShutdown()
     let hasTimedOut = await withTaskGroup(of: Bool.self) { group in
       group.addTask {
-        _ = await withTaskCancellationHandler {
-          await run.result
-        } onCancel: {
-          run.cancel()
-        }
+        await self.waitUntilRPCsFinished()
         return false
       }
       group.addTask {
@@ -226,11 +227,57 @@ actor PubSubService {
     }
     if hasTimedOut {
       Self.logger.warning(
-        "The gRPC clients didn't shut down gracefully within \(Self.shutdownTimeout) and were stopped."
+        "Cancelled \(state.withLock { $0.rpcsInFlight }) RPCs still in flight \(Self.shutdownTimeout) after the last user of the gRPC clients stopped."
       )
-    } else if !Task.isCancelled {
-      try await run.value
     }
+    run.cancel()
+    if case .failure(let error) = await run.result, !(error is CancellationError) {
+      throw error
+    }
+  }
+
+  private nonisolated func waitUntilRPCsFinished() async {
+    await withTaskCancellationHandler {
+      await withCheckedContinuation { continuation in
+        let hasFinished = state.withLock { state in
+          if state.rpcsInFlight == 0 || Task.isCancelled {
+            return true
+          }
+          state.rpcsFinished = continuation
+          return false
+        }
+        if hasFinished {
+          continuation.resume()
+        }
+      }
+    } onCancel: {
+      state.withLock { state in
+        defer { state.rpcsFinished = nil }
+        return state.rpcsFinished
+      }?.resume()
+    }
+  }
+
+  /// Keeps the clients from being stopped while `body` runs an RPC, which may be started without
+  /// holding them through ``withClientInUse(_:)``, such as a publish from outside a service.
+  nonisolated func withRPC<T: Sendable>(_ body: @Sendable () async throws -> T) async rethrows -> T
+  {
+    state.withLock { $0.rpcsInFlight += 1 }
+    defer {
+      state.withLock { state -> CheckedContinuation<Void, Never>? in
+        state.rpcsInFlight -= 1
+        guard state.rpcsInFlight == 0 else {
+          return nil
+        }
+        defer { state.rpcsFinished = nil }
+        return state.rpcsFinished
+      }?.resume()
+    }
+    return try await body()
+  }
+
+  nonisolated var rpcsInFlight: Int {
+    state.withLock { $0.rpcsInFlight }
   }
 
   nonisolated var clientUsage: ClientUsage {
@@ -248,11 +295,11 @@ actor PubSubService {
         ofKind: .producer
       ) { span in
         span.attributes["pubsub/topic"] = topic.name
-        _ = try await publisherClient.createTopic(
-          .with {
-            $0.name = topic.id(projectID: projectID)
-            $0.labels = topic.labels
-          })
+        let request = Google_Pubsub_V1_Topic.with {
+          $0.name = topic.id(projectID: projectID)
+          $0.labels = topic.labels
+        }
+        _ = try await withRPC { try await publisherClient.createTopic(request) }
       }
     } catch let error as RPCError where error.code == .alreadyExists {
       // pass
@@ -272,29 +319,28 @@ actor PubSubService {
         ofKind: .producer
       ) { span in
         span.attributes["pubsub/subscription"] = subscription.name
-        _ = try await subscriberClient.createSubscription(
-          .with {
-            $0.name = subscription.id(projectID: projectID)
-            $0.labels = subscription.labels
-            $0.topic = subscription.topic.id(projectID: projectID)
-            $0.ackDeadlineSeconds = Int32(subscription.acknowledgeDeadline)
-            $0.retainAckedMessages = subscription.retainAcknowledgedMessages
-            $0.messageRetentionDuration = .with {
-              $0.seconds = Int64(subscription.messageRetentionDuration)
+        let request = Google_Pubsub_V1_Subscription.with {
+          $0.name = subscription.id(projectID: projectID)
+          $0.labels = subscription.labels
+          $0.topic = subscription.topic.id(projectID: projectID)
+          $0.ackDeadlineSeconds = Int32(subscription.acknowledgeDeadline)
+          $0.retainAckedMessages = subscription.retainAcknowledgedMessages
+          $0.messageRetentionDuration = .with {
+            $0.seconds = Int64(subscription.messageRetentionDuration)
+          }
+          $0.expirationPolicy = .with {
+            $0.ttl = .with {
+              $0.seconds = Int64(subscription.expirationPolicyDuration)
             }
-            $0.expirationPolicy = .with {
-              $0.ttl = .with {
-                $0.seconds = Int64(subscription.expirationPolicyDuration)
-              }
+          }
+          if let deadLetterPolicy = subscription.deadLetterPolicy {
+            $0.deadLetterPolicy = .with {
+              $0.deadLetterTopic = deadLetterPolicy.topic.id(projectID: projectID)
+              $0.maxDeliveryAttempts = deadLetterPolicy.maxDeliveryAttempts
             }
-            if let deadLetterPolicy = subscription.deadLetterPolicy {
-              $0.deadLetterPolicy = .with {
-                $0.deadLetterTopic = deadLetterPolicy.topic.id(projectID: projectID)
-                $0.maxDeliveryAttempts = deadLetterPolicy.maxDeliveryAttempts
-              }
-            }
-
-          })
+          }
+        }
+        _ = try await withRPC { try await subscriberClient.createSubscription(request) }
       }
     } catch let error as RPCError {
       switch error.code {
@@ -327,18 +373,19 @@ actor PubSubService {
     subscriberClient: Google_Pubsub_V1_Subscriber.ClientProtocol,
     projectID: String
   ) async throws {
-    try await withRetryableTask {
+    let request = Google_Pubsub_V1_DeleteSubscriptionRequest.with {
+      $0.subscription = subscription.id(projectID: projectID)
+    }
+    try await withRetryableTask { [service = self] in
       do {
         try await withSpan(
           "pubsub-delete-subscription",
           ofKind: .producer
         ) { span in
           span.attributes["pubsub/subscription"] = subscription.name
-          _ = try await subscriberClient.deleteSubscription(
-            .with {
-              $0.subscription = subscription.id(projectID: projectID)
-            }
-          )
+          _ = try await service.withRPC {
+            try await subscriberClient.deleteSubscription(request)
+          }
         }
       } catch let error as RPCError {
         switch error.code {
