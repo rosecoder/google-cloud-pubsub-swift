@@ -19,11 +19,6 @@ private struct FakePushMessage: Encodable {
   }
 }
 
-extension Topics {
-
-  fileprivate static let test = Topic<PlainTextMessage>(name: "PushSubscriberIntegrationTests")
-}
-
 @Suite(.tags(.integration))
 struct PushSubscriberIntegrationTests {
 
@@ -32,6 +27,7 @@ struct PushSubscriberIntegrationTests {
   @Test(.timeLimit(.minutes(1)))
   func shouldReceiveMessage() async throws {
     let pubSubService = try PubSubService()
+    let topic = Topic<PlainTextMessage>(name: uniqueName("PushSubscriberIntegrationTests"))
 
     try await testGracefulShutdown { shutdownTrigger in
       // Setup callback handler
@@ -46,7 +42,7 @@ struct PushSubscriberIntegrationTests {
 
       // Setup subscriber
       let handler = CallbackHandler(
-        topic: Topics.test,
+        topic: topic,
         callback: { message in
           callbackContinuation.withLock {
             $0?.resume(returning: message)

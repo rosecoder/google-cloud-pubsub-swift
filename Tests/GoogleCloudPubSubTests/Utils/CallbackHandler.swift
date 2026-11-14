@@ -7,9 +7,10 @@ struct CallbackHandler<Message: GoogleCloudPubSub.Message>: Handler {
 
   init(
     topic: Topic<Message>,
+    subscriptionName: String? = nil,
     callback: @escaping @Sendable (Incoming) async throws -> Void
   ) {
-    self.subscription = Subscription(name: "test", topic: topic)
+    self.subscription = Subscription(name: subscriptionName ?? topic.name, topic: topic)
     self.callback = callback
   }
 

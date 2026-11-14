@@ -5,19 +5,14 @@ import Testing
 
 @testable import GoogleCloudPubSub
 
-extension Topics {
-
-  fileprivate static let test = Topic<PlainTextMessage>(
-    name: "WithDisposablePullSubscriberIntegrationTests"
-  )
-}
-
 @Suite(.tags(.integration))
 struct WithDisposablePullSubscriberIntegrationTests {
 
   @Test(.timeLimit(.minutes(1)))
   func shouldReceiveMessage() async throws {
     let pubSubService = try PubSubService()
+    let topic = Topic<PlainTextMessage>(
+      name: uniqueName("WithDisposablePullSubscriberIntegrationTests"))
 
     try await testGracefulShutdown { shutdownTrigger in
       // Setup publisher
@@ -35,8 +30,8 @@ struct WithDisposablePullSubscriberIntegrationTests {
 
       // Setup subscriber
       let subscription = Subscription(
-        name: "test-\(Int.random(in: 0 ... .max))",
-        topic: Topics.test
+        name: uniqueName("WithDisposablePullSubscriberIntegrationTests"),
+        topic: topic
       )
       let subscriberRunTask = Task {
         try await withDisposablePullSubscriber(
@@ -50,7 +45,7 @@ struct WithDisposablePullSubscriberIntegrationTests {
 
       // Publish message
       try await Task.sleep(for: .milliseconds(200))
-      let publishedMessage = try await publisher.publish(to: Topics.test, body: "Hello")
+      let publishedMessage = try await publisher.publish(to: topic, body: "Hello")
 
       // Wait for message
       let receivedMessage = try #require(await messageStream.first(where: { _ in true }))
