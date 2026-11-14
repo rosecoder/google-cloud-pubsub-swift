@@ -37,6 +37,35 @@ struct SharedClientShutdownIntegrationTests {
   }
 
   @Test(.timeLimit(.minutes(1)))
+  func shouldDrainSubscriberGroupConcurrentlyBeforePublisherInOneServiceGroup() async throws {
+    let connections = OpenConnections()
+    let pubSubService = try PubSubService(channelDebuggingCallbacks: connections.callbacks)
+    let (drained, drainedContinuation) = AsyncStream.makeStream(of: Void.self)
+    let subscribers = makeSubscribers(count: 5, pubSubService: pubSubService) {
+      try await gracefulShutdown()
+      try await Task.sleep(for: .seconds(1))
+      drainedContinuation.yield()
+    }
+    let publisher = Publisher(projectID: projectID, pubSubService: pubSubService)
+    let serviceGroup = ServiceGroup(
+      services: [publisher, PullSubscriberGroup(subscribers.subscribers)],
+      gracefulShutdownSignals: [], logger: Logger(label: "test.shared-client-shutdown"))
+
+    let run = Task { try await serviceGroup.run() }
+    try await publishAndReceiveOneMessageEach(
+      subscribers, publisher: publisher, pubSubService: pubSubService)
+
+    let start = ContinuousClock.now
+    await serviceGroup.triggerGracefulShutdown()
+    for await _ in drained.prefix(5) {}
+    #expect(start.duration(to: .now) < .seconds(3))
+    // A busy emulator can delay the final acks until the subscribers' shutdown timeout.
+    #expect(try await finishes(run, within: .seconds(35)))
+    #expect(pubSubService.clientUsage.hasBegunShutdown)
+    #expect(connections.count == 0)
+  }
+
+  @Test(.timeLimit(.minutes(1)))
   func shouldKeepPublishingAfterSubscribersSharingServiceExited() async throws {
     let connections = OpenConnections()
     let pubSubService = try PubSubService(channelDebuggingCallbacks: connections.callbacks)
@@ -77,12 +106,19 @@ struct SharedClientShutdownIntegrationTests {
     let received: AsyncStream<String>
   }
 
-  /// Subscribers of their own topic each, which report the topic of every message they receive.
-  private func makeSubscribers(count: Int, pubSubService: PubSubService) -> Subscribers {
+  /// Subscribers of their own topic each, which report the topic of every message they receive
+  /// before running `handle`.
+  private func makeSubscribers(
+    count: Int, pubSubService: PubSubService,
+    handle: @escaping @Sendable () async throws -> Void = {}
+  ) -> Subscribers {
     let (received, receivedContinuation) = AsyncStream.makeStream(of: String.self)
     let handlers = (0..<count).map { _ in
       let topic = Topic<PlainTextMessage>(name: uniqueName("SharedClientShutdownIntegrationTests"))
-      return CallbackHandler(topic: topic) { _ in receivedContinuation.yield(topic.name) }
+      return CallbackHandler(topic: topic) { _ in
+        receivedContinuation.yield(topic.name)
+        try await handle()
+      }
     }
     return Subscribers(
       subscribers: handlers.map {
