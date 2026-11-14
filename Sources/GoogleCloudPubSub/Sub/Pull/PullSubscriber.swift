@@ -98,11 +98,11 @@ public final class PullSubscriber<Handler: _Handler>: Service {
   }
 
   private func continuesPull() async {
-    var retryCount: UInt64 = 0
+    var backoff = ExponentialBackoff()
     while !Task.isCancelled {
       do {
         try await singlePull()
-        retryCount = 0
+        backoff.reset()
       } catch {
         if Task.isCancelled {
           break
@@ -121,7 +121,6 @@ public final class PullSubscriber<Handler: _Handler>: Service {
           }
         }
 
-        var delay: UInt64
         let log:
           (
             @autoclosure () -> Logger.Message, @autoclosure () -> Logger.Metadata?, String, String,
@@ -130,7 +129,6 @@ public final class PullSubscriber<Handler: _Handler>: Service {
         switch error as? ChannelError {
         case .ioOnClosedChannel:
           log = logger.debug
-          delay = 50_000_000  // 50 ms
         default:
           switch (error as? RPCError)?.code ?? .unknown {
           case .unavailable:
@@ -141,24 +139,21 @@ public final class PullSubscriber<Handler: _Handler>: Service {
             #else
               log = logger.debug
             #endif
-            delay = 200_000_000  // 200 ms
           case .deadlineExceeded:
             log = logger.debug
-            delay = 50_000_000  // 50 ms
+            // Idle pulls can end with deadline exceeded, so it must not escalate the backoff.
+            backoff.reset()
           default:
             log = logger.warning
-            delay = 1_000_000_000  // 1 sec
           }
         }
-        delay *= (retryCount + 1)
+        let delay = backoff.next()
 
         log(
-          "Pull failed for \(handler.subscription.name) (retry in \(delay / 1_000_000)ms): \(error)",
+          "Pull failed for \(handler.subscription.name) (retry in \(delay)): \(error)",
           nil, #file, #function, #line)
 
-        try? await Task.sleep(nanoseconds: delay)
-
-        retryCount += 1
+        try? await Task.sleep(for: delay)
       }
     }
   }
