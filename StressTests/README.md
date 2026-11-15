@@ -95,8 +95,10 @@ traffic, building and running in the `swift:6.4-noble` Docker image:
    `--max-run-duration=8h --instance-termination-action=DELETE` as a safety net.
 2. Copy the package (with `git archive`), `run.sh`, `queue.sh` and a scenario file to the VM and
    build: `docker run --rm -v ~/work/main:/src -w /src/StressTests swift:6.4-noble swift build -c release`.
-3. `nohup ./queue.sh scenarios.txt &`. Each line is `<build> <label> [--cpus=N] options…`, where
-   `<build>` is a directory under `~/work`, so several versions of the library can be compared.
+3. `nohup ./queue.sh scenarios.txt &`, with the scenarios of `scripts/gce/scenarios.txt` or your
+   own. Each line is `<build> <label> [--cpus=N] options…`, where `<build>` is a directory under
+   `~/work`. To compare versions of the library, extract another one (with this `StressTests/`
+   copied in) to `~/work/<name>`, build it too and repeat lines with that name.
    `run.sh` reads the project from the metadata server. Logs go to `~/results/logs/`, results to
    `~/results/<build>/`.
 4. Delete the VM, and run `mode=cleanup` if a run was killed.
