@@ -76,6 +76,8 @@ struct Config: Sendable, CustomStringConvertible {
   // Reporting
   var sampleInterval = 5.0
   var logLevel = Logger.Level.warning
+  /// Also writes the library's debug messages about StreamingPull reconnects to events.log.
+  var traceStreams = true
   var outputDirectory = "/tmp/pubsub-stress-results"
   var label = ""
 
@@ -106,7 +108,7 @@ struct Config: Sendable, CustomStringConvertible {
       max-outstanding=1000 max-outstanding-bytes=104857600 ack-deadline=10 retention=3600
       shutdown-timeout=30 nack-immediately=false
       cycles=20 cycle-min=3 cycle-max=10 hang-timeout=90 gap-max=0
-      sample=5 log-level=warning out=/tmp/pubsub-stress-results label=<name>
+      sample=5 log-level=warning trace-streams=true out=/tmp/pubsub-stress-results label=<name>
     """
 
   static func parse(arguments: [String], environment: [String: String]) throws -> Config {
@@ -194,6 +196,7 @@ struct Config: Sendable, CustomStringConvertible {
         throw ConfigError.invalid("\(key)=\(value)")
       }
       logLevel = level
+    case "trace-streams": traceStreams = bool()
     case "out": outputDirectory = value
     case "label": label = value
     case "emulator-host":

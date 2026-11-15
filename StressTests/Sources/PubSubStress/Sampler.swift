@@ -65,6 +65,7 @@ final class Sampler: Sendable {
     var peakFileDescriptors = 0
     var peakTLSConnections = 0
     var peakInFlight = 0
+    var lastFirstPerSubscription: [Int] = []
   }
 
   let config: Config
@@ -73,6 +74,8 @@ final class Sampler: Sendable {
   let startNanos = monotonicNanos()
   private let state = Mutex(State())
   private let csv: FileHandle?
+  /// Per subscription and interval, to tell whether slow deliveries come from a few streams.
+  private let subscriptionCSV: FileHandle?
 
   init(config: Config, trackers: [SubscriptionTracker], load: LoadGenerator, csvPath: String) {
     self.config = config
@@ -81,6 +84,12 @@ final class Sampler: Sendable {
     FileManager.default.createFile(atPath: csvPath, contents: Data((Sample.csvHeader + "\n").utf8))
     csv = FileHandle(forWritingAtPath: csvPath)
     csv?.seekToEndOfFile()
+    let subscriptionPath = (csvPath as NSString).deletingLastPathComponent + "/subscriptions.csv"
+    FileManager.default.createFile(
+      atPath: subscriptionPath,
+      contents: Data("time,subscription,first_deliveries,in_flight,p50_us,p99_us,max_us\n".utf8))
+    subscriptionCSV = FileHandle(forWritingAtPath: subscriptionPath)
+    subscriptionCSV?.seekToEndOfFile()
   }
 
   var elapsed: Double {
@@ -139,10 +148,14 @@ final class Sampler: Sendable {
     var counts = SubscriptionTracker.Counts()
     var latency = Histogram()
     var tracking = 0
+    var perSubscription: [(counts: SubscriptionTracker.Counts, latency: Histogram)] = []
     for tracker in trackers {
-      counts.add(tracker.counts)
-      latency.merge(tracker.takeIntervalLatency())
+      let trackerCounts = tracker.counts
+      let trackerLatency = tracker.takeIntervalLatency()
+      counts.add(trackerCounts)
+      latency.merge(trackerLatency)
       tracking += tracker.trackingBytes
+      perSubscription.append((trackerCounts, trackerLatency))
     }
     let published = load.snapshot.publishedMessages
     let publishLatency = load.takeIntervalLatency()
@@ -178,6 +191,18 @@ final class Sampler: Sendable {
       state.samples.append(sample)
       return sample
     }
+    let previousFirst = state.withLock { state in
+      defer { state.lastFirstPerSubscription = perSubscription.map(\.counts.firstDeliveries) }
+      return state.lastFirstPerSubscription
+    }
+    var subscriptionLines = ""
+    for (index, entry) in perSubscription.enumerated() {
+      let first = entry.counts.firstDeliveries - (index < previousFirst.count ? previousFirst[index] : 0)
+      subscriptionLines +=
+        String(format: "%.1f", time)
+        + ",\(index),\(first),\(entry.counts.inFlight),\(entry.latency.percentile(50)),\(entry.latency.percentile(99)),\(entry.latency.maximum)\n"
+    }
+    subscriptionCSV?.write(Data(subscriptionLines.utf8))
     print(sample.line)
     csv?.write(Data((sample.csvLine + "\n").utf8))
     return sample
