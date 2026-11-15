@@ -14,7 +14,7 @@ let package = Package(
     .package(url: "https://github.com/apple/swift-log.git", from: "1.4.0"),
     .package(url: "https://github.com/apple/swift-distributed-tracing.git", from: "1.1.0"),
     .package(url: "https://github.com/grpc/grpc-swift-protobuf.git", from: "2.0.0"),
-    .package(url: "https://github.com/grpc/grpc-swift-nio-transport.git", from: "2.0.0"),
+    .package(url: "https://github.com/grpc/grpc-swift-nio-transport.git", from: "2.12.0"),
     .package(url: "https://github.com/rosecoder/google-cloud-auth-swift.git", from: "1.3.3"),
     .package(url: "https://github.com/rosecoder/retryable-task.git", from: "1.1.2"),
     .package(

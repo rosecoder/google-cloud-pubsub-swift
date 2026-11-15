@@ -130,6 +130,10 @@ actor PubSubService {
               allowWithoutCalls: true
             )
           )
+          // Google front ends send a PING with about half or more of the unary responses, so the
+          // default of 200 control frames per 10 seconds would make the client close busy
+          // connections.
+          config.http2.rateLimits.controlFrames = RateLimit(maxCount: 65_535, window: .seconds(1))
         },
         serviceConfig: .init(
           methodConfig: [
