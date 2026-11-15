@@ -10,8 +10,25 @@ final class LogCounter: Sendable {
   private static let echoLimit = 3
 
   private let counts = Mutex<[String: Int]>([:])
+  private let events = Mutex<(file: FileHandle?, startNanos: UInt64)>((nil, 0))
+
+  /// Starts writing counted messages, and traced ones, with the sampler's elapsed time.
+  func openEvents(path: String, startNanos: UInt64) {
+    FileManager.default.createFile(atPath: path, contents: nil)
+    let file = FileHandle(forWritingAtPath: path)
+    events.withLock { $0 = (file, startNanos) }
+  }
+
+  func recordEvent(level: Logger.Level, label: String, message: String) {
+    events.withLock { events in
+      guard let file = events.file else { return }
+      let elapsed = Double(monotonicNanos() - events.startNanos) / 1e9
+      file.write(Data(String(format: "%9.3f ", elapsed).appending("\(level) \(label): \(message)\n").utf8))
+    }
+  }
 
   func record(level: Logger.Level, label: String, message: String) {
+    recordEvent(level: level, label: label, message: message)
     let key = "\(level) [\(Self.normalize(label: label))] \(Self.normalize(message: message))"
     let count = counts.withLock { counts in
       counts[key, default: 0] += 1
@@ -70,6 +87,8 @@ struct CountingLogHandler: LogHandler {
 
   let label: String
   var logLevel: Logger.Level
+  /// Less severe messages are only traced, and only when they are about StreamingPull.
+  let countedLevel: Logger.Level
   var metadata: Logger.Metadata = [:]
 
   subscript(metadataKey key: String) -> Logger.Metadata.Value? {
@@ -81,7 +100,14 @@ struct CountingLogHandler: LogHandler {
     level: Logger.Level, message: Logger.Message, metadata: Logger.Metadata?, source: String,
     file: String, function: String, line: UInt
   ) {
-    LogCounter.shared.record(level: level, label: label, message: message.description)
+    let text = message.description
+    guard level >= countedLevel else {
+      if text.hasPrefix("StreamingPull") {
+        LogCounter.shared.recordEvent(level: level, label: label, message: text)
+      }
+      return
+    }
+    LogCounter.shared.record(level: level, label: label, message: text)
   }
 }
 

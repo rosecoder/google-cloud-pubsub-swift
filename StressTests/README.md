@@ -79,7 +79,10 @@ attributes. Per subscription the handler records:
 
 Every `sample` seconds a line is printed and appended to `samples.csv`: publish and receive rates,
 handlers in flight, pending deliveries, RSS, threads, file descriptors, established TLS connections
-(Linux), CPU and latency. `summary.txt` has the totals per phase, graceful shutdown times and every
+(Linux), CPU, delivery latency and publish RPC latency. `subscriptions.csv` has the deliveries and
+latency of each subscription per sample, and `events.log` every counted library log message with
+its time, plus the library's debug messages about StreamingPull reconnects (`trace-streams=false`
+turns those off). `summary.txt` has the totals per phase, graceful shutdown times and every
 library log message counted by kind. The process exits non-zero if a message was lost or a graceful
 shutdown hung.
 

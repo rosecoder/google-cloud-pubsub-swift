@@ -13,7 +13,9 @@ do {
 }
 
 LoggingSystem.bootstrap { label in
-  CountingLogHandler(label: label, logLevel: config.logLevel)
+  CountingLogHandler(
+    label: label, logLevel: config.traceStreams ? min(config.logLevel, .debug) : config.logLevel,
+    countedLevel: config.logLevel)
 }
 
 for signalNumber in [SIGINT, SIGTERM] {
@@ -49,6 +51,8 @@ let resultDirectory =
 try FileManager.default.createDirectory(atPath: resultDirectory, withIntermediateDirectories: true)
 
 let runner = try Runner(config: config, admin: admin, resultDirectory: resultDirectory)
+LogCounter.shared.openEvents(
+  path: resultDirectory + "/events.log", startNanos: runner.sampler.startNanos)
 var runError: (any Error)?
 do {
   try await runner.run()
