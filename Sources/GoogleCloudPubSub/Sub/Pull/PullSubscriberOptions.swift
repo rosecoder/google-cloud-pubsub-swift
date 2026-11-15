@@ -35,6 +35,13 @@ public struct PullSubscriberOptions: Sendable, Hashable {
     /// Also the maximum number of handlers running concurrently, since each outstanding message
     /// is handled in its own task. Lower it if handlers share a limited resource, such as a
     /// connection pool.
+    ///
+    /// It also bounds throughput. The limit is sent to Pub/Sub too, which counts a message as
+    /// outstanding until it receives its acknowledgement, so a subscription receives at most about
+    /// `maxOutstandingMessages` divided by the time from delivery to acknowledgement per second.
+    /// In load tests that time was about half a second even with fast handlers, so the default
+    /// allowed about 2,000 messages per second per subscription. Raise it if a subscription falls
+    /// behind while its handlers are mostly waiting.
     public let maxOutstandingMessages: Int
 
     /// Total size of outstanding message data. A single message larger than this is still
