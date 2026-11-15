@@ -38,6 +38,7 @@ final class LoadGenerator: Sendable {
     var publishRPCs = 0
     var failedRPCs: [String: Int] = [:]
     var latency = Histogram()
+    var intervalLatency = Histogram()
   }
 
   private struct Pacer {
@@ -105,6 +106,14 @@ final class LoadGenerator: Sendable {
 
   var snapshot: Stats {
     stats.withLock { $0 }
+  }
+
+  /// Returns the publish RPC latency histogram since the last call and resets it.
+  func takeIntervalLatency() -> Histogram {
+    stats.withLock { stats in
+      defer { stats.intervalLatency = Histogram() }
+      return stats.intervalLatency
+    }
   }
 
   func stop() {
@@ -190,6 +199,7 @@ final class LoadGenerator: Sendable {
         stats.publishedMessages += count
         stats.publishRPCs += 1
         stats.latency.record(micros: micros)
+        stats.intervalLatency.record(micros: micros)
       }
     } catch {
       unconfirmed.withLock { $0[topic].append(start..<(start + UInt64(count))) }

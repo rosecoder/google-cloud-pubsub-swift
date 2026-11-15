@@ -20,10 +20,12 @@ struct Sample: Sendable {
   var p50: UInt64
   var p99: UInt64
   var max: UInt64
+  var publishP50: UInt64
+  var publishP99: UInt64
   var warnings: Int
 
   static let csvHeader =
-    "time,phase,published,publish_rate,first_deliveries,first_delivery_rate,delivery_rate,in_flight,backlog,resident_mb,tracking_mb,threads,fds,tls_connections,cpu_cores,p50_us,p99_us,max_us,warnings"
+    "time,phase,published,publish_rate,first_deliveries,first_delivery_rate,delivery_rate,in_flight,backlog,resident_mb,tracking_mb,threads,fds,tls_connections,cpu_cores,p50_us,p99_us,max_us,publish_p50_us,publish_p99_us,warnings"
 
   var csvLine: String {
     [
@@ -32,7 +34,7 @@ struct Sample: Sendable {
       String(format: "%.0f", deliveryRate), "\(inFlight)", "\(backlog)",
       String(format: "%.1f", residentMB), String(format: "%.1f", trackingMB), "\(threads)",
       "\(fileDescriptors)", "\(tlsConnections)", String(format: "%.2f", cpuCores),
-      "\(p50)", "\(p99)", "\(max)", "\(warnings)",
+      "\(p50)", "\(p99)", "\(max)", "\(publishP50)", "\(publishP99)", "\(warnings)",
     ].joined(separator: ",")
   }
 
@@ -43,7 +45,7 @@ struct Sample: Sendable {
           " pub %7.0f/s  recv %7.0f/s (all %7.0f/s)  inflight %6d backlog %8d  rss %6.0fMB (track %4.0f)  thr %3d fd %4d tls %3d  cpu %5.2f",
         publishRate, firstDeliveryRate, deliveryRate, inFlight, backlog, residentMB, trackingMB,
         threads, fileDescriptors, tlsConnections, cpuCores)
-      + "  lat p50 \(formatMicros(p50)) p99 \(formatMicros(p99)) max \(formatMicros(max))  warn \(warnings)"
+      + "  lat p50 \(formatMicros(p50)) p99 \(formatMicros(p99)) max \(formatMicros(max))  publish p50 \(formatMicros(publishP50)) p99 \(formatMicros(publishP99))  warn \(warnings)"
   }
 }
 
@@ -143,6 +145,7 @@ final class Sampler: Sendable {
       tracking += tracker.trackingBytes
     }
     let published = load.snapshot.publishedMessages
+    let publishLatency = load.takeIntervalLatency()
     let warnings = LogCounter.shared.total(atLeast: .warning)
     let backlog = pendingDeliveries()
 
@@ -160,6 +163,7 @@ final class Sampler: Sendable {
         fileDescriptors: process.fileDescriptors, tlsConnections: process.tlsConnections,
         cpuCores: (process.cpuSeconds - state.lastCPU) / interval,
         p50: latency.percentile(50), p99: latency.percentile(99), max: latency.maximum,
+        publishP50: publishLatency.percentile(50), publishP99: publishLatency.percentile(99),
         warnings: warnings)
       state.lastTime = time
       state.lastPublished = published
