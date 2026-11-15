@@ -12,7 +12,7 @@ struct PublishRetryTests {
     (RPCError(code: .unavailable, message: "Channel isn't ready."), PublishFailure.transient),
     (RPCError(code: .aborted, message: ""), .transient),
     (RPCError(code: .cancelled, message: ""), .transient),
-    (RPCError(code: .deadlineExceeded, message: ""), .transient),
+    (RPCError(code: .deadlineExceeded, message: ""), .timedOut),
     (RPCError(code: .internalError, message: ""), .transient),
     (RPCError(code: .resourceExhausted, message: ""), .transient),
     (RPCError(code: .unknown, message: ""), .transient),

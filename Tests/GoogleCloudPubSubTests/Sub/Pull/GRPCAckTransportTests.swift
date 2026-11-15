@@ -14,8 +14,8 @@ struct GRPCAckTransportTests {
   @Test func shouldReportTimedOutRPCsAsTimeouts() async throws {
     try await withSubscriberServer(ignoringFirstCalls: .max) { transport, _ in
       let start = ContinuousClock.now
-      // Usually `RPCError(.unknown)` caused by a cancellation, but a plain `CancellationError` when
-      // the timeout fires before the stream is open.
+      // Usually `RPCError(.deadlineExceeded)`, but a plain `CancellationError` when the timeout
+      // fires while the stream is opened.
       let error = await #expect(throws: (any Error).self) {
         try await transport.acknowledge([AckID("a")])
       }

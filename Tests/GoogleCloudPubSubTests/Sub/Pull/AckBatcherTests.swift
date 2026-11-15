@@ -406,7 +406,7 @@ struct AckBatcherTests {
 
   @Test(arguments: [
     (RPCError.Code.unavailable, AckFailure.transient),
-    (.deadlineExceeded, .transient),
+    (.deadlineExceeded, .timedOut),
     (.resourceExhausted, .transient),
     (.aborted, .transient),
     (.internalError, .transient),
