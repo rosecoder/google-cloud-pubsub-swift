@@ -139,6 +139,19 @@ The publisher is listed first so handlers can still publish while the subscriber
 
 **Shutdown timeout.** Set `maximumGracefulShutdownDuration` to at least the `waitForProcessing` timeout plus about 2 seconds for the final acks and closing the connections, and keep it below the time the platform kills the process at. On Kubernetes that's `terminationGracePeriodSeconds`, 30 seconds by default, which is too short for the default 30-second timeout: raise it, for example to 45 seconds, or with `terminationGracePeriodSeconds: 180` use a timeout of up to about 170 seconds. Messages still being handled when the timeout passes are nacked and redelivered.
 
+## Performance
+
+Measured with release builds on an e2-standard-2 VM (2 vCPU, 8 GB) against real Pub/Sub in the same region:
+
+- **100 subscriptions in one process** at 2,000 messages/s in total use about 1.1 cores and 150 MB. End-to-end latency is 7 ms at p50 and 16–18 ms at p99. A 45-minute soak lost no messages, and memory stayed flat.
+- **Receiving:** with 100 subscriptions the process is CPU-bound at about 26,000 messages/s. A 1M-message backlog drains at 11,000–16,000 messages/s.
+- **Publishing** reaches about 3,900 calls/s with single messages and about 150,000 messages/s in batches of 100, with no timeouts at 512 concurrent publishers.
+- **Graceful shutdown** with over 1,000 handlers in flight takes about 0.3 s and loses nothing. Handlers that run past the ack deadline get their leases extended and are not redelivered.
+
+Receive throughput per subscription is bounded by `maxOutstandingMessages` divided by the time from delivery to ack, so raise it for high-volume subscriptions. Streams reconnect every 15 minutes, which causes one brief latency spike (p99 about 0.5 s) without losing messages.
+
+The harness in [`StressTests/`](./StressTests) reproduces these runs.
+
 ## Testing
 
 The package includes a testing module `GoogleCloudPubSubTesting` that provides utilities for testing your Pub/Sub implementation:
