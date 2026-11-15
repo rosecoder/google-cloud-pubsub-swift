@@ -17,8 +17,8 @@ enum AckFailure: Equatable {
   /// The server or connection failed in a way that may not recur.
   case transient
 
-  /// The RPC's own timeout cancelled it, which grpc-swift reports as a cancellation rather than
-  /// as `deadlineExceeded`.
+  /// The RPC's own timeout fired, which grpc-swift reports as `deadlineExceeded`, or as a
+  /// cancellation when it fires while the stream is opened.
   case timedOut
 
   /// The task sending the RPC was cancelled.
@@ -36,9 +36,11 @@ enum AckFailure: Equatable {
     } else if let error = error as? RPCError {
       self =
         switch error.code {
+        case .deadlineExceeded:
+          .timedOut
         case .unknown where error.cause is CancellationError:
           .timedOut
-        case .unavailable, .deadlineExceeded, .resourceExhausted, .aborted, .internalError:
+        case .unavailable, .resourceExhausted, .aborted, .internalError:
           .transient
         default:
           .permanent
