@@ -1,0 +1,41 @@
+# Scenarios run on a c3-standard-8 VM in europe-north1 (see README.md). Format: <build> <label> [--cpus=N] options...
+# <build> is a directory under ~/work holding the library with StressTests/ built in it.
+# S1: 100 subscriptions, 100 msg/s each, 15 min steady
+main s1-100subs subs=100 rate=10000 duration=900 batch=10 publishers=64 max-outstanding=200 max-outstanding-bytes=20971520 sleep-ms=20 sleep-jitter=0.5 sample=10
+# S2a: 1M message backlog drain, 10 subscriptions
+main s2a-backlog subs=10 backlog=100000 duration=0 publishers=64 batch=1000 drain=600 sample=5
+# S2b: live ceiling, 10 subscriptions
+main s2b-ceiling10 subs=10 rate-steps=20000:60,40000:60,60000:60,80000:60,100000:60 publishers=64 batch=500 max-backlog=200000 drain=300 sample=5
+# S2c: live ceiling, 100 subscriptions
+main s2c-ceiling100 subs=100 rate-steps=10000:60,20000:60,40000:60,60000:60 publishers=128 batch=100 max-backlog=200000 max-outstanding=200 max-outstanding-bytes=20971520 drain=300 sample=5
+# S6: graceful shutdown under full load (2 shutdowns mid-load, then a final group drains)
+main s6-shutdown mode=churn subs=50 rate=20000 cycles=2 cycle-min=60 cycle-max=60 sleep-ms=200 sleep-jitter=0.5 shutdown-timeout=10 max-outstanding=200 max-outstanding-bytes=20971520 publishers=128 batch=100 max-backlog=200000 drain=300 sample=5
+# S2d/e: does the ceiling scale with flow control limits?
+main s2d-10subs-out5000 subs=10 max-outstanding=5000 max-outstanding-bytes=209715200 rate-steps=40000:60,80000:60,120000:60 publishers=128 batch=500 max-backlog=300000 drain=300 sample=5
+main s2e-100subs-out1000 subs=100 max-outstanding=1000 max-outstanding-bytes=52428800 rate-steps=40000:60,80000:60,120000:60 publishers=128 batch=100 max-backlog=300000 drain=300 sample=5
+# S3a: 2% of handlers take 35s with a 10s ack deadline
+main s3a-slow subs=10 rate=500 duration=240 sleep-ms=10 slow-rate=0.02 slow-ms=35000 ack-deadline=10 drain=180 sample=5
+# S3b: CPU-bound handlers (5 ms busy each) at ~75% of 8 vCPUs
+main s3b-cpu subs=10 rate=1200 duration=240 cpu-ms=5 ack-deadline=10 max-backlog=20000 drain=300 sample=5
+# S3c: same handlers overloaded on 2 CPUs (needs ~3)
+main s3c-cpu-2cpus --cpus=2 subs=20 rate=600 duration=240 cpu-ms=5 ack-deadline=10 max-backlog=30000 drain=400 sample=5
+# S1 on 2 CPUs
+main s1-100subs-2cpus --cpus=2 subs=100 rate=3000 duration=300 batch=10 publishers=64 max-outstanding=200 max-outstanding-bytes=20971520 sleep-ms=20 sleep-jitter=0.5 sample=10
+# S9: soak
+main s9-soak subs=100 rate=5000 duration=3600 batch=10 publishers=64 max-outstanding=200 max-outstanding-bytes=20971520 sleep-ms=20 sleep-jitter=0.5 sample=30
+# S4: large messages
+main s4-large subs=5 size=750000 rate=100 duration=180 batch=1 publishers=32 drain=300 sample=5
+# S5: publisher only
+main s5-pub-b100 mode=publish subs=0 topics=10 publishers=256 batch=100 duration=60
+main s5-pub-b1 mode=publish subs=0 topics=10 publishers=256 batch=1 duration=60
+main s5-pub-b1000 mode=publish subs=0 topics=10 publishers=32 batch=1000 duration=60
+# S8: 10% of handlers throw
+main s8-mixed subs=20 rate=2000 duration=240 sleep-ms=10 fail-rate=0.1 drain=300 sample=10
+# S7: churn with client generation restarts
+main s7-churn mode=churn subs=20 rate=1000 cycles=25 cycle-min=5 cycle-max=15 gap-max=40 publisher-service=false sleep-ms=20 drain=300 sample=10
+# S6b: graceful shutdown with handlers outliving the 5s shutdown timeout (nacked at the deadline)
+main s6b-shutdown-timeout mode=churn subs=20 rate=4000 cycles=2 cycle-min=60 cycle-max=60 sleep-ms=50 slow-rate=0.01 slow-ms=30000 shutdown-timeout=5 max-outstanding=200 publishers=64 batch=100 drain=300 sample=5
+# S6c: graceful shutdown with nackImmediately
+main s6c-shutdown-nack mode=churn subs=20 rate=4000 cycles=2 cycle-min=60 cycle-max=60 sleep-ms=200 nack-immediately=true max-outstanding=200 publishers=64 batch=100 drain=300 sample=5
+# S3d: 30k message backlog drained by CPU-bound handlers on 2 CPUs, so ~10k leased messages wait for CPU
+main s3d-cpu-2cpus-backlog --cpus=2 subs=10 backlog=3000 duration=0 cpu-ms=5 ack-deadline=10 drain=600 publishers=16 batch=100 sample=5
