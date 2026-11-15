@@ -1,0 +1,30 @@
+# Scenarios run on an e2-standard-2 VM (2 vCPU, 8 GB) in europe-north1, comparing two builds.
+# Format: <build> <label> [--cpus=N] options... (see README.md)
+# S5 publisher only, high concurrency
+fix s5-pub-b1 mode=publish subs=0 topics=10 publishers=256 batch=1 duration=60 sample=5
+main s5-pub-b1 mode=publish subs=0 topics=10 publishers=256 batch=1 duration=60 sample=5
+fix s5-pub-b100 mode=publish subs=0 topics=10 publishers=256 batch=100 duration=60 sample=5
+main s5-pub-b100 mode=publish subs=0 topics=10 publishers=256 batch=100 duration=60 sample=5
+fix s5-pub-b100-c512 mode=publish subs=0 topics=10 publishers=512 batch=100 duration=60 sample=5
+main s5-pub-b100-c512 mode=publish subs=0 topics=10 publishers=512 batch=100 duration=60 sample=5
+# S1 100 subscriptions, 2000 msg/s, 20 min
+fix s1-100subs subs=100 rate=2000 duration=1200 batch=10 publishers=64 max-outstanding=200 max-outstanding-bytes=20971520 sleep-ms=20 sleep-jitter=0.5 sample=10
+main s1-100subs subs=100 rate=2000 duration=1200 batch=10 publishers=64 max-outstanding=200 max-outstanding-bytes=20971520 sleep-ms=20 sleep-jitter=0.5 sample=10
+# S2 live ceiling, 100 subscriptions
+fix s2c-ceiling100 subs=100 rate-steps=4000:60,8000:60,12000:60,16000:60,24000:60 publishers=128 batch=100 max-backlog=200000 drain=300 sample=5
+main s2c-ceiling100 subs=100 rate-steps=4000:60,8000:60,12000:60,16000:60,24000:60 publishers=128 batch=100 max-backlog=200000 drain=300 sample=5
+# S6 graceful shutdown under load
+fix s6-shutdown mode=churn subs=50 rate=6000 cycles=2 cycle-min=60 cycle-max=60 sleep-ms=200 sleep-jitter=0.5 shutdown-timeout=10 max-outstanding=200 max-outstanding-bytes=20971520 publishers=128 batch=100 max-backlog=200000 drain=300 sample=5
+main s6-shutdown mode=churn subs=50 rate=6000 cycles=2 cycle-min=60 cycle-max=60 sleep-ms=200 sleep-jitter=0.5 shutdown-timeout=10 max-outstanding=200 max-outstanding-bytes=20971520 publishers=128 batch=100 max-backlog=200000 drain=300 sample=5
+# S3 CPU-heavy and slow handlers
+fix s3-cpu-slow subs=20 rate=500 duration=240 cpu-ms=2 sleep-ms=10 slow-rate=0.02 slow-ms=35000 ack-deadline=10 publishers=16 batch=10 max-backlog=20000 drain=300 sample=5
+main s3-cpu-slow subs=20 rate=500 duration=240 cpu-ms=2 sleep-ms=10 slow-rate=0.02 slow-ms=35000 ack-deadline=10 publishers=16 batch=10 max-backlog=20000 drain=300 sample=5
+# S2 1M backlog drain
+fix s2a-backlog subs=10 backlog=100000 duration=0 publishers=64 batch=1000 drain=600 sample=5
+# S9 soak 45 min
+fix s9-soak subs=100 rate=2000 duration=2700 batch=10 publishers=64 max-outstanding=200 max-outstanding-bytes=20971520 sleep-ms=20 sleep-jitter=0.5 sample=30
+# S5 memory: does RSS growth per publish RPC plateau, and does it need CPU saturation?
+fix s5-pub-b1-long mode=publish subs=0 topics=10 publishers=256 batch=1 duration=240 sample=10
+fix s5-pub-b1-paced mode=publish subs=0 topics=10 publishers=64 batch=1 rate=1500 duration=240 sample=10
+fix s2c-ceiling100-high subs=100 rate-steps=28000:60,34000:60,40000:60 publishers=128 batch=100 max-backlog=200000 drain=300 sample=5
+main s2c-ceiling100-high subs=100 rate-steps=28000:60,34000:60,40000:60 publishers=128 batch=100 max-backlog=200000 drain=300 sample=5
