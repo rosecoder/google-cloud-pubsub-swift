@@ -43,11 +43,17 @@ actor PubSubService {
   static let maxMessageBytes = 20 * 1024 * 1024
 
   /// - Parameter maxStreamsPerConnection: Streaming pulls per HTTP/2 connection, below the 100
-  ///   concurrent streams Google front ends allow. Unary RPCs use a connection of their own.
+  ///   concurrent streams Google front ends allow. Unary RPCs use connections of their own.
+  /// - Parameter maxUnaryConnections: Connections for unary RPCs, opened as the RPCs in flight
+  ///   need them.
+  /// - Parameter maxUnaryRPCsPerConnection: Unary RPCs in flight per connection, also below the
+  ///   server's limit. Publishing and administrative RPCs leave 10 of them to acknowledgements.
   /// - Parameter emulatorHost: `host:port` of a Pub/Sub emulator to use instead of Google Cloud.
   /// - Parameter callTimeout: Time after which an RPC is cancelled.
   init(
     maxStreamsPerConnection: Int = 80,
+    maxUnaryConnections: Int = 4,
+    maxUnaryRPCsPerConnection: Int = 90,
     lingerDuration: Duration = .seconds(30),
     channelDebuggingCallbacks: HTTP2ClientTransport.Config.ChannelDebuggingCallbacks = .defaults,
     emulatorHost: String? = ProcessInfo.processInfo.environment["PUBSUB_EMULATOR_HOST"],
@@ -81,7 +87,12 @@ actor PubSubService {
       self.isUsingEmulator = false
     }
     self.makePool = {
-      try GRPCClientPool(maxStreamsPerClient: maxStreamsPerConnection) {
+      try GRPCClientPool(
+        maxStreamsPerClient: maxStreamsPerConnection,
+        maxUnaryClients: maxUnaryConnections,
+        maxUnaryRPCsPerClient: maxUnaryRPCsPerConnection,
+        reservedHighPriorityRPCsPerClient: min(10, maxUnaryRPCsPerConnection - 1)
+      ) {
         try Self.makeClient(
           target: target,
           transportSecurity: transportSecurity,
@@ -141,8 +152,9 @@ actor PubSubService {
   struct Clients: Sendable {
 
     /// Clients each with their own HTTP/2 connection. Streaming pulls take a stream slot so that
-    /// no connection carries more streams than the server allows, and none on the unary client so
-    /// that acknowledgements never wait for a stream slot.
+    /// no connection carries more streams than the server allows, and none on the unary clients so
+    /// that acknowledgements never wait for a stream slot. Unary RPCs likewise take a slot of
+    /// ``GRPCClientPool/withUnaryClient(_:_:)``.
     let pool: GRPCClientPool<GRPCClient<HTTP2ClientTransport.Posix>>
 
     fileprivate let run: Task<Void, any Error>
@@ -155,17 +167,34 @@ actor PubSubService {
       }
     }
 
-    /// Client for unary RPCs.
+    /// Runs `body` with a publisher client holding a slot for one unary RPC at a time.
+    func withPublisher<T: Sendable>(
+      _ body: (Google_Pubsub_V1_Publisher.Client<HTTP2ClientTransport.Posix>) async throws -> T
+    ) async throws -> T {
+      try await pool.withUnaryClient(.normal) { try await body(.init(wrapping: $0)) }
+    }
+
+    /// Runs `body` with a subscriber client holding a slot for one unary RPC at a time. Streaming
+    /// pulls should use a client of ``GRPCClientPool/withStreamSlot(_:)``.
+    func withSubscriber<T: Sendable>(
+      _ priority: UnaryPriority = .normal,
+      _ body: (Google_Pubsub_V1_Subscriber.Client<HTTP2ClientTransport.Posix>) async throws -> T
+    ) async throws -> T {
+      try await pool.withUnaryClient(priority) { try await body(.init(wrapping: $0)) }
+    }
+
+    /// First client for unary RPCs, which bypasses the limits of
+    /// ``GRPCClientPool/withUnaryClient(_:_:)``.
     var unary: GRPCClient<HTTP2ClientTransport.Posix> {
       pool.unary
     }
 
-    /// For unary RPCs.
+    /// Wraps ``unary``, bypassing the unary RPC limits. Prefer ``withPublisher(_:)``.
     var publisher: Google_Pubsub_V1_Publisher.Client<HTTP2ClientTransport.Posix> {
       .init(wrapping: pool.unary)
     }
 
-    /// For unary RPCs. Streaming pulls should use a client of ``GRPCClientPool/withStreamSlot(_:)``.
+    /// Wraps ``unary``, bypassing the unary RPC limits. Prefer ``withSubscriber(_:_:)``.
     var subscriber: Google_Pubsub_V1_Subscriber.Client<HTTP2ClientTransport.Posix> {
       .init(wrapping: pool.unary)
     }
@@ -362,11 +391,13 @@ actor PubSubService {
     async throws
   {
     try await withClientInUse { clients in
-      try await self.create(
-        subscription: subscription,
-        subscriberClient: clients.subscriber,
-        publisherClient: clients.publisher,
-        projectID: projectID)
+      try await clients.pool.withUnaryClient(.normal) { client in
+        try await self.create(
+          subscription: subscription,
+          subscriberClient: Google_Pubsub_V1_Subscriber.Client(wrapping: client),
+          publisherClient: Google_Pubsub_V1_Publisher.Client(wrapping: client),
+          projectID: projectID)
+      }
     }
   }
 
@@ -458,8 +489,10 @@ actor PubSubService {
     async throws
   {
     try await withClientInUse { clients in
-      try await self.delete(
-        subscription: subscription, subscriberClient: clients.subscriber, projectID: projectID)
+      try await clients.withSubscriber { subscriber in
+        try await self.delete(
+          subscription: subscription, subscriberClient: subscriber, projectID: projectID)
+      }
     }
   }
 

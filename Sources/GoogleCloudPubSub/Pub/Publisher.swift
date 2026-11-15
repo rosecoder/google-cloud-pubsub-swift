@@ -90,18 +90,19 @@ public final class Publisher: PublisherProtocol, Service {
       ) {
         logger.debug("Publishing \(messages.count) message(s)...")
 
-        let response: Google_Pubsub_V1_PublishResponse
-        do {
-          response = try await publish(to: topic, messages: messages, client: clients.publisher)
-        } catch let error as RPCError where createTopicsIfNeeded && Self.isMissingTopic(error) {
-          logger.info("Topic not found, creating it...")
-          try await pubSubService.create(
-            topic: topic,
-            publisherClient: clients.publisher,
-            projectID: projectID
-          )
-          response = try await publish(
-            to: topic, messages: messages, client: clients.publisher, createTopicIfNeeded: false)
+        let response = try await clients.withPublisher { publisher in
+          do {
+            return try await publish(to: topic, messages: messages, client: publisher)
+          } catch let error as RPCError where createTopicsIfNeeded && Self.isMissingTopic(error) {
+            logger.info("Topic not found, creating it...")
+            try await pubSubService.create(
+              topic: topic,
+              publisherClient: publisher,
+              projectID: projectID
+            )
+            return try await publish(
+              to: topic, messages: messages, client: publisher, createTopicIfNeeded: false)
+          }
         }
 
         return response

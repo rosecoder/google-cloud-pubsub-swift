@@ -42,22 +42,26 @@ struct GRPCAckTransport: AckTransport {
 
   func acknowledge(_ ids: [AckID]) async throws {
     try await pubSubService.withClientInUse { clients in
-      _ = try await clients.subscriber.acknowledge(
-        .with {
-          $0.subscription = subscriptionID
-          $0.ackIds = ids.map(\.rawValue)
-        })
+      try await clients.withSubscriber(.high) { subscriber in
+        _ = try await subscriber.acknowledge(
+          .with {
+            $0.subscription = subscriptionID
+            $0.ackIds = ids.map(\.rawValue)
+          })
+      }
     }
   }
 
   func modifyAckDeadline(_ ids: [AckID], to modification: AckDeadlineModification) async throws {
     try await pubSubService.withClientInUse { clients in
-      _ = try await clients.subscriber.modifyAckDeadline(
-        .with {
-          $0.subscription = subscriptionID
-          $0.ackIds = ids.map(\.rawValue)
-          $0.ackDeadlineSeconds = modification.seconds
-        })
+      try await clients.withSubscriber(.high) { subscriber in
+        _ = try await subscriber.modifyAckDeadline(
+          .with {
+            $0.subscription = subscriptionID
+            $0.ackIds = ids.map(\.rawValue)
+            $0.ackDeadlineSeconds = modification.seconds
+          })
+      }
     }
   }
 }
